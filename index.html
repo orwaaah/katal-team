@@ -149,9 +149,12 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 .subnav .warnpill { background: var(--red-bg); color: var(--red); border-radius: 999px; padding: 2px 9px; font-weight: 600; font-size: 12px; }
 
 /* ----- Lists ----- */
-.list { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
-.lrow { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--line); cursor: pointer; position: relative; background: var(--card); transition: background .15s; width: 100%; text-align: left; border-left: 0; border-right: 0; border-top: 0; font: inherit; color: inherit; }
-.lrow:last-child { border-bottom: 0; }
+/* Each row is its own small card, with a little space between them. */
+.list { display: flex; flex-direction: column; gap: 8px; }
+.lrow { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 0; border-radius: 14px; box-shadow: var(--shadow); cursor: pointer; position: relative; background: var(--card); transition: background .15s; width: 100%; text-align: left; font: inherit; color: inherit; }
+/* Inside a sheet (already white), a thin line instead of a shadow. */
+.sheet .list { gap: 6px; }
+.sheet .lrow { box-shadow: none; border: 1px solid var(--line); border-radius: 12px; }
 .lrow:active { background: var(--soft); }
 .lrow.late::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--red-line); }
 .lrow.done { opacity: .62; }
