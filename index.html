@@ -575,9 +575,14 @@ function liveBox(fn) {
   let drawn = false;
   const draw = () => {
     if (drawn && !box.isConnected) { live.delete(draw); return; }
+    // Someone is typing in it: redraw once they leave the box, so their text and cursor stay.
+    const a = document.activeElement;
+    if (drawn && a && box.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) { box.dataset.stale = '1'; return; }
     drawn = true;
+    box.dataset.stale = '';
     fill(box, fn());
   };
+  box.addEventListener('focusout', () => setTimeout(() => { if (box.dataset.stale === '1' && !box.contains(document.activeElement)) draw(); }, 0));
   draw();
   live.add(draw);
   return box;
@@ -2690,8 +2695,7 @@ function postViewSheet(c) {
     h('div', { class: 'related' },
       h('div', { class: 'r' }, h('b', { style: 'min-width:70px' }, l.media), h('div', { class: 'files grow' }, mediaOf(c) || h('span', { class: 'faint' }, '—'))),
       h('div', { class: 'r' }, h('b', { style: 'min-width:70px' }, l.cover), h('div', { class: 'files grow' }, fileLink(c.coverLink, { id: c.id }) || h('span', { class: 'faint' }, '—')))),
-    field('Caption', h('div', { class: 'brief pre', dir: 'auto' }, c.caption || '—')),
-    c.captions ? generatedCaptions(c, false) : null,
+    captionsBox(c, null),
     links.length ? field('Published posts', h('div', { class: 'files' }, links.map((u, i) => h('a', { class: 'fchip', href: u, target: '_blank', rel: 'noopener noreferrer' }, 'Post ' + (i + 1) + ' ↗')))) : null,
     commentsBox(c.id, { video: c.type === 'Video' })), editFoot(null));
 }
@@ -2877,35 +2881,83 @@ function rhythmRulesSheet() {
     })), btn);
 }
 
-/** Generated captions, one per platform the post goes on (the team's caption stays as it is). */
-function generatedCaptions(c, canAsk) {
+/**
+ * A post's captions. First the team's draft captions, each with the person's name. Then one caption per platform
+ * the post goes on, each written in that platform's own style. On the admin's post card (f given) each one can be
+ * edited (kept in f.capEdits and saved with Save), copied, or written again; everyone else reads and copies them.
+ */
+function captionsBox(c, f) {
+  const edit = !!f;
+  if (f && !f.capEdits) f.capEdits = {};
   return liveBox(() => {
-    const cur = S.state.calendar.find((x) => x.key === c.key) || c;
-    const on = Object.keys(cur.platforms || {}).filter((p) => cur.platforms[p]);
+    const cur = (c && S.state.calendar.find((x) => x.key === c.key)) || c || {};
+    const id = (f && f.id) || cur.id;
+    const drafts = S.state.tasks.filter((t) => t.id === id && !t.cancelled && (t.draftCaption || '').trim());
+    const pf = (f || cur).platforms || {};
+    const on = Object.keys(pf).filter((p) => pf[p]);
     const caps = cur.captions || {};
-    if (!on.length) return canAsk && S.state.ai ? h('div', { class: 'small faint', style: 'margin:-6px 0 12px' }, 'Pick the platforms to get a caption for each.') : null;
-    if (!canAsk && !on.some((p) => caps[p] && caps[p].status === 'Done')) return null;
-    const tab = on.indexOf((S.ui.capTab || {})[c.key]) >= 0 ? S.ui.capTab[c.key] : on[0];
-    const x = caps[tab] || {};
-    const ask2 = (e) => run(e.currentTarget, 'agent.ask', { entity: 'cal', key: c.key, platform: tab }, 'Writing another ' + tab + ' caption…', { keepSheet: true });
-    const copyBtn = (text) => h('button', { type: 'button', class: 'btn tiny', onclick: () => copyText(text) }, 'Copy');
-    let content;
-    if (x.status === 'Waiting') content = h('div', { class: 'small', style: 'color:var(--gold-ink)' }, 'Writing the ' + tab + ' caption…');
-    else if (x.status === 'Error') content = S.state.aiLimit ? h('div', { class: 'small' }, aiLimitText())
-      : h('div', { class: 'small' }, 'Couldn\'t write it. ', canAsk ? h('button', { type: 'button', class: 'btn tiny', onclick: ask2 }, 'Try again') : null);
-    else if (x.status === 'Done' && x.title !== undefined) {
-      content = [
-        h('div', { class: 'cap-k' }, 'Title', copyBtn(x.title)), h('div', { class: 'pre', dir: 'auto' }, x.title),
-        h('div', { class: 'cap-k' }, 'Description', copyBtn(x.description)), h('div', { class: 'pre', dir: 'auto' }, x.description),
-        h('div', { class: 'cap-k' }, 'Tags', copyBtn((x.tags || []).join(', '))), h('div', { class: 'small muted' }, (x.tags || []).join(', '))];
-    } else if (x.status === 'Done') {
-      content = [h('div', { class: 'pre', dir: 'auto' }, x.text), h('div', { class: 'row', style: 'margin-top:8px' }, copyBtn(x.text))];
-    } else content = h('div', { class: 'small faint' }, canAsk ? 'Not written yet.' : '—');
-    return h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Generated caption'),
-      on.length > 1 ? h('div', { class: 'seg cap-tabs', style: 'margin-bottom:6px' }, on.map((p) => h('button', { type: 'button', class: p === tab ? 'on' : '',
-        onclick: () => { S.ui.capTab = Object.assign({}, S.ui.capTab, { [c.key]: p }); refreshLive(); } }, pfIcon(p, 13), p))) : h('div', { class: 'small muted', style: 'margin-bottom:6px' }, pfIcon(tab, 13), ' ', tab),
-      h('div', { class: 'capbox' }, content,
-        canAsk && x.status === 'Done' ? h('div', { style: 'margin-top:6px' }, h('button', { type: 'button', class: 'btn ghost tiny', onclick: ask2 }, 'Write another')) : null));
+    const copyBtn = (get) => h('button', { type: 'button', class: 'btn tiny', onclick: () => { const t = String(get() || '').trim(); if (t) copyText(t); else toast('Nothing to copy yet.', true); } }, 'Copy');
+    const draftBlocks = drafts.map((t) => h('div', { class: 'capbox' },
+      h('div', { class: 'cap-k' }, h('span', null, personTag(t.assignee || S.me.name), ' · draft'), copyBtn(() => t.draftCaption)),
+      h('div', { class: 'pre', dir: 'auto' }, t.draftCaption)));
+    // A caption typed on the post before captions were per platform (kept unless it's just a draft copied in).
+    const old = (cur.caption || '').trim();
+    const oldBlock = old && !drafts.some((t) => t.draftCaption.trim() === old)
+      ? h('div', { class: 'capbox' }, h('div', { class: 'cap-k' }, h('span', null, 'Caption'), copyBtn(() => old)), h('div', { class: 'pre', dir: 'auto' }, old)) : null;
+    let perPlatform = null;
+    if (!edit && !cur.captions) {
+      perPlatform = null; // the team reads the drafts; the platforms' captions are Orwah's (and the manager's)
+    } else if (!on.length) {
+      perPlatform = edit ? h('div', { class: 'note' }, 'Pick the platforms above. Each one gets its own caption, written in its style.') : null;
+    } else {
+      const tab = on.indexOf((S.ui.capTab || {})[id]) >= 0 ? S.ui.capTab[id] : on[0];
+      const x = caps[tab] || {};
+      const styles = (S.state.settings && S.state.settings.captionStyles) || {};
+      const youtube = x.title !== undefined || (styles[tab] || {}).format === 'youtube';
+      const mine = f && f.capEdits[tab];
+      const val = (k) => (mine && mine[k] !== undefined ? mine[k] : k === 'tags' ? (x.tags || []).join(', ') : x[k] || '');
+      const set = (k, v) => { f.capEdits[tab] = Object.assign(youtube ? { title: val('title'), description: val('description'), tags: val('tags') } : { text: val('text') }, f.capEdits[tab] || {}, { [k]: v }); };
+      const ask2 = (e) => {
+        const btn = e.currentTarget;
+        const go = () => { delete f.capEdits[tab]; run(btn, 'agent.ask', { entity: 'cal', key: c.key, platform: tab }, 'Writing another ' + tab + ' caption…', { keepSheet: true }); };
+        if (mine || x.edited) ask('Replace this ' + tab + ' caption with a new one?', 'Write another').then((ok) => { if (ok) go(); });
+        else go();
+      };
+      const asker = edit && c && S.state.ai;
+      let content;
+      if (x.status === 'Waiting') content = h('div', { class: 'small', style: 'color:var(--gold-ink)' }, 'Writing the ' + tab + ' caption…');
+      else if (edit) {
+        const box = (k, rows, ph) => {
+          const t = h('textarea', { class: 'in', dir: 'auto', rows, placeholder: ph, oninput: (e) => { set(k, e.target.value); grow(t); } });
+          t.value = val(k);
+          requestAnimationFrame(() => grow(t));
+          return t;
+        };
+        const line = (k, ph) => h('input', { class: 'in', dir: 'auto', placeholder: ph, value: val(k), oninput: (e) => set(k, e.target.value) });
+        content = [
+          x.status === 'Error' ? h('div', { class: 'small', style: 'margin-bottom:6px' }, S.state.aiLimit ? aiLimitText() : 'Couldn\'t write it. Try again, or write it here.') : null,
+          youtube
+            ? [h('div', { class: 'cap-k' }, 'Title', copyBtn(() => val('title'))), line('title', 'Video title'),
+              h('div', { class: 'cap-k' }, 'Description', copyBtn(() => val('description'))), box('description', 4, 'Description'),
+              h('div', { class: 'cap-k' }, 'Tags', copyBtn(() => val('tags'))), line('tags', 'Search words, with commas')]
+            : [box('text', 5, 'Write the ' + tab + ' caption'),
+              h('div', { class: 'row', style: 'margin-top:8px;gap:6px' }, copyBtn(() => val('text')),
+                x.edited || mine ? h('span', { class: 'small muted' }, mine ? 'not saved yet' : 'edited') : null)],
+          asker ? h('div', { style: 'margin-top:8px' }, h('button', { type: 'button', class: 'btn ghost tiny', onclick: ask2 },
+            x.status === 'Done' ? 'Write another' : x.status === 'Error' ? 'Try again' : 'Write it for me')) : null];
+      } else if (x.status === 'Done' && x.title !== undefined) {
+        content = [h('div', { class: 'cap-k' }, 'Title', copyBtn(() => x.title)), h('div', { class: 'pre', dir: 'auto' }, x.title),
+          h('div', { class: 'cap-k' }, 'Description', copyBtn(() => x.description)), h('div', { class: 'pre', dir: 'auto' }, x.description),
+          h('div', { class: 'cap-k' }, 'Tags', copyBtn(() => (x.tags || []).join(', '))), h('div', { class: 'small muted' }, (x.tags || []).join(', '))];
+      } else if (x.status === 'Done') content = [h('div', { class: 'pre', dir: 'auto' }, x.text), h('div', { class: 'row', style: 'margin-top:8px' }, copyBtn(() => x.text))];
+      else content = h('div', { class: 'small faint' }, 'Not written yet.');
+      perPlatform = [
+        on.length > 1 ? h('div', { class: 'seg cap-tabs', style: 'margin-bottom:6px' }, on.map((p) => h('button', { type: 'button', class: p === tab ? 'on' : '',
+          onclick: () => { S.ui.capTab = Object.assign({}, S.ui.capTab, { [id]: p }); refreshLive(); } }, pfIcon(p, 13), p))) : h('div', { class: 'small muted', style: 'margin-bottom:6px' }, pfIcon(tab, 13), ' ', tab),
+        h('div', { class: 'capbox' }, content)];
+    }
+    if (!drafts.length && !oldBlock && !perPlatform) return null;
+    return h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Captions'), draftBlocks, oldBlock, perPlatform);
   });
 }
 
@@ -2915,7 +2967,7 @@ function calSheet(key, ideaId) {
   const f = c ? JSON.parse(JSON.stringify(c)) : { id: ideaId || '', title: '', type: '', publishDate: '', status: 'Draft', mediaLink: '', coverLink: '', caption: '', platforms: {}, postLinks: ['', '', '', '', ''], mediaFiles: [] };
   S.state.platforms.forEach((p) => { if (!(p in f.platforms)) f.platforms[p] = false; });
   const typeOf = () => (S.state.ideas.find((i) => i.id === f.id) || {}).type || f.type || '';
-  const captionIn = area(f, 'caption', { rows: 4, placeholder: 'Final caption, hashtags included' });
+  delete f.captions; // what's sent back is only what was edited here (f.capEdits)
 
   // A file slot: view what's there, upload, or paste a link.
   const slotsBox = h('div', { class: 'related', style: 'margin-bottom:14px' });
@@ -2948,6 +3000,7 @@ function calSheet(key, ideaId) {
     onclick: () => {
       f.platforms[p] = !f.platforms[p];
       drawPlatforms();
+      refreshLive();
       // An existing post saves its platforms at once, so each new one gets its caption written.
       if (c) run(null, 'cal.platforms', { key: c.key, platforms: f.platforms }, null, { keepSheet: true });
       else { const save = document.querySelector('#layer .sheet-foot [data-save]'); if (save) save.disabled = false; }
@@ -2958,15 +3011,13 @@ function calSheet(key, ideaId) {
   const helpers = h('div');
   const drawHelpers = () => {
     const l = linkLabels(typeOf());
-    const tasks = S.state.tasks.filter((t) => t.id === f.id && !t.cancelled && (t.fileLink || t.draftCaption));
-    fill(helpers, tasks.length ? h('details', { class: 'more' }, h('summary', null, 'From the team'),
+    const tasks = S.state.tasks.filter((t) => t.id === f.id && !t.cancelled && t.fileLink);
+    fill(helpers, tasks.length ? h('details', { class: 'more' }, h('summary', null, 'Files from the team'),
       tasks.map((t) => h('div', { class: 'related' },
         h('div', { class: 'r' }, personTag(t.assignee), h('span', { class: 'muted grow' }, t.task), filesLink(t.files, { id: t.id, video: isVideoTask(t) })),
         h('div', { class: 'row', style: 'padding:6px 0' },
           t.fileLink ? h('button', { class: 'btn tiny', onclick: () => { f.mediaLink = t.fileLink; f.mediaFiles = t.files; drawSlots(); toast('Set as ' + l.media + ' · tap Save'); } }, 'Use as ' + l.media) : null,
-          t.fileLink ? h('button', { class: 'btn tiny', onclick: () => { f.coverLink = t.fileLink; drawSlots(); toast('Set as ' + l.cover + ' · tap Save'); } }, 'Use as ' + l.cover) : null,
-          t.draftCaption ? h('button', { class: 'btn tiny', onclick: () => { f.caption = (f.caption ? f.caption + '\n\n' : '') + t.draftCaption; captionIn.value = f.caption; grow(captionIn); toast('Draft caption added'); } }, 'Add their caption') : null),
-        t.draftCaption ? h('div', { class: 'small pre muted', dir: 'auto', style: 'padding-bottom:6px' }, t.draftCaption) : null))) : null);
+          t.fileLink ? h('button', { class: 'btn tiny', onclick: () => { f.coverLink = t.fileLink; drawSlots(); toast('Set as ' + l.cover + ' · tap Save'); } }, 'Use as ' + l.cover) : null)))) : null);
   };
   drawHelpers();
 
@@ -3015,8 +3066,7 @@ function calSheet(key, ideaId) {
       field('Status', selectBox([{ value: 'Draft', label: 'Draft' }, { value: 'Final', label: 'Final · ready' }, { value: 'Published', label: 'Published' }, { value: 'Cancelled', label: 'Cancelled' }],
         f.status, (v) => { f.status = v; }, { full: true }))),
     field('Platforms', platformsBox),
-    field('Caption', h('div', null, captionIn, c && c.caption ? h('button', { type: 'button', class: 'btn tiny', style: 'margin-top:6px', onclick: () => copyText(f.caption) }, 'Copy') : null)),
-    c ? generatedCaptions(c, true) : null,
+    captionsBox(c, f),
     helpers,
     h('details', { class: 'more', open: filled ? true : null }, h('summary', null, 'Post links'), linksBox),
     c ? commentsBox(c.id, { video: c.type === 'Video' }) : null);
@@ -3025,7 +3075,8 @@ function calSheet(key, ideaId) {
       if (!String(f.title || '').trim()) { toast('Write a title, or pick an idea.', true); return; }
       if (!f.type) { toast('Pick a type.', true); return; }
     }
-    run(btn, 'cal.save', f, f.publishDate ? 'Saved' : 'Saved · it\'s in Ready');
+    const edits = f.capEdits && Object.keys(f.capEdits).length ? f.capEdits : null;
+    run(btn, 'cal.save', Object.assign({}, f, { capEdits: undefined, captions: edits || undefined }), f.publishDate ? 'Saved' : 'Saved · it\'s in Ready');
   };
   const del = c && c.status !== 'Cancelled' ? () => ask('Cancel ' + c.id + ' "' + (c.idea || '').slice(0, 40) + '"? It leaves the calendar.', 'Cancel post', true).then((ok) => { if (ok) calMove(c, 'cancel'); }) : null;
   openSheet(c ? c.id + ' · Post' : 'New post', body, editFoot(onSave, del, { deleteLabel: 'Cancel post', dirty: !c }));
