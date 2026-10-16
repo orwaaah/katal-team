@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>KATAL Team</title>
 <meta name="description" content="Tasks, ideas and posts for the KATAL content team.">
 <meta name="theme-color" content="#1d3557">
@@ -50,7 +50,10 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; }
-body { font-family: var(--font); background: var(--bg); color: var(--ink); font-size: 15px; line-height: 1.45; -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; }
+/* The page always fits the phone: no zooming in or out, long links wrap, and nothing can make it wider. */
+html { touch-action: pan-x pan-y; }
+#app { overflow-x: clip; }
+body { font-family: var(--font); background: var(--bg); color: var(--ink); font-size: 15px; line-height: 1.45; -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; overflow-wrap: break-word; }
 body.noscroll { overflow: hidden; }
 button, input, textarea, select { font: inherit; color: inherit; }
 a { color: var(--gold-ink); }
@@ -160,6 +163,13 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 .lrow.done { opacity: .62; }
 .lrow .main-col { flex: 1; min-width: 0; }
 .lrow .t { font-weight: 550; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A task's name with its part (e.g. Video Cover) small next to it; a long name is cut, the part always shows. */
+.ttl { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.ttl .tm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tpart { flex: none; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; letter-spacing: .01em; line-height: 1.5; color: var(--gold-ink); background: var(--gold-soft); border-radius: 6px; padding: 0 6px; }
+.info-top h3 .ttl { display: block; }
+.info-top h3 .tm { white-space: normal; }
+.info-top h3 .tpart { display: inline-block; vertical-align: middle; margin-inline-start: 8px; max-width: 100%; }
 .lrow .s { font-size: 12.5px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lrow .s .late-txt { color: var(--red); }
 .lrow .end { display: flex; align-items: center; gap: 6px; flex: none; }
@@ -272,7 +282,7 @@ textarea.in { resize: vertical; min-height: 70px; line-height: 1.5; }
 @media (min-width: 700px) { #layer .overlay { align-items: center; } .sheet { border-radius: 18px; max-height: 88vh; } .sheet::before { display: none; } }
 .sheet-head { display: flex; align-items: center; gap: 10px; padding: 10px 16px 12px; border-bottom: 1px solid var(--line); }
 .sheet-head h2 { flex: 1; font-size: 16px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sheet-body { padding: 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.sheet-body { padding: 16px; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 .sheet-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); display: flex; gap: 8px; }
 .sheet-foot .btn { flex: 1; min-width: 0; }
 @keyframes up { from { transform: translateY(40px); opacity: 0; } }
@@ -282,7 +292,7 @@ textarea.in { resize: vertical; min-height: 70px; line-height: 1.5; }
 @keyframes enter { from { opacity: 0; transform: translateY(4px); } }
 
 /* ----- Toast ----- */
-#toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); transform: translate(-50%, 8px); z-index: 80; background: var(--brand); color: #fff; padding: 11px 16px; border-radius: 12px; font-size: 14px; max-width: calc(100% - 32px); box-shadow: 0 10px 30px rgba(0,0,0,.18); opacity: 0; pointer-events: none; transition: opacity .22s var(--ease), transform .22s var(--ease); }
+#toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); transform: translate(-50%, 8px); z-index: 80; background: var(--brand); color: #fff; padding: 11px 16px; border-radius: 12px; font-size: 14px; width: max-content; max-width: calc(100% - 32px); box-shadow: 0 10px 30px rgba(0,0,0,.18); opacity: 0; pointer-events: none; transition: opacity .22s var(--ease), transform .22s var(--ease); }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 #toast.err { background: #7a5a2b; box-shadow: 0 10px 30px rgba(122,90,43,.35); }
 #toast.act { pointer-events: auto; display: flex; align-items: center; gap: 14px; }
@@ -655,12 +665,12 @@ function announceChanges(before, after) {
   if (newC.length) { toast('💬 ' + newC[newC.length - 1].by + ' on ' + newC[newC.length - 1].id + ': ' + newC[newC.length - 1].text.slice(0, 60)); return; }
   if (!isStaff()) {
     const fresh = after.tasks.filter((t) => !old.has(t.key));
-    if (fresh.length) toast('🆕 New task: ' + fresh.map((t) => t.task).join(', '));
+    if (fresh.length) toast('🆕 New task: ' + fresh.map(taskLabel).join(', '));
     else {
       const edits = after.tasks.filter((t) => t.review === 'Edit' && (before.tasks.find((b) => b.key === t.key) || {}).review !== 'Edit');
       const okd = after.tasks.filter((t) => t.review === 'Approved' && (before.tasks.find((b) => b.key === t.key) || {}).review !== 'Approved');
-      if (edits.length) toast('✎ Changes requested on ' + edits.map((t) => t.task).join(', '));
-      else if (okd.length) toast('✓ Approved: ' + okd.map((t) => t.task).join(', '));
+      if (edits.length) toast('✎ Changes requested on ' + edits.map(taskLabel).join(', '));
+      else if (okd.length) toast('✓ Approved: ' + okd.map(taskLabel).join(', '));
     }
     return;
   }
@@ -668,7 +678,7 @@ function announceChanges(before, after) {
   const nowWaiting = after.tasks.filter((t) => t.status === 'Pending Approval' && !t.cancelled && t.review !== 'Approved' && !wasWaiting.has(t.key));
   const oldIdeas = new Set(before.ideas.map((i) => i.id));
   const newIdeas = after.ideas.filter((i) => !oldIdeas.has(i.id) && !i.mine);
-  if (nowWaiting.length) toast('📥 Waiting your approval: ' + nowWaiting.map((t) => t.task + ' (' + t.assignee + ')').join(', '));
+  if (nowWaiting.length) toast('📥 Waiting your approval: ' + nowWaiting.map((t) => taskLabel(t) + ' · ' + t.assignee).join(', '));
   else if (newIdeas.length) toast('💡 New idea from ' + newIdeas.map((i) => i.by).join(', '));
 }
 
@@ -976,8 +986,13 @@ function addWorkdays(ymd, n) {
   return d;
 }
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-// iPhone/iPad zoom into small fields when tapped; this stops that (pinch to zoom still works there).
-if (IOS) { const vp = document.querySelector('meta[name=viewport]'); if (vp && !/maximum-scale/.test(vp.content)) vp.content += ', maximum-scale=1'; }
+// No zooming: iPhones and iPads skip the page's "no zoom" setting (and zoom into small fields), so it's added
+// here and pinches are stopped.
+if (IOS) {
+  const vp = document.querySelector('meta[name=viewport]');
+  if (vp && !/maximum-scale/.test(vp.content)) vp.content += ', maximum-scale=1, user-scalable=no';
+  ['gesturestart', 'gesturechange'].forEach((n) => document.addEventListener(n, (e) => e.preventDefault(), { passive: false }));
+}
 /** A date you tap to change: the phone's own calendar opens. opts: { anyDay, clearable, placeholder, autosave } */
 function dateField(value, onPick, opts) {
   opts = opts || {};
@@ -1861,7 +1876,7 @@ function memberTaskCard(t) {
   const toggle = () => { S.ui.open[ok] = !isOpenRow; render(); };
   const head = h('button', { class: 'trow-head', onclick: toggle, 'aria-expanded': isOpenRow ? 'true' : 'false' },
     h('div', { class: 'main-col grow' },
-      h('div', { style: 'font-weight:550;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis', dir: 'auto' }, t.task),
+      h('div', { style: 'font-weight:550;font-size:14.5px' }, taskTitle(t)),
       h('div', { class: 'small muted', style: 'margin-top:2px' }, dots(h('span', { class: 'idtag' }, t.id), approved ? null : dueChip(t), rowStatus(t), checkBadge(t)))),
     commentBadge(t.id), h('span', { class: 'chev' }));
   const card = h('div', { class: cls, style: approved ? 'opacity:.7' : '' }, head);
@@ -1894,7 +1909,7 @@ function memberTaskCard(t) {
   };
 
   append(card, h('div', { class: 'trow-body' },
-    h('div', { class: 'small muted', style: 'margin-bottom:6px' }, dots(t.type, t.idea && t.idea !== t.task ? h('span', { dir: 'auto' }, t.idea) : null, approved ? null : dueChip(t, true))),
+    h('div', { class: 'small muted', style: 'margin-bottom:6px' }, dots(t.type, approved ? null : dueChip(t, true))),
     t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'To fix'), h('div', { class: 'pre', dir: 'auto' }, t.reviewNotes)) : null,
     approved ? h('div', { class: 'note green' }, h('div', { class: 't' }, '✓ Approved, great work')) : null,
     approved ? null : checkNote(t),
@@ -1945,6 +1960,14 @@ function refLinks(text) {
 function rowStatus(t) { return statusBadge(t); }
 
 /** The main file of a video task is a video; its cover is an image. */
+/** A task goes by the name typed for it (its idea); a part of it, like "Video Cover", shows small next to that. */
+function taskParts(t) { return { main: t.idea || t.task, part: t.idea && t.task !== t.idea ? t.task : '' }; }
+function taskTitle(t) {
+  const p = taskParts(t);
+  return h('span', { class: 'ttl' }, h('span', { class: 'tm', dir: 'auto' }, p.main), p.part ? h('span', { class: 'tpart', dir: 'auto' }, p.part) : null);
+}
+/** The same in plain text, for messages: "Ali video 1 (Video Cover)". */
+function taskLabel(t) { const p = taskParts(t); return p.part ? p.main + ' (' + p.part + ')' : p.main; }
 function isVideoTask(t) { return t.type === 'Video' && (t.linkRole ? t.linkRole === 'Media' : !/cover/i.test(t.task)); }
 
 /* ======================================================================
@@ -2105,7 +2128,7 @@ function taskRow(t) {
   const open = isOpen(t);
   return lrow({
     onclick: () => openTask(t.key), late: open && t.color === 'red', done: !open,
-    title: t.task,
+    title: taskTitle(t),
     sub: dots(h('span', { class: 'idtag' }, t.id), personTag(t.assignee), dueChip(t)),
     end: [personalBadge(t), commentBadge(t.id), checkBadge(t), rowStatus(t)]
   });
@@ -2188,10 +2211,10 @@ function taskSheet(key) {
   const saveNow = (extra, msg) => run(null, 'task.save', Object.assign({}, f, extra || {}), msg, { keepSheet: true });
   const del = t.cancelled
     ? () => setTaskCancelled(t, false)
-    : () => ask('Delete "' + t.task + '"? It leaves ' + t.assignee + '\'s list.', 'Delete', true).then((ok) => { if (ok) setTaskCancelled(t, true); });
+    : () => ask('Delete "' + taskLabel(t) + '"? It leaves ' + t.assignee + '\'s list.', 'Delete', true).then((ok) => { if (ok) setTaskCancelled(t, true); });
   openSheet(t.id + ' · Task', h('div', null,
     h('div', { class: 'info' },
-      h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, t.task), h('button', { class: 'btn ghost tiny', onclick: () => editTaskSheet(t) }, 'Edit')),
+      h('div', { class: 'info-top' }, h('h3', null, taskTitle(t)), h('button', { class: 'btn ghost tiny', onclick: () => editTaskSheet(t) }, 'Edit')),
       h('div', { class: 'info-line' }, personTag(t.assignee), statusBadge(t), personalBadge(t), t.type ? h('span', { class: 'small muted' }, t.type) : null),
       h('div', { class: 'info-line' }, dateField(f.deadline, (v) => { f.deadline = v; saveNow({ deadline: v }, 'Deadline: ' + dayShort(v)); }, { autosave: true }),
         isOpen(t) && t.overdue ? h('span', { class: 'due red' }, 'late') : null),
@@ -2232,7 +2255,7 @@ function taskViewSheet(key) {
   const others = S.state.tasks.filter((o) => o.id === t.id && o.key !== t.key && !o.cancelled);
   openSheet(t.id + ' · Task', h('div', null,
     h('div', { class: 'info' },
-      h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, t.task)),
+      h('div', { class: 'info-top' }, h('h3', null, taskTitle(t))),
       h('div', { class: 'info-line' }, personTag(t.assignee), statusBadge(t), t.type ? h('span', { class: 'small muted' }, t.type) : null),
       h('div', { class: 'info-line small muted' }, 'Deadline ', h('b', { style: 'color:var(--ink);font-weight:550' }, dayLong(t.deadline)))),
     t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'Sent back'), h('div', { class: 'pre small', dir: 'auto' }, t.reviewNotes)) : null,
@@ -2267,11 +2290,11 @@ function managerTaskSheet(key) {
       status === 'Pending Approval' ? 'Sent for approval ✓' : status === 'Started' ? 'Marked as started' : 'Saved');
   };
   const del = !t.canEdit ? null : t.cancelled ? () => setTaskCancelled(t, false)
-    : () => ask('Delete "' + t.task + '"?', 'Delete', true).then((ok) => { if (ok) setTaskCancelled(t, true); });
+    : () => ask('Delete "' + taskLabel(t) + '"?', 'Delete', true).then((ok) => { if (ok) setTaskCancelled(t, true); });
 
   openSheet(t.id + ' · Task', h('div', null,
     h('div', { class: 'info' },
-      h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, t.task), t.canEdit ? h('button', { class: 'btn ghost tiny', onclick: () => managerEditSheet(t) }, 'Edit') : null),
+      h('div', { class: 'info-top' }, h('h3', null, taskTitle(t)), t.canEdit ? h('button', { class: 'btn ghost tiny', onclick: () => managerEditSheet(t) }, 'Edit') : null),
       h('div', { class: 'info-line' }, personTag(t.assignee), statusBadge(t), personalBadge(t)),
       h('div', { class: 'info-line' }, t.canEdit
         ? dateField(f.deadline, (v) => { f.deadline = v; run(null, 'task.save', mgrSave({ deadline: v }), 'Deadline: ' + dayShort(v), { keepSheet: true }); }, { autosave: true })
