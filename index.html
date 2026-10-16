@@ -2278,7 +2278,7 @@ function ideaSheet(id) {
     if (cur.brief !== lastBrief && f.brief === lastBrief) { f.brief = cur.brief; briefIn.value = f.brief; grow(briefIn); }
     lastBrief = cur.brief;
     if (cur.agentStatus === 'Waiting') return h('div', { class: 'small', style: 'margin:-8px 0 12px;color:var(--gold-ink)' }, 'Writing the brief…');
-    if (cur.agentStatus === 'Error') return h('div', { class: 'note orange' }, 'Couldn\'t write it. Tap "Turn into brief" again.');
+    if (cur.agentStatus === 'Error') return h('div', { class: 'note orange' }, S.state.aiLimit ? aiLimitText() : 'Couldn\'t write it. Tap "Turn into brief" again.');
     return null;
   });
   const del = i.hidden
@@ -2472,6 +2472,9 @@ function postRow(c, opts) {
 function mediaOf(c) {
   return (c.mediaFiles || []).length > 1 ? filesLink(c.mediaFiles, { id: c.id }) : fileLink(c.mediaLink, { id: c.id, video: c.type === 'Video' });
 }
+
+/** Shown where generated text would be, once today's limit is used. */
+function aiLimitText() { return 'Today\'s limit of ' + S.state.aiLimit + ' is used up. It works again tomorrow.'; }
 
 /** One-tap post moves: published, back to Ready, back to the calendar, cancelled. */
 function calMove(c, action) {
@@ -2703,7 +2706,8 @@ function generatedCaptions(c, canAsk) {
     const copyBtn = (text) => h('button', { type: 'button', class: 'btn tiny', onclick: () => copyText(text) }, 'Copy');
     let content;
     if (x.status === 'Waiting') content = h('div', { class: 'small', style: 'color:var(--gold-ink)' }, 'Writing the ' + tab + ' caption…');
-    else if (x.status === 'Error') content = h('div', { class: 'small' }, 'Couldn\'t write it. ', canAsk ? h('button', { type: 'button', class: 'btn tiny', onclick: ask2 }, 'Try again') : null);
+    else if (x.status === 'Error') content = S.state.aiLimit ? h('div', { class: 'small' }, aiLimitText())
+      : h('div', { class: 'small' }, 'Couldn\'t write it. ', canAsk ? h('button', { type: 'button', class: 'btn tiny', onclick: ask2 }, 'Try again') : null);
     else if (x.status === 'Done' && x.title !== undefined) {
       content = [
         h('div', { class: 'cap-k' }, 'Title', copyBtn(x.title)), h('div', { class: 'pre', dir: 'auto' }, x.title),
