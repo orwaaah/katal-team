@@ -227,12 +227,14 @@ textarea.in { resize: vertical; min-height: 70px; line-height: 1.5; }
 .check input { width: 18px; height: 18px; accent-color: var(--brand); }
 
 /* ----- Today ----- */
-.stats { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 4px; padding: 2px 16px 6px; scrollbar-width: none; }
-.stats::-webkit-scrollbar { display: none; }
-.stat { flex: none; background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 10px 14px; cursor: pointer; border: 0; text-align: left; min-width: 104px; transition: transform .12s var(--ease); }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; margin: 0 0 4px; padding: 2px 0 6px; }
+@media (min-width: 600px) { .stats { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); } }
+.stat { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 10px 11px; cursor: pointer; border: 0; text-align: left; min-width: 0; transition: transform .12s var(--ease); }
 .stat:active { transform: scale(.97); }
+.chips-row { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 4px; padding: 2px 16px 6px; scrollbar-width: none; }
+.chips-row::-webkit-scrollbar { display: none; }
 .stat .v { font-size: 21px; font-weight: 650; line-height: 1.1; }
-.stat .l { font-size: 11.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+.stat .l { font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.25; }
 .stat.red .v { color: var(--red); }
 .stat.gold .v { color: var(--gold-ink); }
 .allclear { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 14px; color: var(--muted); font-size: 14px; }
@@ -246,6 +248,11 @@ textarea.in { resize: vertical; min-height: 70px; line-height: 1.5; }
 .wday.today { box-shadow: inset 0 0 0 1.5px var(--gold), var(--shadow); }
 .wday .d { font-weight: 600; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
 .wentry { font-size: 12.5px; border-radius: 8px; padding: 5px 8px; margin-top: 5px; background: var(--soft); cursor: pointer; }
+.wentry .wsub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 3px; }
+.wmark { font-size: 11px; font-weight: 600; }
+.wmark.ok { color: var(--green); }
+.wmark.miss { color: var(--red); }
+.wmark.draft { color: var(--orange); }
 .pf { display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: .03em; border-radius: 5px; padding: 1px 5px; background: var(--gray-bg); color: var(--muted); margin: 0 3px 0 0; }
 .pf.on { background: var(--brand); color: #fff; }
 .capbox { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 8px 0; background: var(--soft); }
@@ -274,7 +281,9 @@ textarea.in { resize: vertical; min-height: 70px; line-height: 1.5; }
 /* ----- Toast ----- */
 #toast { position: fixed; left: 50%; bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); transform: translate(-50%, 8px); z-index: 80; background: var(--brand); color: #fff; padding: 11px 16px; border-radius: 12px; font-size: 14px; max-width: calc(100% - 32px); box-shadow: 0 10px 30px rgba(0,0,0,.18); opacity: 0; pointer-events: none; transition: opacity .22s var(--ease), transform .22s var(--ease); }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
-#toast.err { background: var(--red); }
+#toast.err { background: #7a5a2b; box-shadow: 0 10px 30px rgba(122,90,43,.35); }
+#toast.act { pointer-events: auto; display: flex; align-items: center; gap: 14px; }
+#toast button { background: none; border: 0; color: var(--gold, #d8b26a); font: inherit; font-weight: 600; padding: 2px 0; cursor: pointer; }
 @media (min-width: 900px) { #toast { bottom: 28px; } }
 
 /* ----- Sign-in screens ----- */
@@ -332,11 +341,64 @@ button.cmt-tag { cursor: pointer; }
 .rgrid td.part { background: var(--orange-bg); color: var(--orange); }
 .rgrid td.miss { background: var(--red-bg); color: var(--red); }
 .rgrid tr.today td.d { color: var(--gold-ink); font-weight: 650; }
-.rgrid tr.past td:not(.d) { opacity: .55; }
 .rgrid tr.wk td { border-top: 6px solid transparent; }
 .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: var(--muted); margin: 10px 0 0; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
 
+/* ----- Round 2: info cards, dates, confirm, delete, people, platforms ----- */
+.info { background: var(--soft); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; }
+.info-top { display: flex; align-items: flex-start; gap: 8px; }
+.info-top h3 { flex: 1; font-size: 17px; font-weight: 650; line-height: 1.3; margin: 0; }
+.info-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.approve-box { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0 0 14px; }
+.datefield { position: relative; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 11px; min-height: 40px; padding: 0 14px; background: var(--card); cursor: pointer; font-size: 14.5px; font-weight: 500; color: var(--ink); }
+.datefield svg { width: 16px; height: 16px; color: var(--gold-ink); flex: none; }
+.datefield.empty span { color: var(--faint); font-weight: 400; }
+.datefield input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; font-size: 16px; }
+.ask-wrap { position: fixed; inset: 0; z-index: 90; background: rgba(20,19,17,.38); display: grid; place-items: center; padding: 24px; animation: fade .15s ease; }
+.ask-wrap.closing { animation: fadeout .15s ease forwards; }
+.ask { background: var(--card); border-radius: 16px; padding: 18px 16px 14px; width: 100%; max-width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,.25); animation: pop .18s var(--ease); }
+.ask-t { font-size: 15px; font-weight: 550; line-height: 1.45; }
+.ask-b { display: flex; gap: 8px; margin-top: 16px; }
+.ask-b .btn { flex: 1; min-height: 40px; }
+@keyframes pop { from { transform: scale(.94); opacity: 0; } }
+.btn.danger-solid { background: var(--red); border-color: var(--red); color: #fff; }
+.sheet-foot .btn.trash { flex: 0 0 44px; padding: 0; color: var(--red); border-color: var(--red-line); background: var(--red-bg); }
+.btn.trash svg { width: 18px; height: 18px; }
+.sheet-foot .btn:disabled { opacity: .45; }
+.person { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.pdot { width: 17px; height: 17px; border-radius: 50%; background: var(--gold-soft); color: var(--gold-ink); font-size: 9.5px; font-weight: 700; display: inline-grid; place-items: center; flex: none; }
+.lrow .s .person { font-weight: 550; }
+.pficon { display: inline-block; vertical-align: -2px; flex: none; }
+.pfs { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); }
+.pfname { font-size: 11px; font-weight: 600; color: var(--muted); }
+.pfpill { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; }
+.pfbox { width: 32px; height: 32px; border-radius: 9px; background: var(--soft); display: grid; place-items: center; color: var(--ink); flex: none; }
+.chip.pfchip { gap: 7px; }
+.fchip.view { color: var(--ink); font-weight: 550; }
+.fchip.view svg { color: var(--gold-ink); }
+/* Rhythm: day name and number, a gap between weeks, the month above its days */
+.rgrid td.dn, .rgrid th.dn { width: 38px; text-align: left; padding: 0 2px; font-size: 11.5px; color: var(--muted); font-weight: 500; background: none; cursor: default; }
+.rgrid td.dd, .rgrid th.dd { width: 24px; text-align: right; padding: 0 6px 0 0; font-size: 12px; font-weight: 600; background: none; cursor: default; color: var(--ink); }
+.rgrid tr.past td.dn, .rgrid tr.past td.dd { color: var(--faint); }
+.rgrid tr.today td.dn, .rgrid tr.today td.dd { color: var(--gold-ink); font-weight: 700; }
+.rgrid tr.wk td { border-top: 7px solid transparent; }
+.rgrid tr.month td { text-align: left; font-size: 10.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-ink); background: none; cursor: default; padding: 2px 2px 4px; height: auto; }
+.rgrid tr.month.gap td { padding-top: 16px; }
+.rgrid th { color: var(--ink); }
+.rgrid td.c { background: var(--soft); }
+.rgrid td.c.off { background: transparent; }
+.rgrid td.c.extra { background: var(--soft); color: var(--muted); font-weight: 600; }
+.rgrid td.c.ok { background: var(--green-bg); color: var(--green); }
+.rgrid td.c.part { background: var(--orange-bg); color: var(--orange); }
+.rgrid td.c.need { background: transparent; box-shadow: inset 0 0 0 1.5px var(--red-line); color: var(--red); }
+.rgrid td.c.miss { background: var(--red-bg); color: var(--red); }
+.legend i { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; font-style: normal; font-size: 10px; font-weight: 700; margin-right: 4px; vertical-align: -3px; }
+.legend i.ok { background: var(--green-bg); color: var(--green); }
+.legend i.part { background: var(--orange-bg); color: var(--orange); }
+.legend i.need { box-shadow: inset 0 0 0 1.5px var(--red-line); color: var(--red); }
+.legend i.miss { background: var(--red-bg); color: var(--red); }
+.legend i.extra { background: var(--soft); color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -448,11 +510,11 @@ async function run(btn, action, payload, okMsg, opts) {
  * Instant action: change the screen first, save in the background.
  * If the save fails, the real data is loaded again and the error is shown.
  */
-async function instant(mutate, action, payload, okMsg) {
+async function instant(mutate, action, payload, okMsg, undo) {
   mutate(S.state);
   closeSheet();
   render();
-  if (okMsg) toast(okMsg);
+  if (okMsg) toast(okMsg, false, undo);
   const seq = ++S.seq;
   S.pending++;
   try {
@@ -684,7 +746,9 @@ const ICONS = {
   more: '<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/>',
   search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>',
   upload: '<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>'
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'
 };
 function icon(name) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -698,12 +762,14 @@ function icon(name) {
   return s;
 }
 let toastTimer = null;
-function toast(msg, isErr) {
+/** A short message at the bottom; `undo` adds an Undo button for a few seconds. */
+function toast(msg, isErr, undo) {
   const t = document.getElementById('toast');
   t.textContent = msg;
-  t.className = 'show' + (isErr ? ' err' : '');
+  if (undo) t.append(h('button', { type: 'button', onclick: () => { t.className = ''; undo(); } }, 'Undo'));
+  t.className = 'show' + (isErr ? ' err' : '') + (undo ? ' act' : '');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.className = ''; }, isErr ? 4500 : 2600);
+  toastTimer = setTimeout(() => { t.className = ''; }, undo ? 6000 : isErr ? 3200 : 2400);
 }
 
 function openSheet(title, body, footer) {
@@ -713,6 +779,17 @@ function openSheet(title, body, footer) {
       h('button', { class: 'icon-btn', 'aria-label': 'Close', onclick: () => closeSheet(true) }, '✕')),
     h('div', { class: 'sheet-body' }, body),
     footer ? h('div', { class: 'sheet-foot' }, footer) : null);
+  // Save wakes up once something in the sheet changes (comments and auto-saved fields don't count).
+  const save = sheet.querySelector('.sheet-foot [data-save]');
+  if (save && save.disabled) {
+    const wake = (e) => {
+      const el = e.target;
+      if (!el || el.closest('.cmt-compose') || el.closest('[data-nodirty]') || el.type === 'file' || el.dataset.nodirty) return;
+      save.disabled = false;
+    };
+    sheet.addEventListener('input', wake);
+    sheet.addEventListener('change', wake);
+  }
   // Tapping the dim area around the sheet closes it.
   const ov = h('div', { class: 'overlay', onclick: (e) => { if (e.target === ov) closeSheet(true); } }, sheet);
   document.getElementById('layer').append(ov);
@@ -826,19 +903,30 @@ const DAYL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 function ymdUTC(ymd) { const p = ymd.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2])); }
 function addDays(ymd, n) { const d = ymdUTC(ymd); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 function wd(ymd) { return DAYN[ymdUTC(ymd).getUTCDay()]; }
-function fmtD(ymd) { return ymd ? ymd.slice(8, 10) + '/' + ymd.slice(5, 7) + '/' + ymd.slice(0, 4) : ''; }
-function fmtShort(ymd) { return ymd ? ymd.slice(8, 10) + '/' + ymd.slice(5, 7) : ''; }
-function fmtDT(s) { return s ? fmtD(s.slice(0, 10)) + ' ' + s.slice(11, 16) : ''; }
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** 14 Oct 2026 */
+function fmtD(ymd) { return ymd ? Number(ymd.slice(8, 10)) + ' ' + MON[Number(ymd.slice(5, 7)) - 1] + ' ' + ymd.slice(0, 4) : ''; }
+/** 14 Oct (the year only when it isn't this year) */
+function fmtShort(ymd) {
+  if (!ymd) return '';
+  const y = ymd.slice(0, 4);
+  return Number(ymd.slice(8, 10)) + ' ' + MON[Number(ymd.slice(5, 7)) - 1] + (S.state && y !== S.state.today.slice(0, 4) ? ' ' + y : '');
+}
+/** 14 Oct, 10:30 */
+function fmtDT(s) { return s ? fmtShort(s.slice(0, 10)) + ', ' + s.slice(11, 16) : ''; }
+/** Today, Tomorrow, Yesterday, or "Fri 16 Oct". */
 function dayShort(ymd) {
   const today = S.state.today;
   if (ymd === today) return 'Today';
   if (ymd === addDays(today, 1)) return 'Tomorrow';
-  return wd(ymd) + ' ' + ymd.slice(8, 10) + '/' + ymd.slice(5, 7);
+  if (ymd === addDays(today, -1)) return 'Yesterday';
+  return wd(ymd) + ' ' + fmtShort(ymd);
 }
+/** "Wed 14 Oct · Today" */
 function dayLong(ymd) {
   const rel = ymd === S.state.today ? ' · Today' : ymd === addDays(S.state.today, 1) ? ' · Tomorrow'
     : ymd === addDays(S.state.today, -1) ? ' · Yesterday' : '';
-  return DAYL[ymdUTC(ymd).getUTCDay()] + ' ' + fmtD(ymd) + rel;
+  return wd(ymd) + ' ' + fmtShort(ymd) + rel;
 }
 function isWorkday(ymd) { return !!S.state.hours[wd(ymd)]; }
 
@@ -852,38 +940,18 @@ function addWorkdays(ymd, n) {
   }
   return d;
 }
-/** How many workdays a type usually takes: the two suggested deadlines start there. */
-const LEAD = { Design: 1, Video: 3, Blog: 2 };
-function taskDates(type) {
-  const lead = LEAD[type] !== undefined ? LEAD[type] : 2;
-  const first = addWorkdays(S.state.today, lead);
-  return [first, addWorkdays(first, 1)];
-}
-/** The next two days the posting rhythm still needs a post (on the post's platforms, or any). */
-function postDates(c) {
-  const st = S.state;
-  const plats = c && c.platforms && Object.keys(c.platforms).some((p) => c.platforms[p])
-    ? Object.keys(c.platforms).filter((p) => c.platforms[p]) : st.platforms;
-  const out = [];
-  for (let i = 0; i < 28 && out.length < 2; i++) {
-    const d = addDays(st.today, i);
-    if (plats.some((p) => rhythmCell(d, p).cls === 'miss')) out.push(d);
-  }
-  for (let i = 0; out.length < 2 && i < 14; i++) { const d = addDays(st.today, i); if (out.indexOf(d) < 0) out.push(d); }
-  return out.sort();
-}
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 // iPhone/iPad zoom into small fields when tapped; this stops that (pinch to zoom still works there).
 if (IOS) { const vp = document.querySelector('meta[name=viewport]'); if (vp && !/maximum-scale/.test(vp.content)) vp.content += ', maximum-scale=1'; }
-/** Two suggested dates and "Other date". opts: { suggest: [ymd, ymd], anyDay, clearable }. */
-function datePicker(value, onPick, opts) {
+/** A date you tap to change: the phone's own calendar opens. opts: { anyDay, clearable, placeholder, autosave } */
+function dateField(value, onPick, opts) {
   opts = opts || {};
-  const sugg = (opts.suggest || taskDates('')).slice(0, 2);
-  const wrap = h('div', { class: 'chips' });
+  const wrap = h('div', { class: 'row', style: 'gap:6px' });
   const draw = () => {
-    const other = value && sugg.indexOf(value) < 0;
-    const dateIn = h('input', {
-      type: 'date', value: value || '', tabindex: -1, 'aria-label': 'Pick a date',
+    const inp = h('input', {
+      type: 'date', value: value || '', 'aria-label': opts.label || 'Pick a date', 'data-nodirty': opts.autosave ? '1' : null,
+      // Computers open the calendar from code; phones open it from the tap itself.
+      onclick: (e) => { try { e.target.showPicker(); } catch (x) { /* the tap opens it */ } },
       onchange: (e) => {
         const v = e.target.value;
         if (!v) return;
@@ -895,18 +963,63 @@ function datePicker(value, onPick, opts) {
         value = v; onPick(v); draw();
       }
     });
-    // iPhone/iPad: the date wheel opens when the (invisible) field itself is tapped. Elsewhere it opens at once.
-    if (IOS) dateIn.style.pointerEvents = 'auto';
-    const otherChip = h('button', { type: 'button', class: 'chip date' + (other ? ' on' : ''),
-      onclick: () => { if (IOS) return; try { dateIn.showPicker(); } catch (e) { dateIn.style.pointerEvents = 'auto'; dateIn.focus(); } } },
-      other ? dayShort(value) : 'Other date', dateIn);
     fill(wrap,
-      sugg.map((x) => h('button', { type: 'button', class: 'chip' + (x === value ? ' on' : ''), onclick: () => { value = x; onPick(x); draw(); } }, dayShort(x))),
-      otherChip,
-      opts.clearable && value ? h('button', { type: 'button', class: 'chip', onclick: () => { value = ''; onPick(''); draw(); } }, 'No date') : null);
+      h('label', { class: 'datefield' + (value ? '' : ' empty') }, icon('calendar'), h('span', null, value ? dayLong(value) : (opts.placeholder || 'Pick a date')), inp),
+      opts.clearable && value ? h('button', { type: 'button', class: 'btn ghost tiny', onclick: () => {
+        value = ''; onPick(''); draw();
+        // Tell the sheet something changed, like a typed change does.
+        if (!opts.autosave) wrap.dispatchEvent(new Event('change', { bubbles: true }));
+      } }, 'No date') : null);
   };
   draw();
   return wrap;
+}
+
+/** A small question in the app's own style. Resolves true when confirmed. */
+function ask(text, okLabel, danger) {
+  return new Promise((resolve) => {
+    const done = (v) => { box.classList.add('closing'); setTimeout(() => box.remove(), 160); resolve(v); };
+    const box = h('div', { class: 'ask-wrap', onclick: (e) => { if (e.target === box) done(false); } },
+      h('div', { class: 'ask', role: 'alertdialog' },
+        h('div', { class: 'ask-t', dir: 'auto' }, text),
+        h('div', { class: 'ask-b' },
+          h('button', { type: 'button', class: 'btn', onclick: () => done(false) }, 'Cancel'),
+          h('button', { type: 'button', class: 'btn ' + (danger ? 'danger-solid' : 'primary'), onclick: () => done(true) }, okLabel || 'OK'))));
+    document.body.append(box);
+  });
+}
+
+/** The bottom of a sheet: Cancel, Save (it wakes up once something changes) and a small delete. */
+function editFoot(onSave, onDelete, opts) {
+  opts = opts || {};
+  const save = onSave ? h('button', { class: 'btn primary', 'data-save': '1', disabled: opts.dirty ? null : true }, opts.saveLabel || 'Save') : null;
+  if (save) save.onclick = () => onSave(save);
+  const cancel = h('button', { class: 'btn', onclick: () => closeSheet(true) }, onSave ? 'Cancel' : 'Close');
+  const del = onDelete ? h('button', { class: 'btn trash', 'aria-label': opts.deleteLabel || 'Delete', title: opts.deleteLabel || 'Delete', onclick: onDelete }, icon('trash')) : null;
+  return [cancel, save, del];
+}
+
+/** A person's name, set apart with their initial. */
+function personTag(name) {
+  return name ? h('span', { class: 'person' }, h('span', { class: 'pdot' }, name.charAt(0)), name) : null;
+}
+
+/* Platform icons (Simple Icons, CC0); a platform without one shows its name. */
+const PF_ICONS = {"Instagram":"M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077","TikTok":"M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z","YouTube":"M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z","Facebook":"M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z","Snapchat":"M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.51.075.045.203.09.401.09.3-.016.659-.12 1.033-.301.165-.088.344-.104.464-.104.182 0 .359.029.509.09.45.149.734.479.734.838.015.449-.39.839-1.213 1.168-.089.029-.209.075-.344.119-.45.135-1.139.36-1.333.81-.09.224-.061.524.12.868l.015.015c.06.136 1.526 3.475 4.791 4.014.255.044.435.27.42.509 0 .075-.015.149-.045.225-.24.569-1.273.988-3.146 1.271-.059.091-.12.375-.164.57-.029.179-.074.36-.134.553-.076.271-.27.405-.555.405h-.03c-.135 0-.313-.031-.538-.074-.36-.075-.765-.135-1.273-.135-.3 0-.599.015-.913.074-.6.104-1.123.464-1.723.884-.853.599-1.826 1.288-3.294 1.288-.06 0-.119-.015-.18-.015h-.149c-1.468 0-2.427-.675-3.279-1.288-.599-.42-1.107-.779-1.707-.884-.314-.045-.629-.074-.928-.074-.54 0-.958.089-1.272.149-.211.043-.391.074-.54.074-.374 0-.523-.224-.583-.42-.061-.192-.09-.389-.135-.567-.046-.181-.105-.494-.166-.57-1.918-.222-2.95-.642-3.189-1.226-.031-.063-.052-.15-.055-.225-.015-.243.165-.465.42-.509 3.264-.54 4.73-3.879 4.791-4.02l.016-.029c.18-.345.224-.645.119-.869-.195-.434-.884-.658-1.332-.809-.121-.029-.24-.074-.346-.119-1.107-.435-1.257-.93-1.197-1.273.09-.479.674-.793 1.168-.793.146 0 .27.029.383.074.42.194.789.3 1.104.3.234 0 .384-.06.465-.105l-.046-.569c-.098-1.626-.225-3.651.307-4.837C7.392 1.077 10.739.807 11.727.807l.419-.015h.06z","LinkedIn":"M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z","Threads":"M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32L7.734 7.847c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388.108.046.216.094.321.142 1.49.7 2.58 1.761 3.154 3.07.797 1.82.871 4.79-1.548 7.158-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69c-.242 0-.487.007-.739.021-1.836.103-2.98.946-2.916 2.143.067 1.256 1.452 1.839 2.784 1.767 1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221z","X":"M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z","Twitter":"M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z","WhatsApp":"M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z","Pinterest":"M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026L12.017 0z","Telegram":"M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"};
+function pfIcon(name, size) {
+  const d = PF_ICONS[name];
+  if (!d) return h('span', { class: 'pfname' }, name);
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('viewBox', '0 0 24 24');
+  s.setAttribute('fill', 'currentColor');
+  s.setAttribute('class', 'pficon');
+  s.setAttribute('width', size || 14);
+  s.setAttribute('height', size || 14);
+  s.setAttribute('aria-label', name);
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  p.setAttribute('d', d);
+  s.append(p);
+  return s;
 }
 
 /* ======================================================================
@@ -916,13 +1029,12 @@ function isAdmin() { return !!(S.me && S.me.role === 'Admin'); }
 /** Manager: sees what the admin sees (no Scribble), comments, changes nothing. */
 function isManager() { return !!(S.me && S.me.role === 'Manager'); }
 function isStaff() { return isAdmin() || isManager(); }
+/** Four states: not started, started, pending approval, done. */
 function statusBadge(t) {
-  if (t.cancelled) return h('span', { class: 'badge' }, 'Cancelled');
-  if (t.review === 'Approved') return h('span', { class: 'badge b-green' }, 'Approved');
-  if (t.status === 'Done') return h('span', { class: 'badge b-green' }, 'Done');
-  if (t.review === 'Edit') return h('span', { class: 'badge b-orange' }, 'To fix');
-  if (t.status === 'Pending Approval') return h('span', { class: 'badge b-purple' }, 'Waiting');
-  if (t.status === 'Started') return h('span', { class: 'badge b-blue' }, 'Started');
+  if (t.cancelled) return h('span', { class: 'badge' }, 'Deleted');
+  if (t.review === 'Approved' || t.status === 'Done') return h('span', { class: 'badge b-green' }, 'Done');
+  if (t.status === 'Pending Approval') return h('span', { class: 'badge b-purple' }, 'Pending approval');
+  if (t.status === 'Started' || t.review === 'Edit') return h('span', { class: 'badge b-blue' }, 'Started');
   return h('span', { class: 'badge' }, 'Not started');
 }
 /** The deadline as quiet text; late work is a soft red, never a block of red. */
@@ -930,22 +1042,21 @@ function dueChip(t, long) {
   if (!t.deadline) return null;
   const open = isOpen(t);
   const label = long ? dayLong(t.deadline) : dayShort(t.deadline);
-  return h('span', { class: 'due' + (open && t.color !== 'none' ? ' ' + t.color : '') }, label + (open && t.overdue ? ' · late' : t.late ? ' · delivered late' : ''));
+  return h('span', { class: 'due' + (open && t.color !== 'none' ? ' ' + t.color : '') }, label + (open && t.overdue ? ' · late' : t.late ? (long ? ' · delivered late' : ' · late') : ''));
 }
 
 function execBadge(e) {
   if (e === 'Approved') return h('span', { class: 'badge b-green' }, 'Approved');
-  if (e === 'Rejected') return h('span', { class: 'badge b-red' }, 'Rejected');
-  return h('span', { class: 'badge' }, 'Later');
+  return h('span', { class: 'badge' }, 'Discussing');
 }
 function calBadge(s) {
   const cls = { Published: 'b-green', Final: 'b-blue', Cancelled: 'b-red' }[s] || '';
   return h('span', { class: 'badge ' + cls }, s === 'Published' ? '✓ Published' : s);
 }
 
-/** Social media work ends as a post; outside work (print, events…) ends at Done. */
+/** Social media work ends as a post; general work (print, events…) ends at Done. */
 function channelField(f, onChange) {
-  return field('Where', selectBox([{ value: 'Social', label: 'Social media' }, { value: 'Outside', label: 'Outside' }],
+  return field('Where', selectBox([{ value: 'Social', label: 'Social media' }, { value: 'Outside', label: 'General' }],
     f.channel || 'Social', (v) => { f.channel = v; if (onChange) onChange(v); }, { full: true }));
 }
 
@@ -995,14 +1106,14 @@ function commentRow(c, pinNo) {
           '📍 ' + (pinNo && pinNo[c.key] ? 'Pin ' + pinNo[c.key] : 'On the image')) : null) : null,
       h('div', { class: 'txt', dir: 'auto' }, c.text)),
     canDel ? h('button', { type: 'button', class: 'btn ghost tiny', style: 'color:var(--faint);align-self:flex-start', 'aria-label': 'Remove comment',
-      onclick: () => { if (confirm('Remove this comment?')) run(null, 'comment.delete', { key: c.key }, 'Comment removed', { keepSheet: true }); } }, '✕') : null);
+      onclick: () => ask('Remove this comment?', 'Remove', true).then((ok) => { if (ok) run(null, 'comment.delete', { key: c.key }, 'Comment removed', { keepSheet: true }); }) }, '✕') : null);
 }
 
-/** A moment in a video, from whatever was typed: 12 → 0:12, 75 → 1:15, 1.30 → 1:30. */
+/** A moment in a video, from what was typed after "0:": 0:12 → 0:12, 0:75 → 1:15, 1.30 → 1:30, 12 → 0:12. */
 function videoTime(v) {
   v = String(v || '').trim();
-  if (!v) return '';
-  const m = /^(\d{1,3})[:.,](\d{1,2})$/.exec(v);
+  if (!v || v === '0:' || v === ':') return '';
+  const m = /^(\d{1,3})[:.,](\d{1,3})$/.exec(v);
   let s;
   if (m) s = Number(m[1]) * 60 + Number(m[2]);
   else if (/^\d{1,5}$/.test(v)) s = Number(v);
@@ -1037,16 +1148,21 @@ function commentsBox(id, opts) {
   setTimeout(() => markSeen(id), 0);
   const d = S.cdrafts[id] || (S.cdrafts[id] = { text: '', time: '' });
   const ta = area(d, 'text', { rows: 1, placeholder: opts.pin ? 'Tap the image, then write…' : 'Write a comment…' });
-  const timeIn = opts.video ? input(d, 'time', { class: 'in time', placeholder: '0:12', dir: 'ltr', inputmode: 'decimal', 'aria-label': 'Second in the video',
-    onblur: (e) => { d.time = videoTime(e.target.value); e.target.value = d.time; } }) : null;
+  // The time box starts as "0:"; typing the seconds after it is enough (0:75 becomes 1:15).
+  const timeIn = opts.video ? h('input', { class: 'in time', dir: 'ltr', inputmode: 'decimal', 'aria-label': 'Minute and second in the video', value: d.time || '0:',
+    // A tap lands the cursor where the finger was (maybe before the "0:"), so it moves to the end, after "0:".
+    onfocus: (e) => { const el = e.target; setTimeout(() => el.setSelectionRange(el.value.length, el.value.length), 0); },
+    onclick: (e) => { const el = e.target; if (el.value === '0:') el.setSelectionRange(2, 2); },
+    oninput: (e) => { d.time = e.target.value; },
+    onblur: (e) => { const v = videoTime(e.target.value); d.time = v; e.target.value = v || '0:'; } }) : null;
   const send = h('button', { type: 'button', class: 'btn primary' }, 'Send');
   send.onclick = async () => {
     if (!d.text.trim()) { toast('Write a comment first.', true); return; }
     const payload = { id, text: d.text, time: videoTime(d.time) };
     if (opts.pin && opts.pin.x !== null) Object.assign(payload, { pinX: opts.pin.x, pinY: opts.pin.y, file: opts.file });
-    d.text = ''; d.time = ''; ta.value = ''; grow(ta); if (timeIn) timeIn.value = '';
+    d.text = ''; d.time = ''; ta.value = ''; grow(ta); if (timeIn) timeIn.value = '0:';
     const data = await run(send, 'comment.add', payload, 'Comment sent', { keepSheet: true });
-    if (!data) { d.text = payload.text; d.time = payload.time; ta.value = d.text; if (timeIn) timeIn.value = d.time; return; }
+    if (!data) { d.text = payload.text; d.time = payload.time; ta.value = d.text; if (timeIn) timeIn.value = d.time || '0:'; return; }
     if (opts.pin) { opts.pin.x = null; opts.pin.y = null; }
     draw();
   };
@@ -1067,16 +1183,16 @@ function driveIdOf(url) {
 function fileLink(url, ctx, label) {
   if (!url) return null;
   if (!driveIdOf(url)) return /^https?:\/\//i.test(url)
-    ? h('a', { class: 'fchip', href: url, target: '_blank', rel: 'noopener noreferrer', onclick: (e) => e.stopPropagation() }, label || 'Open ↗') : null;
-  return h('button', { type: 'button', class: 'fchip', onclick: (e) => { e.stopPropagation(); previewSheet(url, ctx || {}); } }, label || 'View');
+    ? h('a', { class: 'fchip view', href: url, target: '_blank', rel: 'noopener noreferrer', onclick: (e) => e.stopPropagation() }, icon('eye'), label || 'View ↗') : null;
+  return h('button', { type: 'button', class: 'fchip view', onclick: (e) => { e.stopPropagation(); previewSheet(url, ctx || {}); } }, icon('eye'), label || 'View');
 }
 
 /** Several files (a carousel): one button that opens them as a gallery. */
 function filesLink(files, ctx, label) {
   files = (files || []).filter(Boolean);
   if (files.length <= 1) return fileLink(files[0], ctx, label);
-  return h('button', { type: 'button', class: 'fchip', onclick: (e) => { e.stopPropagation(); previewSheet(files[0], Object.assign({}, ctx, { files, index: 0 })); } },
-    files.length + ' images');
+  return h('button', { type: 'button', class: 'fchip view', onclick: (e) => { e.stopPropagation(); previewSheet(files[0], Object.assign({}, ctx, { files, index: 0 })); } },
+    icon('eye'), 'View ' + files.length + ' images');
 }
 
 /** Big preview of a Drive file. Images: tap to pin a comment on a spot. Videos: comment with a time. Carousels: ‹ › between images. */
@@ -1658,15 +1774,14 @@ function isVideoTask(t) { return t.type === 'Video' && (t.linkRole ? t.linkRole 
 /** Team and manager: suggest an idea. */
 function newIdeaSheet() {
   const f = { idea: '', type: '' };
-  const btn = h('button', { class: 'btn primary' }, 'Submit idea');
-  btn.onclick = () => {
+  openSheet('New idea', h('div', null,
+    field('Idea', area(f, 'idea', { rows: 3, placeholder: 'What\'s the idea?' })),
+    field('Type', selectBox([{ value: '', label: 'Pick…' }].concat(S.state.types.map((x) => ({ value: x, label: x }))), '', (v) => { f.type = v; }, { full: true }))),
+  editFoot((btn) => {
     if (!f.idea.trim()) { toast('Write the idea first.', true); return; }
     if (!f.type) { toast('Pick a type.', true); return; }
     run(btn, 'idea.submit', f, (d) => 'Idea ' + d.id + ' submitted');
-  };
-  openSheet('New idea', h('div', null,
-    field('Idea', area(f, 'idea', { rows: 3, placeholder: 'What\'s the idea?' })),
-    field('Type', selectBox([{ value: '', label: 'Pick…' }].concat(S.state.types.map((x) => ({ value: x, label: x }))), '', (v) => { f.type = v; }, { full: true }))), btn);
+  }, null, { saveLabel: 'Submit idea', dirty: true }));
 }
 
 function memberIdeasView() {
@@ -1678,8 +1793,8 @@ function memberIdeasView() {
     list(items.map((i) => lrow({
       onclick: () => memberIdeaSheet(i.id),
       title: i.idea,
-      sub: dots(h('span', { class: 'idtag' }, i.id), i.type, i.mine ? 'you' : i.by, fmtShort((i.submittedAt || '').slice(0, 10))),
-      end: [commentBadge(i.id), execBadge(i.execution)]
+      sub: dots(h('span', { class: 'idtag' }, i.id), personTag(i.mine ? 'You' : i.by), i.type, fmtShort((i.submittedAt || '').slice(0, 10))),
+      end: [commentBadge(i.id), i.execution === 'Approved' ? execBadge(i.execution) : null]
     })), 'No ideas yet. Be the first.'));
 }
 
@@ -1687,21 +1802,20 @@ function memberIdeaSheet(id) {
   const i = S.state.ideas.find((x) => x.id === id);
   if (!i) return;
   openSheet(i.id + ' · Idea', h('div', null,
-    h('div', { class: 'row', style: 'margin-bottom:8px' }, execBadge(i.execution), h('span', { class: 'small muted' }, dots(i.type, i.mine ? 'you' : i.by, fmtShort((i.submittedAt || '').slice(0, 10))))),
-    h('div', { class: 'pre', dir: 'auto', style: 'font-weight:550;font-size:15.5px' }, i.idea),
-    i.brief ? h('div', { class: 'brief pre', dir: 'auto' }, i.brief) : null,
+    h('div', { class: 'info' },
+      h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, i.idea), i.mine && i.execution === 'Later' ? h('button', { class: 'btn ghost tiny', onclick: () => editOwnIdea(i) }, 'Edit') : null),
+      h('div', { class: 'info-line' }, personTag(i.mine ? 'You' : i.by), execBadge(i.execution), h('span', { class: 'small muted' }, dots(i.type, fmtShort((i.submittedAt || '').slice(0, 10)))))),
+    i.brief ? field('Brief', h('div', { class: 'brief pre', dir: 'auto' }, i.brief)) : null,
     i.reference ? field('Reference', refLinks(i.reference)) : null,
-    i.mine && i.execution === 'Later' ? h('button', { class: 'btn small', onclick: () => editOwnIdea(i) }, 'Edit') : null,
-    commentsBox(i.id, { video: i.type === 'Video' })));
+    commentsBox(i.id, { video: i.type === 'Video' })), editFoot(null));
 }
 
 function editOwnIdea(i) {
   const f = { id: i.id, idea: i.idea, type: i.type };
-  const btn = h('button', { class: 'btn primary' }, 'Save');
-  btn.onclick = () => run(btn, 'idea.editOwn', f, 'Idea updated');
   openSheet('Edit ' + i.id, h('div', null,
     field('Idea', area(f, 'idea', { rows: 3 })),
-    field('Type', selectBox(S.state.types.map((x) => ({ value: x, label: x })), f.type, (v) => { f.type = v; }, { full: true }))), btn);
+    field('Type', selectBox(S.state.types.map((x) => ({ value: x, label: x })), f.type, (v) => { f.type = v; }, { full: true }))),
+  editFoot((btn) => run(btn, 'idea.editOwn', f, 'Idea updated')));
 }
 
 /* ======================================================================
@@ -1721,40 +1835,41 @@ function todayView() {
   const notReady = st.calendar.filter((c) => (c.publishDate === today || c.publishDate === tomorrow) && c.status === 'Draft');
   const hour = Number((st.now || '').slice(11, 13));
   const hello = (hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening') + ', ' + S.me.name;
-  const toTasks = (f) => () => goTab('tasks', { taskFilter: f, person: '' });
+  // A counter jumps to its list below; ideas and posts open their tab.
+  const jump = (id) => () => { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   const stat = (n, label, cls, go) => n ? h('button', { class: 'stat ' + (cls || ''), onclick: go }, h('div', { class: 'v' }, n), h('div', { class: 'l' }, label)) : null;
   const stats = [
-    stat(pending.length, isAdmin() ? 'To approve' : 'Waiting approval', 'gold', toTasks('pending')),
-    stat(overdue.length, 'Overdue', 'red', toTasks('overdue')),
-    stat(dueToday.length, 'Due today', '', toTasks('today')),
-    stat(dueTomorrow.length, 'Due tomorrow', '', toTasks('tomorrow')),
+    stat(pending.length, isAdmin() ? 'To approve' : 'Pending approval', 'gold', jump('sec-pending')),
+    stat(overdue.length, 'Overdue', 'red', jump('sec-overdue')),
+    stat(dueToday.length, 'Due today', '', jump('sec-today')),
+    stat(dueTomorrow.length, 'Due tomorrow', '', jump('sec-tomorrow')),
     stat(later.length, 'Ideas to decide', '', () => goTab('ideas', { ideaView: 'Later' })),
     stat(readyPosts().length, 'Ready to schedule', '', () => goTab('calendar', { calSeg: 'ready' })),
     stat(missedPosts().length, 'Didn\'t go out', 'red', () => goTab('calendar', { calSeg: 'missed' })),
-    stat(notReady.length, 'Drafts due soon', '', () => goTab('calendar', { calSeg: 'calendar' }))
+    stat(notReady.length, 'Drafts due soon', '', jump('sec-drafts'))
   ].filter(Boolean);
-  const sec = (title, items, rowFn) => items.length ? [h('div', { class: 'section' }, h('h2', null, title)), list(items.map(rowFn))] : null;
+  const sec = (id, title, items, rowFn) => items.length ? [h('div', { class: 'section', id }, h('h2', null, title)), list(items.map(rowFn))] : null;
   const people = st.people.map((p) => {
     const mine = open.filter((t) => t.assignedTo === p.id);
-    return { p, open: mine.length, overdue: mine.filter((t) => t.overdue).length, waiting: mine.filter((t) => t.status === 'Pending Approval').length, fix: mine.filter((t) => t.review === 'Edit').length };
+    return { p, open: mine.length, overdue: mine.filter((t) => t.overdue).length, waiting: mine.filter((t) => t.status === 'Pending Approval').length };
   }).filter((x) => x.open || x.p.id !== S.me.id);
   const log = groupLog(st.log).slice(0, 5);
   return h('div', null,
     h('div', { class: 'page-head' },
-      h('div', null, h('div', { class: 'eyebrow' }, dayLong(today).replace(' · Today', '')), h('h1', null, hello)),
+      h('div', null, h('div', { class: 'eyebrow' }, wd(today) + ' ' + fmtShort(today)), h('h1', null, hello)),
       h('button', { class: 'btn primary quick', onclick: () => quickTaskSheet() }, '+ Quick task')),
     stats.length ? h('div', { class: 'stats' }, stats) : h('div', { class: 'allclear' }, h('b', null, '✓ '), 'All clear. Nothing waiting.'),
-    sec(isAdmin() ? 'To approve' : 'Waiting approval', pending, taskRow),
-    sec('Overdue', overdue, taskRow),
-    sec('Due today', dueToday, taskRow),
-    sec('Due tomorrow', dueTomorrow, taskRow),
-    sec('Publishing soon, still a draft', notReady, (c) => postRow(c, { date: true })),
+    sec('sec-pending', isAdmin() ? 'To approve' : 'Pending approval', pending, taskRow),
+    sec('sec-overdue', 'Overdue', overdue, taskRow),
+    sec('sec-today', 'Due today', dueToday, taskRow),
+    sec('sec-tomorrow', 'Due tomorrow', dueTomorrow, taskRow),
+    sec('sec-drafts', 'Publishing soon, still a draft', notReady, (c) => postRow(c, { date: true })),
     h('div', { class: 'section' }, h('h2', null, 'Team')),
     list(people.map((x) => lrow({
       onclick: () => goTab('tasks', { taskFilter: 'active', person: x.p.id }),
       left: h('span', { class: 'avatar' }, x.p.name.charAt(0)),
       title: x.p.name,
-      sub: dots(x.open ? x.open + ' open' : 'Nothing open', x.waiting ? x.waiting + ' waiting' : null, x.fix ? x.fix + ' to fix' : null),
+      sub: dots(x.open ? x.open + ' open' : 'Nothing open', x.waiting ? x.waiting + ' pending approval' : null),
       end: [x.overdue ? h('span', { class: 'due red' }, x.overdue + ' late') : null]
     }))),
     log.length ? [h('div', { class: 'section' }, h('h2', null, 'Recent activity'),
@@ -1766,16 +1881,11 @@ function todayView() {
    Admin: Tasks
    ====================================================================== */
 const TASK_FILTERS = [
-  ['active', 'Open', isOpen],
-  ['pending', 'Waiting approval', (t) => isOpen(t) && t.status === 'Pending Approval'],
-  ['overdue', 'Overdue', (t) => isOpen(t) && t.overdue],
-  ['edit', 'To fix', (t) => isOpen(t) && t.review === 'Edit'],
-  ['notstarted', 'Not started', (t) => isOpen(t) && !t.status],
-  ['today', 'Due today', (t) => isOpen(t) && t.deadline === S.state.today],
-  ['tomorrow', 'Due tomorrow', (t) => isOpen(t) && t.deadline === addDays(S.state.today, 1)],
-  ['done', 'Done', (t) => !t.cancelled && !isOpen(t)],
-  ['cancelled', 'Cancelled', (t) => t.cancelled],
-  ['all', 'All', () => true]
+  ['active', 'All open', isOpen],
+  ['notstarted', 'Not started', (t) => isOpen(t) && !t.status && t.review !== 'Edit'],
+  ['started', 'Started', (t) => isOpen(t) && (t.status === 'Started' || (!t.status && t.review === 'Edit'))],
+  ['pending', 'Pending approval', (t) => isOpen(t) && t.status === 'Pending Approval'],
+  ['done', 'Done', (t) => !t.cancelled && !isOpen(t)]
 ];
 
 /** The filters of a list on one line, and a search box that opens from the magnifier. */
@@ -1796,8 +1906,7 @@ function adminTasksView() {
     .filter((t) => !q || (t.id + ' ' + t.task + ' ' + t.idea + ' ' + t.assignee).toLowerCase().indexOf(q) >= 0);
   const filter = TASK_FILTERS.find((f) => f[0] === S.ui.taskFilter) || TASK_FILTERS[0];
   let items = base.filter(filter[2]);
-  items = S.ui.taskFilter === 'done' || S.ui.taskFilter === 'cancelled' || S.ui.taskFilter === 'all'
-    ? items.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')) : items.sort(byUrgency);
+  items = filter[0] === 'done' ? items.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')) : items.sort(byUrgency);
   const people = (st.users || st.people.map((p) => Object.assign({ active: true }, p)))
     .filter((u) => u.active || st.tasks.some((t) => t.assignedTo === u.id));
   return h('div', null,
@@ -1818,7 +1927,7 @@ function taskRow(t) {
   return lrow({
     onclick: () => openTask(t.key), late: open && t.color === 'red', done: !open,
     title: t.task,
-    sub: dots(h('span', { class: 'idtag' }, t.id), t.assignee, dueChip(t)),
+    sub: dots(h('span', { class: 'idtag' }, t.id), personTag(t.assignee), dueChip(t)),
     end: [personalBadge(t), commentBadge(t.id), checkBadge(t), rowStatus(t)]
   });
 }
@@ -1862,14 +1971,14 @@ function requestEditSheet(t) {
     field('What to change', area(f, 'note', { rows: 4 }))), btn);
 }
 
-const STATUS_OPTIONS = [{ value: '', label: 'Not started' }, { value: 'Started', label: 'Started' }, { value: 'Pending Approval', label: 'Waiting approval' }, { value: 'Done', label: 'Done' }];
+const STATUS_OPTIONS = [{ value: '', label: 'Not started' }, { value: 'Started', label: 'Started' }, { value: 'Pending Approval', label: 'Pending approval' }, { value: 'Done', label: 'Done' }];
 
-/** The file of a task: what's there (view), upload, and a link field. */
+/** The file of a task: view what's there, upload (saved at once), or paste a link. */
 function fileField(t, f, onUploaded) {
-  const fileIn = input(f, 'fileLink', { type: 'url', dir: 'ltr', placeholder: S.state.media ? 'Or paste a link' : 'Paste the link' });
+  const fileIn = input(f, 'fileLink', { type: 'url', dir: 'ltr', placeholder: 'Or paste a link' });
   return field('File', h('div', null,
-    h('div', { class: 'files', style: 'margin-bottom:6px' }, filesLink(t.files, { id: t.id, video: isVideoTask(t) }),
-      uploadButton({ id: t.id, label: t.task, multi: true }, (links) => { f.files = links; f.fileLink = links[0]; fileIn.value = links[0]; onUploaded(links); })),
+    h('div', { class: 'files', style: 'margin-bottom:6px' }, filesLink(t.files && t.files.length ? t.files : (t.fileLink ? [t.fileLink] : []), { id: t.id, video: isVideoTask(t) }),
+      uploadButton({ id: t.id, label: t.task, multi: true, text: t.fileLink ? 'Replace' : 'Upload' }, (links) => { f.files = links; f.fileLink = links[0]; fileIn.value = links[0]; onUploaded(links); })),
     fileIn));
 }
 
@@ -1879,54 +1988,62 @@ function personSelect(f, key, current) {
   return selectBox([{ value: '', label: 'Pick…' }].concat(people), f[key], (v) => { f[key] = v; }, { full: true, label: 'Person' });
 }
 
+/** Deletes or brings back a task; a delete can be undone from the message for a few seconds. */
+function setTaskCancelled(t, cancelled) {
+  return instant((st) => { const x = st.tasks.find((k) => k.key === t.key); if (x) x.cancelled = cancelled; },
+    'task.cancel', { key: t.key, cancelled }, cancelled ? 'Task deleted' : 'Task restored',
+    cancelled ? () => setTaskCancelled(t, false) : null);
+}
+
+/**
+ * Admin: a task as an info card. Approve or comment; the brief, file and deadline change in place;
+ * the rest (title, person, status) sits behind a small Edit. Delete is the small red button below.
+ */
 function taskSheet(key) {
   const t = S.state.tasks.find((x) => x.key === key);
   if (!t) return;
   const f = { key: t.key, task: t.task, brief: t.brief, assignedTo: t.assignedTo, deadline: t.deadline, status: t.status,
     fileLink: t.fileLink, draftCaption: t.draftCaption, notes: t.notes, reviewNotes: t.reviewNotes };
   const others = S.state.tasks.filter((o) => o.id === t.id && o.key !== t.key && !o.cancelled);
-  const save = h('button', { class: 'btn primary' }, 'Save');
-  save.onclick = () => run(save, 'task.save', f, 'Saved');
-  const cancel = h('button', { class: 'btn danger' }, t.cancelled ? 'Restore task' : 'Cancel task');
-  cancel.onclick = () => {
-    if (!t.cancelled && !confirm('Cancel this task? It disappears from ' + t.assignee + '\'s list (nothing is deleted).')) return;
-    instant((st) => {
-      const x = st.tasks.find((k) => k.key === t.key);
-      if (x) x.cancelled = !t.cancelled;
-    }, 'task.cancel', { key: t.key, cancelled: !t.cancelled }, t.cancelled ? 'Task restored' : 'Task cancelled');
-  };
   const pending = isOpen(t) && t.status === 'Pending Approval';
-  const hasNotes = !!(t.draftCaption || t.notes || t.reviewNotes);
-
-  openSheet(t.id + ' · ' + t.task, h('div', null,
-    h('div', { class: 'row', style: 'margin-bottom:12px' }, personalBadge(t), statusBadge(t), dueChip(t, true),
-      t.delivered ? h('span', { class: 'small muted' }, '· delivered ' + fmtDT(t.delivered)) : null),
+  const saveNow = (extra, msg) => run(null, 'task.save', Object.assign({}, f, extra || {}), msg, { keepSheet: true });
+  const del = t.cancelled
+    ? () => setTaskCancelled(t, false)
+    : () => ask('Delete "' + t.task + '"? It leaves ' + t.assignee + '\'s list.', 'Delete', true).then((ok) => { if (ok) setTaskCancelled(t, true); });
+  openSheet(t.id + ' · Task', h('div', null,
+    h('div', { class: 'info' },
+      h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, t.task), h('button', { class: 'btn ghost tiny', onclick: () => editTaskSheet(t) }, 'Edit')),
+      h('div', { class: 'info-line' }, personTag(t.assignee), statusBadge(t), personalBadge(t), t.type ? h('span', { class: 'small muted' }, t.type) : null),
+      h('div', { class: 'info-line' }, dateField(f.deadline, (v) => { f.deadline = v; saveNow({ deadline: v }, 'Deadline: ' + dayShort(v)); }, { autosave: true }),
+        isOpen(t) && t.overdue ? h('span', { class: 'due red' }, 'late') : null),
+      t.delivered ? h('div', { class: 'small muted' }, 'Delivered ' + fmtDT(t.delivered) + (t.late ? ' · late' : '')) : null,
+      t.cancelled ? h('div', { class: 'small', style: 'color:var(--red)' }, 'Deleted. Tap the red button below to bring it back.') : null),
     liveBox(() => checkNote(S.state.tasks.find((x) => x.key === t.key) || t)),
-    pending ? h('div', { class: 'note gold' },
-      h('div', { class: 't' }, 'Waiting your approval'),
-      t.fileLink ? h('div', { class: 'files', style: 'margin:6px 0 10px' }, filesLink(t.files, { id: t.id, video: isVideoTask(t) }, 'View file')) : null,
-      h('div', { class: 'row' },
-        h('button', { class: 'btn good small', onclick: (e) => approve(e.currentTarget, t) }, '✓ Approve'),
-        h('button', { class: 'btn small', onclick: () => requestEditSheet(t) }, '↩ Send back'))) : null,
-    !pending && isOpen(t) && t.delivered ? h('div', { class: 'row', style: 'margin-bottom:12px' },
-      h('button', { class: 'btn good small', onclick: (e) => approve(e.currentTarget, t) }, '✓ Approve')) : null,
+    pending ? h('div', { class: 'approve-box' },
+      h('button', { class: 'btn good block', onclick: (e) => approve(e.currentTarget, t) }, '✓ Approve'),
+      h('button', { class: 'btn ghost tiny', onclick: () => requestEditSheet(t) }, '↩ Send back with a note')) : null,
+    t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'Sent back'), h('div', { class: 'pre small', dir: 'auto' }, t.reviewNotes)) : null,
+    fileField(t, f, (links) => saveNow({ files: links, fileLink: links[0] }, (links.length > 1 ? links.length + ' files' : 'File') + ' saved ✓')),
+    field('Brief', area(f, 'brief', { rows: 3 })),
+    t.reference ? field('Reference', refLinks(t.reference)) : null,
+    t.draftCaption || t.notes ? field('From ' + t.assignee, h('div', { class: 'brief pre', dir: 'auto' }, [t.draftCaption, t.notes].filter(Boolean).join('\n\n'))) : null,
+    others.length ? h('div', { class: 'related' }, h('div', { class: 'head' }, 'Other tasks on ' + t.id),
+      others.map((o) => h('div', { class: 'r' }, personTag(o.assignee), h('span', { class: 'muted grow' }, o.task), rowStatus(o), filesLink(o.files, { id: o.id, video: isVideoTask(o) })))) : null,
+    h('div', { class: 'small faint' }, 'Created ' + fmtDT(t.createdAt)),
+    commentsBox(t.id, { video: t.type === 'Video' })),
+  editFoot((btn) => run(btn, 'task.save', f, 'Saved'), del, { deleteLabel: t.cancelled ? 'Restore task' : 'Delete task' }));
+}
+
+/** The rarely changed parts of a task. */
+function editTaskSheet(t) {
+  const f = { key: t.key, task: t.task, brief: t.brief, assignedTo: t.assignedTo, deadline: t.deadline, status: t.status,
+    fileLink: t.fileLink, draftCaption: t.draftCaption, notes: t.notes, reviewNotes: t.reviewNotes };
+  openSheet('Edit ' + t.id, h('div', null,
     field('Task', input(f, 'task')),
     h('div', { class: 'two' },
       field('Assigned to', personSelect(f, 'assignedTo', { id: t.assignedTo, name: t.assignee })),
-      field('Status', selectBox(STATUS_OPTIONS, f.status, (v) => { f.status = v; }, { full: true }))),
-    field('Deadline', datePicker(f.deadline, (v) => { f.deadline = v; }, { suggest: taskDates(t.type) })),
-    field('Brief', area(f, 'brief', { rows: 3 })),
-    t.reference ? field('Reference', refLinks(t.reference)) : null,
-    fileField(t, f, (links) => toast((links.length > 1 ? links.length + ' files' : 'Uploaded') + ' ✓ Tap Save')),
-    h('details', { class: 'more', open: hasNotes ? true : null }, h('summary', null, 'Caption & notes'),
-      field('Draft caption', area(f, 'draftCaption', { rows: 2 })),
-      field('Notes', area(f, 'notes', { rows: 2 })),
-      field('What to fix', area(f, 'reviewNotes', { rows: 2 }))),
-    others.length ? h('div', { class: 'related' }, h('div', { class: 'head' }, 'Other tasks on ' + t.id),
-      others.map((o) => h('div', { class: 'r' }, h('b', null, o.assignee), h('span', { class: 'muted grow' }, o.task), rowStatus(o), filesLink(o.files, { id: o.id, video: isVideoTask(o) })))) : null,
-    h('div', { class: 'small faint' }, 'Created ' + fmtDT(t.createdAt)),
-    commentsBox(t.id, { video: t.type === 'Video' })),
-  [cancel, save]);
+      field('Status', selectBox(STATUS_OPTIONS, f.status, (v) => { f.status = v; }, { full: true })))),
+  editFoot((btn) => { if (!f.task.trim()) { toast('Write a title.', true); return; } run(btn, 'task.save', f, 'Saved'); }));
 }
 
 /** Manager: a task, read only, with its comments. */
@@ -1934,22 +2051,24 @@ function taskViewSheet(key) {
   const t = S.state.tasks.find((x) => x.key === key);
   if (!t) return;
   const others = S.state.tasks.filter((o) => o.id === t.id && o.key !== t.key && !o.cancelled);
-  openSheet(t.id + ' · ' + t.task, h('div', null,
-    h('div', { class: 'row', style: 'margin-bottom:10px' }, statusBadge(t), dueChip(t, true)),
-    h('div', { class: 'kv' }, h('b', null, t.assignee), t.idea && t.idea !== t.task ? [' · ', h('span', { dir: 'auto' }, t.idea)] : null),
-    t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'To fix'), h('div', { class: 'pre', dir: 'auto' }, t.reviewNotes)) : null,
+  openSheet(t.id + ' · Task', h('div', null,
+    h('div', { class: 'info' },
+      h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, t.task)),
+      h('div', { class: 'info-line' }, personTag(t.assignee), statusBadge(t), t.type ? h('span', { class: 'small muted' }, t.type) : null),
+      h('div', { class: 'info-line small muted' }, 'Deadline ', h('b', { style: 'color:var(--ink);font-weight:550' }, dayLong(t.deadline)))),
+    t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'Sent back'), h('div', { class: 'pre small', dir: 'auto' }, t.reviewNotes)) : null,
     liveBox(() => checkNote(S.state.tasks.find((x) => x.key === t.key) || t)),
-    t.brief ? h('div', { class: 'brief pre', dir: 'auto' }, t.brief) : null,
+    t.brief ? field('Brief', h('div', { class: 'brief pre', dir: 'auto' }, t.brief)) : null,
     t.reference ? field('Reference', refLinks(t.reference)) : null,
-    t.fileLink ? h('div', { class: 'files', style: 'margin:8px 0' }, filesLink(t.files, { id: t.id, video: isVideoTask(t) })) : null,
+    t.fileLink ? field('File', h('div', { class: 'files' }, filesLink(t.files, { id: t.id, video: isVideoTask(t) }))) : null,
     others.length ? h('div', { class: 'related' }, h('div', { class: 'head' }, 'Other tasks on ' + t.id),
-      others.map((o) => h('div', { class: 'r' }, h('b', null, o.assignee), h('span', { class: 'muted grow' }, o.task), rowStatus(o),
+      others.map((o) => h('div', { class: 'r' }, personTag(o.assignee), h('span', { class: 'muted grow' }, o.task), rowStatus(o),
         filesLink(o.files, { id: o.id, video: isVideoTask(o) })))) : null,
-    commentsBox(t.id, { video: t.type === 'Video' })));
+    commentsBox(t.id, { video: t.type === 'Video' })), editFoot(null));
 }
 
 /**
- * Manager: a task they made (edit, reassign, cancel) and/or one given to them (do the work).
+ * Manager: a task they made (deadline in place, Edit, delete) and/or one given to them (do the work).
  * Their personal tasks they also mark done themselves; everything else is approved by the admin.
  */
 function managerTaskSheet(key) {
@@ -1961,46 +2080,26 @@ function managerTaskSheet(key) {
   const f = { key: t.key, task: t.task, brief: t.brief, assignedTo: t.assignedTo, deadline: t.deadline, status: t.status };
   const w = { fileLink: t.fileLink, draftCaption: t.draftCaption, notes: t.notes };
   const others = S.state.tasks.filter((o) => o.id === t.id && o.key !== t.key && !o.cancelled);
-
+  const mgrSave = (extra) => (personal ? Object.assign({}, f, extra) : Object.assign({ key: f.key, task: f.task, brief: f.brief, assignedTo: f.assignedTo, deadline: f.deadline }, extra || {}));
   const work = (btn, status) => {
     if (w.fileLink && !/^(https?:\/\/)?[^\s.]+\.[^\s]+$/i.test(w.fileLink.trim())) { toast('The file link doesn\'t look like a link.', true); return; }
     if (status === 'Pending Approval' && !(w.fileLink || '').trim()) { toast('Add the file first.', true); return; }
     run(btn, 'task.update', Object.assign({ key: t.key }, w, status ? { status } : {}),
       status === 'Pending Approval' ? 'Sent for approval ✓' : status === 'Started' ? 'Marked as started' : 'Saved');
   };
+  const del = !t.canEdit ? null : t.cancelled ? () => setTaskCancelled(t, false)
+    : () => ask('Delete "' + t.task + '"?', 'Delete', true).then((ok) => { if (ok) setTaskCancelled(t, true); });
 
-  let footer = null;
-  if (t.canEdit) {
-    const save = h('button', { class: 'btn primary' }, 'Save');
-    save.onclick = () => {
-      if (!f.task.trim()) { toast('Write a title.', true); return; }
-      run(save, 'task.save', personal ? f : { key: f.key, task: f.task, brief: f.brief, assignedTo: f.assignedTo, deadline: f.deadline }, 'Saved');
-    };
-    const cancel = h('button', { class: 'btn danger' }, t.cancelled ? 'Restore task' : 'Cancel task');
-    cancel.onclick = () => {
-      if (!t.cancelled && !confirm('Cancel this task?' + (mine ? '' : ' It disappears from ' + t.assignee + '\'s list (nothing is deleted).'))) return;
-      instant((st) => { const x = st.tasks.find((k) => k.key === t.key); if (x) x.cancelled = !t.cancelled; },
-        'task.cancel', { key: t.key, cancelled: !t.cancelled }, t.cancelled ? 'Task restored' : 'Task cancelled');
-    };
-    footer = [cancel, save];
-  }
-
-  openSheet(t.id + ' · ' + t.task, h('div', null,
-    h('div', { class: 'row', style: 'margin-bottom:12px' }, personalBadge(t), statusBadge(t), dueChip(t, true)),
-    t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'To fix'), h('div', { class: 'pre', dir: 'auto' }, t.reviewNotes)) : null,
+  openSheet(t.id + ' · Task', h('div', null,
+    h('div', { class: 'info' },
+      h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, t.task), t.canEdit ? h('button', { class: 'btn ghost tiny', onclick: () => managerEditSheet(t) }, 'Edit') : null),
+      h('div', { class: 'info-line' }, personTag(t.assignee), statusBadge(t), personalBadge(t)),
+      h('div', { class: 'info-line' }, t.canEdit
+        ? dateField(f.deadline, (v) => { f.deadline = v; run(null, 'task.save', mgrSave({ deadline: v }), 'Deadline: ' + dayShort(v), { keepSheet: true }); }, { autosave: true })
+        : h('span', { class: 'small muted' }, 'Deadline ', h('b', { style: 'color:var(--ink);font-weight:550' }, dayLong(t.deadline))))),
+    t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'Sent back'), h('div', { class: 'pre small', dir: 'auto' }, t.reviewNotes)) : null,
     liveBox(() => checkNote(S.state.tasks.find((x) => x.key === t.key) || t)),
-    t.canEdit ? [
-      field('Task', input(f, 'task')),
-      h('div', { class: 'two' },
-        field('Assigned to', personSelect(f, 'assignedTo', { id: t.assignedTo, name: t.assignee })),
-        personal ? field('Status', selectBox([{ value: '', label: 'Not started' }, { value: 'Started', label: 'Started' }, { value: 'Done', label: 'Done' }],
-          f.status === 'Pending Approval' ? 'Started' : f.status, (v) => { f.status = v; }, { full: true })) : h('div')),
-      field('Deadline', datePicker(f.deadline, (v) => { f.deadline = v; }, { suggest: taskDates(t.type) })),
-      field('Brief', area(f, 'brief', { rows: 3 }))
-    ] : [
-      h('div', { class: 'kv' }, h('b', null, t.assignee)),
-      t.brief ? h('div', { class: 'brief pre', dir: 'auto' }, t.brief) : null
-    ],
+    t.canEdit ? field('Brief', area(f, 'brief', { rows: 3 })) : t.brief ? field('Brief', h('div', { class: 'brief pre', dir: 'auto' }, t.brief)) : null,
     t.reference ? field('Reference', refLinks(t.reference)) : null,
     working ? [
       h('div', { class: 'section' }, h('h2', null, 'Your work')),
@@ -2013,11 +2112,28 @@ function managerTaskSheet(key) {
         field('Draft caption', area(w, 'draftCaption', { rows: 2 })),
         field('Notes', area(w, 'notes', { rows: 2 }))),
       h('button', { class: 'btn block', onclick: (e) => work(e.currentTarget) }, 'Save my work')
-    ] : t.fileLink ? h('div', { class: 'files', style: 'margin:8px 0' }, filesLink(t.files, { id: t.id, video: isVideoTask(t) })) : null,
+    ] : t.fileLink ? field('File', h('div', { class: 'files' }, filesLink(t.files, { id: t.id, video: isVideoTask(t) }))) : null,
     others.length ? h('div', { class: 'related' }, h('div', { class: 'head' }, 'Other tasks on ' + t.id),
-      others.map((o) => h('div', { class: 'r' }, h('b', null, o.assignee), h('span', { class: 'muted grow' }, o.task), rowStatus(o),
+      others.map((o) => h('div', { class: 'r' }, personTag(o.assignee), h('span', { class: 'muted grow' }, o.task), rowStatus(o),
         filesLink(o.files, { id: o.id, video: isVideoTask(o) })))) : null,
-    commentsBox(t.id, { video: t.type === 'Video' })), footer);
+    commentsBox(t.id, { video: t.type === 'Video' })),
+  editFoot(t.canEdit ? (btn) => run(btn, 'task.save', mgrSave(), 'Saved') : null, del, { deleteLabel: 'Delete task' }));
+}
+
+/** Manager: the rarely changed parts of a task they made. */
+function managerEditSheet(t) {
+  const personal = !!t.personal;
+  const f = { key: t.key, task: t.task, brief: t.brief, assignedTo: t.assignedTo, deadline: t.deadline, status: t.status };
+  openSheet('Edit ' + t.id, h('div', null,
+    field('Task', input(f, 'task')),
+    h('div', { class: 'two' },
+      field('Assigned to', personSelect(f, 'assignedTo', { id: t.assignedTo, name: t.assignee })),
+      personal ? field('Status', selectBox([{ value: '', label: 'Not started' }, { value: 'Started', label: 'Started' }, { value: 'Done', label: 'Done' }],
+        f.status === 'Pending Approval' ? 'Started' : f.status, (v) => { f.status = v; }, { full: true })) : h('div'))),
+  editFoot((btn) => {
+    if (!f.task.trim()) { toast('Write a title.', true); return; }
+    run(btn, 'task.save', personal ? f : { key: f.key, task: f.task, brief: f.brief, assignedTo: f.assignedTo, deadline: f.deadline }, 'Saved');
+  }));
 }
 
 /* ----- Creating tasks ----- */
@@ -2047,7 +2163,7 @@ function createTasksSheet(idea, rows) {
         h('div', { class: 'two' },
           field('Assigned to', personSelect(r, 'assignedTo')),
           field('Goes on the post as', selectBox(linkRoleOptions(idea.type), r.linkRole || 'Media', (v) => { r.linkRole = v; }, { full: true }))),
-        field('Deadline', datePicker(r.deadline, (v) => { r.deadline = v; }, { suggest: taskDates(idea.type) })),
+        field('Deadline', dateField(r.deadline, (v) => { r.deadline = v; })),
         field('Brief', area(r, 'brief', { rows: 3 })))),
       h('button', { class: 'btn block small', onclick: () => { rows.push(blankRow(idea)); draw(); } }, '+ Another task'));
   };
@@ -2060,67 +2176,67 @@ function createTasksSheet(idea, rows) {
     run(btn, 'tasks.create', { id: idea.id, tasks: rows }, rows.length === 1 ? 'Task created' : rows.length + ' tasks created');
   };
   draw();
-  openSheet('Tasks for ' + idea.id, body, btn);
+  openSheet('Tasks for ' + idea.id, body, [h('button', { class: 'btn', onclick: () => closeSheet(true) }, 'Cancel'), btn]);
 }
 
 function quickTaskSheet() {
-  const f = { task: '', brief: '', type: '', assignedTo: '', deadline: '', channel: 'Social', reference: '' };
+  const admin = isAdmin();
+  const f = { task: '', brief: '', scribble: '', type: '', assignedTo: '', deadline: '', channel: 'Social', reference: '' };
   const btn = h('button', { class: 'btn primary' }, 'Create task');
   btn.onclick = () => {
     if (!f.task.trim()) { toast('Write a title.', true); return; }
     if (!f.type) { toast('Pick a type.', true); return; }
     if (!f.assignedTo) { toast('Pick who does it.', true); return; }
     if (!f.deadline) { toast('Pick a deadline.', true); return; }
-    run(btn, 'task.quick', f, (d) => 'Task created · ' + d.id);
+    const writing = admin && f.scribble.trim() && !f.brief.trim() && S.state.ai;
+    run(btn, 'task.quick', f, (d) => 'Task created · ' + d.id + (writing ? ' · the brief is being written' : ''));
   };
   const hint = h('div');
   const showHint = () => fill(hint, f.channel === 'Outside' && f.assignedTo === S.me.id
     ? h('div', { class: 'note', style: 'background:var(--purple-bg);border-color:#e1dcf0' }, h('div', { class: 't' }, '🔒 Personal task'),
-      isAdmin() ? 'Only you will see it.' : 'Only you and the admin will see it.') : null);
-  const dates = h('div');
-  const drawDates = () => fill(dates, datePicker(f.deadline, (v) => { f.deadline = v; }, { suggest: taskDates(f.type) }));
-  drawDates();
+      admin ? 'Only you will see it.' : 'Only you and the admin will see it.') : null);
   const types = [{ value: '', label: 'Pick…' }].concat(S.state.types.map((x) => ({ value: x, label: x })));
   openSheet('Quick task', h('div', null,
     field('Task', input(f, 'task', { placeholder: 'e.g. Open house stories' })),
     h('div', { class: 'two' },
-      field('Type', selectBox(types, '', (v) => { f.type = v; drawDates(); }, { full: true })),
+      field('Type', selectBox(types, '', (v) => { f.type = v; }, { full: true })),
       channelField(f, showHint)),
-    field('Assigned to', selectBox([{ value: '', label: 'Pick…' }].concat(peopleOptions()), '', (v) => { f.assignedTo = v; showHint(); }, { full: true })),
+    h('div', { class: 'two' },
+      field('Assigned to', selectBox([{ value: '', label: 'Pick…' }].concat(peopleOptions()), '', (v) => { f.assignedTo = v; showHint(); }, { full: true })),
+      field('Deadline', dateField('', (v) => { f.deadline = v; }))),
     hint,
-    field('Deadline', dates),
-    field('Brief', area(f, 'brief', { rows: 3 })),
-    field('Reference', area(f, 'reference', { rows: 1, dir: 'ltr', placeholder: 'Links to similar work' }))), btn);
+    admin ? field(h('span', null, 'Scribble', h('i', null, S.state.ai ? 'only you · becomes the brief' : 'only you')), area(f, 'scribble', { rows: 3, class: 'in private', placeholder: 'Your notes' })) : null,
+    field(h('span', null, 'Brief', admin && S.state.ai ? h('i', null, 'or write it yourself') : null), area(f, 'brief', { rows: 3 })),
+    field('Reference', area(f, 'reference', { rows: 1, dir: 'ltr', placeholder: 'Links to similar work' }))),
+  [h('button', { class: 'btn', onclick: () => closeSheet(true) }, 'Cancel'), btn]);
 }
 
 /* ======================================================================
    Admin: Ideas
    ====================================================================== */
-const IDEA_VIEWS = [['Later', 'To decide'], ['Approved', 'Approved'], ['Rejected', 'Rejected'], ['all', 'All ideas'], ['Quick', 'Quick tasks'], ['Hidden', 'Hidden']];
+const IDEA_VIEWS = [['Later', 'Discussing'], ['Approved', 'Approved']];
+/** An idea is being discussed, or approved (it became tasks). Quick tasks and hidden ones aren't listed. */
 function ideaIn(i, v) {
-  if (v === 'Hidden') return i.hidden;
-  if (i.hidden) return false;
-  if (v === 'Quick') return i.source === 'Quick';
-  if (i.source === 'Quick') return false;
-  return v === 'all' || i.execution === v;
+  if (i.hidden || i.source === 'Quick') return false;
+  return v === 'Approved' ? i.execution === 'Approved' : i.execution === 'Later';
 }
 
 function adminIdeasView() {
   const st = S.state;
   const q = S.ui.ideaQ.trim().toLowerCase();
   const view = IDEA_VIEWS.some((v) => v[0] === S.ui.ideaView) ? S.ui.ideaView : 'Later';
-  const typed = st.ideas.filter((i) => !S.ui.ideaType || i.type === S.ui.ideaType)
+  const pool = st.ideas.filter((i) => !S.ui.ideaBy || i.byId === S.ui.ideaBy)
     .filter((i) => !q || (i.id + ' ' + i.idea + ' ' + i.by + ' ' + i.brief).toLowerCase().indexOf(q) >= 0);
-  const items = typed.filter((i) => ideaIn(i, view)).slice().reverse();
-  const types = Array.from(new Set(st.types.concat(st.ideas.map((i) => i.type))));
+  const items = pool.filter((i) => ideaIn(i, view)).slice().reverse();
+  const authors = st.people.filter((p) => st.ideas.some((i) => i.byId === p.id && i.source !== 'Quick'));
   return h('div', null,
     h('div', { class: 'page-head' }, h('h1', null, 'Ideas'),
       h('button', { class: 'btn primary quick', onclick: () => (isAdmin() ? ideaSheet(null) : newIdeaSheet()) }, '+ New idea')),
     filterBar([
-      selectBox(IDEA_VIEWS.map(([v, l]) => ({ value: v, label: l, n: typed.filter((i) => ideaIn(i, v)).length })), view,
-        (v) => { S.ui.ideaView = v; render(); }, { label: 'Show', on: view !== 'Later' }),
-      selectBox([{ value: '', label: 'All types' }].concat(types.map((x) => ({ value: x, label: x }))), S.ui.ideaType,
-        (v) => { S.ui.ideaType = v; render(); }, { label: 'Type', on: !!S.ui.ideaType })
+      selectBox(IDEA_VIEWS.map(([v, l]) => ({ value: v, label: l, n: pool.filter((i) => ideaIn(i, v)).length })), view,
+        (v) => { S.ui.ideaView = v; render(); }, { label: 'Show' }),
+      selectBox([{ value: '', label: 'Everyone' }].concat(authors.map((p) => ({ value: p.id, label: p.name }))), S.ui.ideaBy || '',
+        (v) => { S.ui.ideaBy = v; render(); }, { label: 'Person', on: !!S.ui.ideaBy })
     ], 'ideaQ', 'Search ideas…'),
     list(items.map((i) => {
       const tasks = st.tasks.filter((t) => t.id === i.id && !t.cancelled);
@@ -2128,36 +2244,31 @@ function adminIdeasView() {
       return lrow({
         onclick: () => (isAdmin() ? ideaSheet(i.id) : ideaViewSheet(i.id)),
         title: i.idea,
-        sub: dots(h('span', { class: 'idtag' }, i.id), i.type, i.by, fmtShort((i.submittedAt || '').slice(0, 10)), tasks.length ? done + '/' + tasks.length + ' done' : null),
-        end: [commentBadge(i.id), view === 'all' ? execBadge(i.execution) : null]
+        sub: dots(h('span', { class: 'idtag' }, i.id), personTag(i.by), i.type, fmtShort((i.submittedAt || '').slice(0, 10)), tasks.length ? done + '/' + tasks.length + ' done' : null),
+        end: [commentBadge(i.id)]
       });
-    }), view === 'Later' ? 'No ideas waiting for a decision.' : 'Nothing here.'));
+    }), view === 'Later' ? 'No ideas being discussed.' : 'No approved ideas yet.'));
 }
 
+/** Admin: an idea as an info card. Scribble, brief and reference change in place; the title and type behind Edit. */
 function ideaSheet(id) {
-  const i = id ? S.state.ideas.find((x) => x.id === id) : null;
-  const f = i ? { id: i.id, idea: i.idea, type: i.type, scribble: i.scribble, brief: i.brief, reference: i.reference || '', execution: i.execution, channel: i.channel }
-    : { idea: '', type: '', scribble: '', brief: '', reference: '', execution: 'Later', channel: 'Social' };
-  const tasks = i ? S.state.tasks.filter((t) => t.id === i.id) : [];
-  const cal = i ? S.state.calendar.filter((c) => c.id === i.id) : [];
-  const valid = () => {
-    if (!f.idea.trim()) { toast('Write the idea.', true); return false; }
-    if (!f.type) { toast('Pick a type.', true); return false; }
-    return true;
-  };
+  if (!id) { newIdeaAdminSheet(); return; }
+  const i = S.state.ideas.find((x) => x.id === id);
+  if (!i) return;
+  const f = { id: i.id, idea: i.idea, type: i.type, scribble: i.scribble, brief: i.brief, reference: i.reference || '', execution: i.execution, channel: i.channel };
+  const tasks = S.state.tasks.filter((t) => t.id === i.id);
+  const cal = S.state.calendar.filter((c) => c.id === i.id);
+  const approved = i.execution === 'Approved';
   const briefIn = area(f, 'brief', { rows: 3 });
-  // "Turn into brief": saves, then the brief is written from the Scribble (the Scribble stays private).
-  let lastBrief = i ? i.brief : '';
+  let lastBrief = i.brief;
   const toBrief = S.state.ai ? h('button', { type: 'button', class: 'btn tiny', style: 'margin:-6px 0 12px' }, '✨ Turn into brief') : null;
   if (toBrief) {
-    toBrief.onclick = async () => {
+    toBrief.onclick = () => {
       if (!f.scribble.trim()) { toast('Write the Scribble first.', true); return; }
-      if (!valid()) return;
-      const d = await run(toBrief, 'idea.save', Object.assign({}, f, { askBrief: true }), 'Writing the brief…', { keepSheet: true });
-      if (d && !i) ideaSheet(d.id);
+      run(toBrief, 'idea.save', Object.assign({}, f, { askBrief: true }), 'Writing the brief…', { keepSheet: true });
     };
   }
-  const sugBox = i ? liveBox(() => {
+  const sugBox = liveBox(() => {
     const cur = S.state.ideas.find((x) => x.id === i.id) || i;
     // The written brief arrived while this is open: show it (unless the brief was edited here meanwhile).
     if (cur.brief !== lastBrief && f.brief === lastBrief) { f.brief = cur.brief; briefIn.value = f.brief; grow(briefIn); }
@@ -2165,51 +2276,27 @@ function ideaSheet(id) {
     if (cur.agentStatus === 'Waiting') return h('div', { class: 'small', style: 'margin:-8px 0 12px;color:var(--gold-ink)' }, 'Writing the brief…');
     if (cur.agentStatus === 'Error') return h('div', { class: 'note orange' }, 'Couldn\'t write it. Tap "Turn into brief" again.');
     return null;
-  }) : h('div');
-
-  const types = Array.from(new Set(S.state.types.concat(f.type ? [f.type] : [])));
-  const approved = i && i.execution === 'Approved';
-  const typeSel = selectBox([{ value: '', label: 'Pick…' }].concat(types.map((x) => ({ value: x, label: x }))), f.type, (v) => { f.type = v; }, { full: true });
-
-  // Bottom: Approve / Later / Reject for an idea still to decide. Reject deletes it (an idea with work is hidden).
-  let footer;
-  if (i && i.hidden) {
-    const restore = h('button', { class: 'btn primary' }, 'Restore');
-    restore.onclick = () => instant((st) => { const x = st.ideas.find((k) => k.id === i.id); if (x) x.hidden = false; }, 'idea.restore', { id: i.id }, i.id + ' restored');
-    footer = [restore];
-  } else if (approved) {
-    const save = h('button', { class: 'btn primary' }, 'Save');
-    save.onclick = () => valid() && run(save, 'idea.save', f, 'Saved');
-    footer = [save];
-  } else {
-    const later = h('button', { class: 'btn' }, i ? 'Later' : 'Save');
-    later.onclick = () => valid() && run(later, 'idea.save', Object.assign({}, f, { execution: 'Later' }), i ? 'Kept for later' : (d) => 'Idea ' + d.id + ' saved');
-    const ok = h('button', { class: 'btn primary' }, '✓ Approve');
-    ok.onclick = async () => {
-      if (!valid()) return;
-      if (i) { approveSheet(i, f); return; }
-      const d = await run(ok, 'idea.save', Object.assign({}, f, { execution: 'Later' }), null, { keepSheet: true });
-      if (d) approveSheet(S.state.ideas.find((x) => x.id === d.id), Object.assign({}, f, { id: d.id }));
-    };
-    footer = [later, ok];
-    if (i) {
-      const reject = h('button', { class: 'btn danger' }, 'Reject');
-      reject.onclick = () => {
-        const hard = deletable(i);
-        if (!confirm(hard ? 'Reject and delete ' + i.id + '?' : i.id + ' already has work, so it will be hidden (not deleted).')) return;
+  });
+  const del = i.hidden
+    ? () => instant((st) => { const x = st.ideas.find((k) => k.id === i.id); if (x) x.hidden = false; }, 'idea.restore', { id: i.id }, i.id + ' restored')
+    : () => {
+      const hard = deletable(i);
+      ask(hard ? 'Delete ' + i.id + ' "' + i.idea.slice(0, 40) + '"?' : i.id + ' already has work, so it will be hidden (not deleted).', hard ? 'Delete' : 'Hide', true).then((ok) => {
+        if (!ok) return;
         instant((st) => {
           if (hard) st.ideas = st.ideas.filter((k) => k.id !== i.id);
           else { const x = st.ideas.find((k) => k.id === i.id); if (x) x.hidden = true; }
-        }, 'idea.delete', { id: i.id }, hard ? i.id + ' rejected and deleted' : i.id + ' hidden');
-      };
-      footer.unshift(reject);
-    }
-  }
-
-  openSheet(i ? i.id + ' · Idea' : 'New idea', h('div', null,
-    i ? h('div', { class: 'small muted', style: 'margin-bottom:12px' }, dots('by ' + i.by, fmtDT(i.submittedAt), i.source === 'Quick' ? 'quick task' : null, i.hidden ? 'hidden' : null)) : null,
-    field('Idea', area(f, 'idea', { rows: 2 })),
-    h('div', { class: 'two' }, field('Type', typeSel), channelField(f)),
+        }, 'idea.delete', { id: i.id }, hard ? i.id + ' deleted' : i.id + ' hidden',
+        hard ? null : () => instant((st) => { const x = st.ideas.find((k) => k.id === i.id); if (x) x.hidden = false; }, 'idea.restore', { id: i.id }, i.id + ' restored'));
+      });
+    };
+  openSheet(i.id + ' · Idea', h('div', null,
+    h('div', { class: 'info' },
+      h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, i.idea), h('button', { class: 'btn ghost tiny', onclick: () => editIdeaSheet(i) }, 'Edit')),
+      h('div', { class: 'info-line' }, personTag(i.by), i.hidden ? null : approved ? h('span', { class: 'badge b-green' }, 'Approved') : h('span', { class: 'badge b-blue' }, 'Discussing'),
+        h('span', { class: 'small muted' }, dots(i.type, i.channel === 'Outside' ? 'General' : 'Social media', fmtShort((i.submittedAt || '').slice(0, 10))))),
+      i.hidden ? h('div', { class: 'small', style: 'color:var(--red)' }, 'Hidden. Tap the red button below to bring it back.') : null,
+      !approved && !i.hidden ? h('button', { class: 'btn good block', style: 'margin-top:10px', onclick: () => approveSheet(i, f) }, '✓ Approve') : null),
     field(h('span', null, 'Scribble', h('i', null, 'only you')), area(f, 'scribble', { rows: 3, class: 'in private', placeholder: 'Your notes' })),
     toBrief,
     field(h('span', null, 'Brief', h('i', null, 'the team sees this')), briefIn),
@@ -2220,12 +2307,45 @@ function ideaSheet(id) {
       tasks.length ? list(tasks.map(taskRow)) : h('div', { class: 'small muted' }, 'No tasks yet.'),
       h('div', { class: 'section' }, h('h2', null, 'Post'), cal.length ? null : h('button', { class: 'btn ghost tiny', onclick: () => calSheet(null, i.id) }, '+ Add')),
       cal.length ? list(cal.map((c) => postRow(c, { date: true }))) : h('div', { class: 'small muted' }, 'Lands in Ready once every task is approved.')) : null,
-    approved && !i.hidden ? h('div', { style: 'margin-top:14px' }, h('button', { class: 'btn ghost tiny', style: 'color:var(--faint)', onclick: () => {
-      if (!confirm(i.id + ' will be hidden. Its tasks stay as they are.')) return;
-      instant((st) => { const x = st.ideas.find((k) => k.id === i.id); if (x) x.hidden = true; }, 'idea.delete', { id: i.id }, i.id + ' hidden');
-    } }, 'Hide this idea')) : null,
-    i ? commentsBox(i.id, { video: i.type === 'Video' }) : null),
-  footer);
+    commentsBox(i.id, { video: i.type === 'Video' })),
+  editFoot((btn) => run(btn, 'idea.save', f, 'Saved'), del, { deleteLabel: i.hidden ? 'Bring it back' : 'Delete idea' }));
+}
+
+/** Admin: a new idea. */
+function newIdeaAdminSheet() {
+  const f = { idea: '', type: '', scribble: '', brief: '', reference: '', execution: 'Later', channel: 'Social' };
+  const valid = () => {
+    if (!f.idea.trim()) { toast('Write the idea.', true); return false; }
+    if (!f.type) { toast('Pick a type.', true); return false; }
+    return true;
+  };
+  const toBrief = S.state.ai ? h('button', { type: 'button', class: 'btn tiny', style: 'margin:-6px 0 12px' }, '✨ Turn into brief') : null;
+  if (toBrief) {
+    toBrief.onclick = async () => {
+      if (!f.scribble.trim()) { toast('Write the Scribble first.', true); return; }
+      if (!valid()) return;
+      const d = await run(toBrief, 'idea.save', Object.assign({}, f, { askBrief: true }), 'Writing the brief…', { keepSheet: true });
+      if (d) ideaSheet(d.id);
+    };
+  }
+  openSheet('New idea', h('div', null,
+    field('Idea', area(f, 'idea', { rows: 2 })),
+    h('div', { class: 'two' }, field('Type', selectBox([{ value: '', label: 'Pick…' }].concat(S.state.types.map((x) => ({ value: x, label: x }))), '', (v) => { f.type = v; }, { full: true })), channelField(f)),
+    field(h('span', null, 'Scribble', h('i', null, 'only you')), area(f, 'scribble', { rows: 3, class: 'in private', placeholder: 'Your notes' })),
+    toBrief,
+    field(h('span', null, 'Brief', h('i', null, 'the team sees this')), area(f, 'brief', { rows: 3 })),
+    field('Reference', area(f, 'reference', { rows: 1, dir: 'ltr', placeholder: 'Links to similar work' }))),
+  editFoot((btn) => { if (valid()) run(btn, 'idea.save', f, (d) => 'Idea ' + d.id + ' saved'); }));
+}
+
+/** The rarely changed parts of an idea. */
+function editIdeaSheet(i) {
+  const f = { id: i.id, idea: i.idea, type: i.type, scribble: i.scribble, brief: i.brief, reference: i.reference || '', execution: i.execution, channel: i.channel };
+  const types = Array.from(new Set(S.state.types.concat([i.type])));
+  openSheet('Edit ' + i.id, h('div', null,
+    field('Idea', area(f, 'idea', { rows: 2 })),
+    h('div', { class: 'two' }, field('Type', selectBox(types.map((x) => ({ value: x, label: x })), f.type, (v) => { f.type = v; }, { full: true })), channelField(f))),
+  editFoot((btn) => { if (!f.idea.trim()) { toast('Write the idea.', true); return; } run(btn, 'idea.save', f, 'Saved'); }));
 }
 
 /** Manager: an idea, read only (no Scribble), with its tasks, post and comments. */
@@ -2235,13 +2355,14 @@ function ideaViewSheet(id) {
   const tasks = S.state.tasks.filter((t) => t.id === i.id && !t.cancelled);
   const cal = S.state.calendar.filter((c) => c.id === i.id);
   openSheet(i.id + ' · Idea', h('div', null,
-    h('div', { class: 'row', style: 'margin-bottom:8px' }, execBadge(i.execution), h('span', { class: 'small muted' }, dots(i.type, i.channel === 'Outside' ? 'Outside' : null, 'by ' + i.by, fmtDT(i.submittedAt)))),
-    h('div', { class: 'pre', dir: 'auto', style: 'font-weight:550;font-size:15.5px' }, i.idea),
-    i.brief ? h('div', { class: 'brief pre', dir: 'auto' }, i.brief) : null,
+    h('div', { class: 'info' },
+      h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, i.idea)),
+      h('div', { class: 'info-line' }, personTag(i.by), execBadge(i.execution), h('span', { class: 'small muted' }, dots(i.type, i.channel === 'Outside' ? 'General' : null, fmtShort((i.submittedAt || '').slice(0, 10)))))),
+    i.brief ? field('Brief', h('div', { class: 'brief pre', dir: 'auto' }, i.brief)) : null,
     i.reference ? field('Reference', refLinks(i.reference)) : null,
     tasks.length ? [h('div', { class: 'section' }, h('h2', null, 'Tasks')), list(tasks.map(taskRow))] : null,
     cal.length ? [h('div', { class: 'section' }, h('h2', null, 'Post')), list(cal.map((c) => postRow(c, { date: true })))] : null,
-    commentsBox(i.id, { video: i.type === 'Video' })));
+    commentsBox(i.id, { video: i.type === 'Video' })), editFoot(null));
 }
 
 function deletable(i) {
@@ -2260,7 +2381,7 @@ function approveSheet(i, f) {
   const preview = h('div');
   const drawPreview = () => fill(preview, tpls.length ? h('div', { class: 'related' },
     h('div', { class: 'head' }, 'Tasks that will be created'),
-    tpls.map((t) => h('div', { class: 'r' }, h('b', null, S.state.names[t.assignee] || '— nobody —'), h('span', { class: 'muted grow' }, t.task),
+    tpls.map((t) => h('div', { class: 'r' }, personTag(S.state.names[t.assignee] || '— nobody —'), h('span', { class: 'muted grow' }, t.task),
       h('span', { class: 'small muted' }, pick.deadline ? dayShort(addWorkdays(pick.deadline, t.daysAfter)) : (t.daysAfter ? '+' + t.daysAfter + ' day' : ''))))) :
     h('div', { class: 'note orange' }, 'No auto tasks for ' + f.type + '. Use Customize.'));
   drawPreview();
@@ -2278,7 +2399,7 @@ function approveSheet(i, f) {
   };
   openSheet('Approve ' + i.id, h('div', null,
     h('div', { class: 'kv', style: 'margin-bottom:12px' }, h('b', { dir: 'auto' }, f.idea)),
-    field(tpls.length > 1 ? 'Deadline · ' + tpls[0].task : 'Deadline', datePicker('', (v) => { pick.deadline = v; drawPreview(); }, { suggest: taskDates(f.type) })),
+    field(tpls.length > 1 ? 'Deadline · ' + tpls[0].task : 'Deadline', dateField('', (v) => { pick.deadline = v; drawPreview(); })),
     preview,
     missing.length ? h('div', { class: 'note orange' }, 'An auto task has no active person. Fix it in More → Auto tasks, or use Customize.') : null),
   tpls.length && !missing.length ? [custom, go] : [custom]);
@@ -2317,17 +2438,28 @@ function missedPosts() {
     .sort((a, b) => a.publishDate.localeCompare(b.publishDate));
 }
 
-/** A post as one line: title; ID, date, type and platforms under it. */
+/** A post inside a week day: its name, platforms, and whether it went out. */
+function weekEntry(c) {
+  const on = Object.keys(c.platforms || {}).filter((p) => c.platforms[p]);
+  const missed = c.status !== 'Published' && c.publishDate < S.state.today;
+  const mark = c.status === 'Published' ? h('span', { class: 'wmark ok' }, '✓ Posted')
+    : missed ? h('span', { class: 'wmark miss' }, 'Didn\'t go out')
+      : c.status === 'Draft' ? h('span', { class: 'wmark draft' }, 'Draft') : null;
+  return h('div', { class: 'wentry', onclick: () => (isAdmin() ? calSheet(c.key) : postViewSheet(c)) },
+    h('div', { class: 'wt' }, h('span', { class: 'idtag' }, c.id), ' ', h('span', { dir: 'auto' }, (c.idea || '').slice(0, 40))),
+    on.length || mark ? h('div', { class: 'wsub' }, on.length ? h('span', { class: 'pfs' }, on.map((p) => pfIcon(p, 11))) : null, mark) : null);
+}
+
+/** A post as one line: title; ID, date, type and platform icons under it. Tapping opens it. */
 function postRow(c, opts) {
   opts = opts || {};
   const on = Object.keys(c.platforms || {}).filter((p) => c.platforms[p]);
   const open = () => (opts.onclick ? opts.onclick(c) : isAdmin() ? calSheet(c.key) : postViewSheet(c));
   return lrow({
     onclick: open,
-    left: opts.datebox && c.publishDate ? h('div', { class: 'datebox' }, h('b', null, c.publishDate.slice(8, 10)), h('span', null, wd(c.publishDate))) : null,
     title: c.idea || c.id,
     sub: dots(h('span', { class: 'idtag' }, c.id), opts.date ? (c.publishDate ? dayShort(c.publishDate) : 'No date') : null, c.type,
-      on.length ? on.map(pfShort).join(' ') : null, opts.postedAt && c.publishedAt ? 'marked ' + fmtDT(c.publishedAt) : null),
+      on.length ? h('span', { class: 'pfs' }, on.map((p) => pfIcon(p, 12))) : null, opts.postedAt && c.publishedAt ? 'marked ' + fmtDT(c.publishedAt) : null),
     end: [commentBadge(c.id), c.status === 'Draft' ? h('span', { class: 'badge b-orange' }, 'Draft') : c.status === 'Cancelled' ? h('span', { class: 'badge' }, 'Cancelled') : null]
   });
 }
@@ -2353,63 +2485,61 @@ function calMove(c, action) {
   }, 'cal.status', { key: c.key, action }, msg);
 }
 
-/** What to do with a post that didn't go out, went out by mistake, or was cancelled. */
-function postActionsSheet(c, actions) {
-  const b = {
-    posted: () => h('button', { class: 'btn good block', onclick: () => calMove(c, 'published') }, '✓ It went out'),
-    ready: () => h('button', { class: 'btn block', onclick: () => calMove(c, 'ready') }, '↩ Back to Ready'),
-    unpublish: () => h('button', { class: 'btn block', onclick: () => calMove(c, 'unpublish') }, '↩ Back to the calendar'),
-    cancel: () => h('button', { class: 'btn danger block', onclick: () => { if (confirm('Cancel ' + c.id + '? It leaves the calendar.')) calMove(c, 'cancel'); } }, '✕ Cancel post')
-  };
-  openSheet(c.id + ' · ' + (c.idea || 'Post'), h('div', null,
-    h('div', { class: 'small muted', style: 'margin-bottom:14px' }, dots(c.type, c.publishDate ? dayLong(c.publishDate) : 'No date', c.publishedAt ? 'marked ' + fmtDT(c.publishedAt) : null)),
-    h('div', { class: 'stack' }, actions.map((a) => b[a]()),
-      h('button', { class: 'btn ghost block', onclick: () => calSheet(c.key) }, 'Open the post'))));
-}
-
 /** Read-only view of a post (team and manager). */
 function postViewSheet(c) {
   const l = linkLabels(c.type);
   const on = Object.keys(c.platforms).filter((p) => c.platforms[p]);
   const links = c.postLinks.filter(Boolean);
   openSheet(c.id + ' · Post', h('div', null,
-    h('div', { class: 'row', style: 'margin-bottom:8px' }, calBadge(c.status), h('span', { class: 'small muted' }, dots(c.type, c.publishDate ? dayLong(c.publishDate) : 'No date yet'))),
-    h('div', { dir: 'auto', style: 'font-weight:550;font-size:15.5px;margin-bottom:10px' }, c.idea),
+    h('div', { class: 'info' },
+      h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, c.idea)),
+      h('div', { class: 'info-line' }, calBadge(c.status), h('span', { class: 'small muted' }, dots(c.type, c.publishDate ? dayLong(c.publishDate) : 'No date yet'))),
+      on.length ? h('div', { class: 'info-line pfs' }, on.map((p) => h('span', { class: 'pfpill' }, pfIcon(p, 13), p))) : null),
     h('div', { class: 'related' },
       h('div', { class: 'r' }, h('b', { style: 'min-width:70px' }, l.media), h('div', { class: 'files grow' }, mediaOf(c) || h('span', { class: 'faint' }, '—'))),
       h('div', { class: 'r' }, h('b', { style: 'min-width:70px' }, l.cover), h('div', { class: 'files grow' }, fileLink(c.coverLink, { id: c.id }) || h('span', { class: 'faint' }, '—')))),
-    on.length ? h('div', { style: 'margin:10px 0' }, on.map((p) => h('span', { class: 'pf on' }, p))) : null,
     field('Caption', h('div', { class: 'brief pre', dir: 'auto' }, c.caption || '—')),
     c.captions ? generatedCaptions(c, false) : null,
     links.length ? field('Published posts', h('div', { class: 'files' }, links.map((u, i) => h('a', { class: 'fchip', href: u, target: '_blank', rel: 'noopener noreferrer' }, 'Post ' + (i + 1) + ' ↗')))) : null,
-    commentsBox(c.id, { video: c.type === 'Video' })));
+    commentsBox(c.id, { video: c.type === 'Video' })), editFoot(null));
 }
 
 function readyList() {
-  const items = readyPosts().slice().sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  const items = readyPosts().filter(calMatch).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   return list(items.map((c) => postRow(c)), 'Nothing waiting. A post lands here when every task of its idea is approved.');
 }
 
 function postedList() {
-  const admin = isAdmin();
-  return list(postedPosts().map((c) => postRow(c, { postedAt: true, onclick: admin ? () => postActionsSheet(c, ['unpublish', 'ready']) : null })),
-    'Nothing marked published in the last 3 days.');
+  return list(postedPosts().filter(calMatch).map((c) => postRow(c, { postedAt: true })), 'Nothing marked published in the last 3 days.');
+}
+
+/** The platform and type filters of the Calendar tab (they apply to every list in it). */
+function calMatch(c) {
+  const flt = S.ui.calFilter;
+  return (!flt.platform || (c.platforms && c.platforms[flt.platform])) && (!flt.type || c.type === flt.type);
 }
 
 function calendarView() {
+  const st = S.state;
   const staff = isStaff();
   const admin = isAdmin();
   const segVal = staff || S.ui.calSeg === 'posted' ? (S.ui.calSeg || 'calendar') : 'calendar';
   const missed = admin ? missedPosts() : [];
   const go = (v) => { S.ui.calSeg = v; S.enter = true; render(); };
+  const flt = S.ui.calFilter;
+  const types = Array.from(new Set(st.types.concat(st.calendar.map((c) => c.type).filter(Boolean))));
+  const filters = h('div', { class: 'filters' },
+    segVal === 'calendar' ? selectBox([{ value: 'list', label: 'List' }, { value: 'week', label: 'Week' }], S.ui.calMode === 'week' ? 'week' : 'list', (v) => { S.ui.calMode = v; render(); }, { label: 'View' }) : null,
+    selectBox([{ value: '', label: 'All platforms' }].concat(st.platforms.map((p) => ({ value: p, label: p }))), flt.platform, (v) => { flt.platform = v; render(); }, { label: 'Platform', on: !!flt.platform }),
+    segVal === 'rhythm' ? null : selectBox([{ value: '', label: 'All types' }].concat(types.map((x) => ({ value: x, label: x }))), flt.type, (v) => { flt.type = v; render(); }, { label: 'Type', on: !!flt.type }));
   const body = {
     calendar: calendarList,
     ready: readyList,
     rhythm: rhythmView,
     posted: postedList,
-    missed: () => list(missed.map((c) => postRow(c, { date: true, onclick: () => postActionsSheet(c, ['posted', 'ready', 'cancel']) })), 'Every dated post went out. ✓'),
-    cancelled: () => list(S.state.calendar.filter((c) => c.status === 'Cancelled').sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
-      .map((c) => postRow(c, { date: true, onclick: admin ? () => postActionsSheet(c, ['ready']) : null })), 'No cancelled posts.')
+    missed: () => list(missed.filter(calMatch).map((c) => postRow(c, { date: true })), 'Every dated post went out. ✓'),
+    cancelled: () => list(st.calendar.filter((c) => c.status === 'Cancelled' && calMatch(c)).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+      .map((c) => postRow(c, { date: true })), 'No cancelled posts.')
   }[segVal] || calendarList;
   return h('div', null,
     h('div', { class: 'page-head' }, h('h1', null, 'Calendar'),
@@ -2420,55 +2550,49 @@ function calendarView() {
       h('button', { class: segVal === 'posted' ? 'on' : '', onclick: () => go('posted') }, 'Posted'),
       admin ? h('button', { class: segVal === 'cancelled' ? 'on' : '', onclick: () => go('cancelled') }, 'Cancelled') : null,
       missed.length ? h('button', { class: segVal === 'missed' ? 'on' : '', onclick: () => go('missed') }, h('span', { class: 'warnpill' }, missed.length + ' didn\'t go out')) : null),
+    filters,
     body());
 }
 
 function weekStartOf(ymd) { return addDays(ymd, -ymdUTC(ymd).getUTCDay()); }
 
-/** Upcoming posts by day (or a week), with platform and type filters. */
+/** Upcoming posts by day (or a week). */
 function calendarList() {
   const st = S.state;
   const today = st.today;
-  const flt = S.ui.calFilter;
-  const match = (c) => (!flt.platform || c.platforms[flt.platform]) && (!flt.type || c.type === flt.type);
   const live = (c) => c.status !== 'Published' && c.status !== 'Cancelled';
-  const types = Array.from(new Set(st.types.concat(st.calendar.map((c) => c.type).filter(Boolean))));
-  const filters = h('div', { class: 'filters' },
-    selectBox([{ value: 'list', label: 'List' }, { value: 'week', label: 'Week' }], S.ui.calMode === 'week' ? 'week' : 'list', (v) => { S.ui.calMode = v; render(); }, { label: 'View' }),
-    selectBox([{ value: '', label: 'All platforms' }].concat(st.platforms.map((p) => ({ value: p, label: p }))), flt.platform, (v) => { flt.platform = v; render(); }, { label: 'Platform', on: !!flt.platform }),
-    selectBox([{ value: '', label: 'All types' }].concat(types.map((x) => ({ value: x, label: x }))), flt.type, (v) => { flt.type = v; render(); }, { label: 'Type', on: !!flt.type }));
-
   if (S.ui.calMode === 'week') {
     const start = S.ui.weekStart || weekStartOf(today);
     const days = [0, 1, 2, 3, 4, 5, 6].map((n) => addDays(start, n));
-    return h('div', null, filters,
+    return h('div', null,
       h('div', { class: 'row', style: 'margin-bottom:10px' },
-        h('button', { class: 'btn tiny', onclick: () => { S.ui.weekStart = addDays(start, -7); render(); } }, '‹'),
+        h('button', { class: 'btn tiny', 'aria-label': 'Previous week', onclick: () => { S.ui.weekStart = addDays(start, -7); render(); } }, '‹'),
         h('button', { class: 'btn tiny', onclick: () => { S.ui.weekStart = ''; render(); } }, 'This week'),
-        h('button', { class: 'btn tiny', onclick: () => { S.ui.weekStart = addDays(start, 7); render(); } }, '›'),
+        h('button', { class: 'btn tiny', 'aria-label': 'Next week', onclick: () => { S.ui.weekStart = addDays(start, 7); render(); } }, '›'),
         h('span', { class: 'small muted' }, fmtShort(days[0]) + ' – ' + fmtShort(days[6]))),
       h('div', { class: 'week' }, days.map((d) => h('div', { class: 'wday' + (d === today ? ' today' : '') },
         h('div', { class: 'd' }, wd(d) + ' ' + fmtShort(d)),
-        st.calendar.filter((c) => c.publishDate === d && c.status !== 'Cancelled' && match(c)).map((c) => h('div', { class: 'wentry', onclick: () => (isAdmin() ? calSheet(c.key) : postViewSheet(c)) },
-          h('span', { class: 'idtag' }, c.id), ' ', h('span', { dir: 'auto' }, c.idea.slice(0, 40))))))));
+        st.calendar.filter((c) => c.publishDate === d && c.status !== 'Cancelled' && calMatch(c)).map((c) => weekEntry(c))))));
   }
-  const upcoming = st.calendar.filter((c) => c.publishDate && c.publishDate >= today && live(c) && match(c))
+  const upcoming = st.calendar.filter((c) => c.publishDate && c.publishDate >= today && live(c) && calMatch(c))
     .sort((a, b) => a.publishDate.localeCompare(b.publishDate));
   const groups = [];
   upcoming.forEach((c) => {
     const g = groups[groups.length - 1];
     if (g && g.date === c.publishDate) g.items.push(c); else groups.push({ date: c.publishDate, items: [c] });
   });
-  return h('div', null, filters,
+  const flt = S.ui.calFilter;
+  return h('div', null,
     groups.map((g) => [h('div', { class: 'day-head' }, dayLong(g.date)), list(g.items.map((c) => postRow(c)))]),
     !groups.length ? h('div', { class: 'empty' }, flt.platform || flt.type ? 'No upcoming posts match.' : 'Nothing scheduled from today on.') : null);
 }
 
 /* ----- Rhythm: are we posting as often as planned? Days × platforms. ----- */
-const PF_SHORT = { Instagram: 'IG', TikTok: 'TT', YouTube: 'YT', Facebook: 'FB', Snapchat: 'SC', LinkedIn: 'Li', X: 'X', Twitter: 'X', Threads: 'Th', Website: 'Web' };
-function pfShort(p) { return PF_SHORT[p] || p.slice(0, 3); }
 
-/** One day × one platform: how many posts the rule wants and what's planned (or went out, for past days). */
+/**
+ * One day × one platform. Past days: ✓ went out, ✕ missed. Today on: ✓ planned, ✎ still a draft, + needs a post.
+ * With no rule for the day, it just shows how many posts there are.
+ */
 function rhythmCell(d, p) {
   const st = S.state;
   const r = (st.rhythm || {})[p] || { days: [], min: 0, time: '' };
@@ -2477,54 +2601,69 @@ function rhythmCell(d, p) {
   const past = d < st.today;
   const counted = past ? posts.filter((c) => c.status === 'Published') : posts;
   const ready = counted.filter((c) => c.status !== 'Draft').length;
-  let cls = 'ok', mark = '✓';
-  if (!need) { cls = 'off'; mark = posts.length ? String(posts.length) : '·'; }
-  else if (counted.length < need) { cls = 'miss'; mark = counted.length ? counted.length + '/' + need : '✕'; }
-  else if (!past && ready < need) { cls = 'part'; mark = '✎'; }
+  let cls, mark;
+  if (!need) { cls = posts.length ? 'extra' : 'off'; mark = posts.length ? String(posts.length) : ''; }
+  else if (past) { cls = counted.length >= need ? 'ok' : 'miss'; mark = counted.length >= need ? '✓' : '✕'; }
+  else if (counted.length < need) { cls = 'need'; mark = counted.length ? counted.length + '/' + need : '+'; }
+  else if (ready < need) { cls = 'part'; mark = '✎'; }
+  else { cls = 'ok'; mark = '✓'; }
   return { cls, mark, need, posts, r };
 }
 
 function rhythmView() {
   const st = S.state;
   const today = st.today;
-  const plats = st.platforms;
+  const plats = S.ui.calFilter.platform ? [S.ui.calFilter.platform] : st.platforms;
   const anyRule = plats.some((p) => (st.rhythm[p] || {}).min > 0 && (st.rhythm[p] || {}).days.length);
   const days = [];
-  for (let i = -7; i < 14; i++) days.push(addDays(today, i));
-  const gaps = days.filter((d) => d >= today).reduce((n, d) => n + plats.filter((p) => rhythmCell(d, p).cls === 'miss').length, 0);
+  for (let i = -7; i < 21; i++) days.push(addDays(today, i));
+  const gaps = days.filter((d) => d >= today).reduce((n, d) => n + plats.filter((p) => rhythmCell(d, p).cls === 'need').length, 0);
+  const rows = [];
+  days.forEach((d, i) => {
+    const newMonth = i === 0 || d.slice(8, 10) === '01';
+    const newWeek = !newMonth && wd(d) === 'Sun';
+    if (newMonth) rows.push(h('tr', { class: 'month' + (i ? ' gap' : '') }, h('td', { colspan: plats.length + 2 }, DAYS_MONTH[Number(d.slice(5, 7)) - 1])));
+    rows.push(h('tr', { class: (d === today ? 'today' : '') + (d < today ? ' past' : '') + (newWeek ? ' wk' : '') },
+      h('td', { class: 'dn' }, wd(d)), h('td', { class: 'dd' }, Number(d.slice(8, 10))),
+      plats.map((p) => { const x = rhythmCell(d, p); return h('td', { class: 'c ' + x.cls, title: p, onclick: () => rhythmCellSheet(d, p) }, x.mark); })));
+  });
   return h('div', null,
     h('div', { class: 'row', style: 'margin-bottom:8px' },
-      h('div', { class: 'grow small' }, anyRule ? (gaps ? h('span', { style: 'color:var(--red)' }, gaps + ' gap' + (gaps === 1 ? '' : 's') + ' in the next 2 weeks') : h('span', { style: 'color:var(--green)' }, '✓ Next 2 weeks covered'))
+      h('div', { class: 'grow small' }, anyRule ? (gaps ? h('span', { style: 'color:var(--red)' }, gaps + ' post' + (gaps === 1 ? '' : 's') + ' still needed in the next 3 weeks') : h('span', { style: 'color:var(--green)' }, '✓ The next 3 weeks are covered'))
         : h('span', { class: 'muted' }, 'No rules yet.')),
       isAdmin() ? h('button', { class: 'btn tiny', onclick: rhythmRulesSheet }, 'Rules') : null),
     h('div', { class: 'card', style: 'padding:8px 6px' }, h('table', { class: 'rgrid' },
-      h('thead', null, h('tr', null, h('th', { class: 'd' }, ''), plats.map((p) => h('th', { title: p }, pfShort(p))))),
-      h('tbody', null, days.map((d) => h('tr', { class: (d === today ? 'today' : '') + (d < today ? ' past' : '') + (wd(d) === 'Sun' && d !== days[0] ? ' wk' : '') },
-        h('td', { class: 'd' }, wd(d) + ' ' + fmtShort(d)),
-        plats.map((p) => { const x = rhythmCell(d, p); return h('td', { class: x.cls, title: p, onclick: () => rhythmCellSheet(d, p) }, x.mark); })))))),
+      h('thead', null, h('tr', null, h('th', { class: 'dn' }), h('th', { class: 'dd' }), plats.map((p) => h('th', { title: p }, pfIcon(p, 15))))),
+      h('tbody', null, rows))),
     h('div', { class: 'legend' },
-      h('span', null, h('i', { style: 'background:var(--green-bg)' }), 'covered'),
-      h('span', null, h('i', { style: 'background:var(--orange-bg)' }), 'still a draft'),
-      h('span', null, h('i', { style: 'background:var(--red-bg)' }), 'missing')));
+      h('span', null, h('i', { class: 'ok' }, '✓'), 'covered'),
+      h('span', null, h('i', { class: 'part' }, '✎'), 'still a draft'),
+      h('span', null, h('i', { class: 'need' }, '+'), 'needs a post'),
+      h('span', null, h('i', { class: 'miss' }, '✕'), 'missed'),
+      h('span', null, h('i', { class: 'extra' }, '1'), 'posts on a free day')));
 }
+const DAYS_MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function rhythmCellSheet(d, p) {
   const x = rhythmCell(d, p);
   const ready = readyPosts();
   openSheet(p + ' · ' + dayShort(d), h('div', null,
-    h('div', { class: 'small muted', style: 'margin-bottom:10px' }, x.need ? 'Plan: ' + x.need + ' post' + (x.need > 1 ? 's' : '') + (x.r.time ? ' at ' + x.r.time : '') : 'No post planned.'),
-    x.posts.length ? list(x.posts.map((c) => postRow(c))) : h('div', { class: 'small faint' }, 'Nothing on ' + p + ' this day.'),
+    h('div', { class: 'small muted', style: 'margin-bottom:10px' }, x.need ? 'Plan: ' + x.need + ' post' + (x.need > 1 ? 's' : '') + (x.r.time ? ' at ' + x.r.time : '') : 'No post planned for this day.'),
+    h('div', { class: 'section', style: 'margin-top:4px' }, h('h2', null, 'On ' + p + ' this day')),
+    x.posts.length ? list(x.posts.map((c) => postRow(c))) : h('div', { class: 'small faint' }, 'Nothing yet.'),
     isAdmin() && d >= S.state.today ? [
-      h('div', { class: 'section' }, h('h2', null, 'Put a ready post here')),
-      list(ready.map((c) => postRow(c, { onclick: () => schedulePostTo(c, d, p) })), 'No ready posts.')] : null));
+      h('div', { class: 'section' }, h('h2', null, 'Schedule a ready post here')),
+      ready.length ? h('div', { class: 'list' }, ready.map((c) => h('div', { class: 'lrow', style: 'cursor:default' },
+        h('div', { class: 'main-col' }, h('div', { class: 't', dir: 'auto' }, c.idea), h('div', { class: 's' }, dots(h('span', { class: 'idtag' }, c.id), c.type))),
+        h('button', { class: 'btn small', onclick: (e) => schedulePostTo(c, d, p, e.currentTarget) }, 'Schedule'))))
+        : h('div', { class: 'small faint' }, 'No ready posts.')] : null), editFoot(null));
 }
 
-function schedulePostTo(c, date, platform) {
+/** Puts a ready post on this day and platform; the day's sheet stays open and shows it. */
+async function schedulePostTo(c, date, platform, btn) {
   const platforms = Object.assign({}, c.platforms, { [platform]: true });
-  instant((st) => {
-    const x = st.calendar.find((k) => k.key === c.key);
-    if (x) { x.publishDate = date; x.platforms = platforms; }
-  }, 'cal.save', Object.assign({}, c, { publishDate: date, platforms }), c.id + ' → ' + platform + ', ' + dayShort(date));
+  const d = await run(btn, 'cal.save', Object.assign({}, c, { publishDate: date, platforms }), c.id + ' scheduled · ' + platform + ', ' + dayShort(date), { keepSheet: true });
+  if (d) rhythmCellSheet(date, platform);
 }
 
 function rhythmRulesSheet() {
@@ -2546,7 +2685,7 @@ function rhythmRulesSheet() {
     })), btn);
 }
 
-/** Generated captions, one per platform the post goes on (team caption stays as it is). */
+/** Generated captions, one per platform the post goes on (the team's caption stays as it is). */
 function generatedCaptions(c, canAsk) {
   return liveBox(() => {
     const cur = S.state.calendar.find((x) => x.key === c.key) || c;
@@ -2556,11 +2695,11 @@ function generatedCaptions(c, canAsk) {
     if (!canAsk && !on.some((p) => caps[p] && caps[p].status === 'Done')) return null;
     const tab = on.indexOf((S.ui.capTab || {})[c.key]) >= 0 ? S.ui.capTab[c.key] : on[0];
     const x = caps[tab] || {};
-    const ask = (e) => run(e.currentTarget, 'agent.ask', { entity: 'cal', key: c.key, platform: tab }, 'Writing another ' + tab + ' caption…', { keepSheet: true });
+    const ask2 = (e) => run(e.currentTarget, 'agent.ask', { entity: 'cal', key: c.key, platform: tab }, 'Writing another ' + tab + ' caption…', { keepSheet: true });
     const copyBtn = (text) => h('button', { type: 'button', class: 'btn tiny', onclick: () => copyText(text) }, 'Copy');
     let content;
     if (x.status === 'Waiting') content = h('div', { class: 'small', style: 'color:var(--gold-ink)' }, 'Writing the ' + tab + ' caption…');
-    else if (x.status === 'Error') content = h('div', { class: 'small' }, 'Couldn\'t write it. ', canAsk ? h('button', { type: 'button', class: 'btn tiny', onclick: ask }, 'Try again') : null);
+    else if (x.status === 'Error') content = h('div', { class: 'small' }, 'Couldn\'t write it. ', canAsk ? h('button', { type: 'button', class: 'btn tiny', onclick: ask2 }, 'Try again') : null);
     else if (x.status === 'Done' && x.title !== undefined) {
       content = [
         h('div', { class: 'cap-k' }, 'Title', copyBtn(x.title)), h('div', { class: 'pre', dir: 'auto' }, x.title),
@@ -2571,69 +2710,85 @@ function generatedCaptions(c, canAsk) {
     } else content = h('div', { class: 'small faint' }, canAsk ? 'Not written yet.' : '—');
     return h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Generated caption'),
       on.length > 1 ? h('div', { class: 'seg cap-tabs', style: 'margin-bottom:6px' }, on.map((p) => h('button', { type: 'button', class: p === tab ? 'on' : '',
-        onclick: () => { S.ui.capTab = Object.assign({}, S.ui.capTab, { [c.key]: p }); refreshLive(); } }, p))) : h('div', { class: 'small muted', style: 'margin-bottom:6px' }, tab),
+        onclick: () => { S.ui.capTab = Object.assign({}, S.ui.capTab, { [c.key]: p }); refreshLive(); } }, pfIcon(p, 13), p))) : h('div', { class: 'small muted', style: 'margin-bottom:6px' }, pfIcon(tab, 13), ' ', tab),
       h('div', { class: 'capbox' }, content,
-        canAsk && x.status === 'Done' ? h('div', { style: 'margin-top:6px' }, h('button', { type: 'button', class: 'btn ghost tiny', onclick: ask }, 'Write another')) : null));
+        canAsk && x.status === 'Done' ? h('div', { style: 'margin-top:6px' }, h('button', { type: 'button', class: 'btn ghost tiny', onclick: ask2 }, 'Write another')) : null));
   });
 }
 
+/** Admin: a post. Opens straight from any list; what happened to it (went out, didn't) is answered at the top. */
 function calSheet(key, ideaId) {
   const c = key ? S.state.calendar.find((x) => x.key === key) : null;
-  const f = c ? JSON.parse(JSON.stringify(c)) : { id: ideaId || '', publishDate: '', status: 'Draft', mediaLink: '', coverLink: '', caption: '', platforms: {}, postLinks: ['', '', '', '', ''], mediaFiles: [] };
+  const f = c ? JSON.parse(JSON.stringify(c)) : { id: ideaId || '', title: '', type: '', publishDate: '', status: 'Draft', mediaLink: '', coverLink: '', caption: '', platforms: {}, postLinks: ['', '', '', '', ''], mediaFiles: [] };
   S.state.platforms.forEach((p) => { if (!(p in f.platforms)) f.platforms[p] = false; });
-  const typeOf = () => (S.state.ideas.find((i) => i.id === f.id) || {}).type || '';
+  const typeOf = () => (S.state.ideas.find((i) => i.id === f.id) || {}).type || f.type || '';
   const captionIn = area(f, 'caption', { rows: 4, placeholder: 'Final caption, hashtags included' });
 
-  // A file slot: what's there, upload, or paste a link.
+  // A file slot: view what's there, upload, or paste a link.
+  const slotsBox = h('div', { class: 'related', style: 'margin-bottom:14px' });
   const slot = (label, key2, multi, accept) => {
     const linkIn = input(f, key2, { type: 'url', dir: 'ltr', placeholder: 'Paste a link', class: 'in' + (f[key2] && !driveIdOf(f[key2]) ? '' : ' hidden'), style: 'margin:0 0 8px' });
-    const row = h('div', { class: 'r' });
-    const draw = () => fill(row, h('b', { style: 'min-width:70px' }, label),
+    const r = h('div', { class: 'r' });
+    const draw = () => fill(r, h('b', { style: 'min-width:70px' }, label),
       h('div', { class: 'files grow' },
         key2 === 'mediaLink' && (f.mediaFiles || []).length > 1 ? filesLink(f.mediaFiles, { id: f.id }) : fileLink(f[key2], { id: f.id, video: key2 === 'mediaLink' && typeOf() === 'Video' }),
-        uploadButton({ id: f.id, label: key2 === 'coverLink' ? 'cover' : 'post', multi, accept, text: f[key2] ? 'Replace' : 'Upload' }, (links) => {
+        uploadButton({ id: f.id || 'posts', label: key2 === 'coverLink' ? 'cover' : 'post', multi, accept, text: f[key2] ? 'Replace' : 'Upload' }, (links) => {
           links = [].concat(links);
           f[key2] = links[0];
           if (key2 === 'mediaLink') f.mediaFiles = links;
           linkIn.value = links[0];
           draw();
+          const save = document.querySelector('#layer .sheet-foot [data-save]');
+          if (save) save.disabled = false;
           toast('Uploaded ✓ Tap Save');
         }),
         h('button', { type: 'button', class: 'fchip', onclick: () => linkIn.classList.toggle('hidden') }, 'Link')));
     draw();
-    return [row, linkIn];
+    return [r, linkIn];
   };
-  const l = linkLabels(typeOf());
+  const drawSlots = () => { const l = linkLabels(typeOf()); fill(slotsBox, slot(l.media, 'mediaLink', true), slot(l.cover, 'coverLink', false, 'image/*')); };
+  drawSlots();
 
   const platformsBox = h('div');
   const drawPlatforms = () => fill(platformsBox, h('div', { class: 'chips' }, S.state.platforms.map((p) => h('button', {
-    type: 'button', class: 'chip' + (f.platforms[p] ? ' on' : ''),
+    type: 'button', class: 'chip pfchip' + (f.platforms[p] ? ' on' : ''), 'data-nodirty': c ? '1' : null,
     onclick: () => {
       f.platforms[p] = !f.platforms[p];
       drawPlatforms();
       // An existing post saves its platforms at once, so each new one gets its caption written.
       if (c) run(null, 'cal.platforms', { key: c.key, platforms: f.platforms }, null, { keepSheet: true });
+      else { const save = document.querySelector('#layer .sheet-foot [data-save]'); if (save) save.disabled = false; }
     }
-  }, p))));
+  }, pfIcon(p, 14), p))));
   drawPlatforms();
 
   const helpers = h('div');
   const drawHelpers = () => {
+    const l = linkLabels(typeOf());
     const tasks = S.state.tasks.filter((t) => t.id === f.id && !t.cancelled && (t.fileLink || t.draftCaption));
     fill(helpers, tasks.length ? h('details', { class: 'more' }, h('summary', null, 'From the team'),
       tasks.map((t) => h('div', { class: 'related' },
-        h('div', { class: 'r' }, h('b', null, t.assignee), h('span', { class: 'muted grow' }, t.task), filesLink(t.files, { id: t.id, video: isVideoTask(t) })),
+        h('div', { class: 'r' }, personTag(t.assignee), h('span', { class: 'muted grow' }, t.task), filesLink(t.files, { id: t.id, video: isVideoTask(t) })),
         h('div', { class: 'row', style: 'padding:6px 0' },
-          t.fileLink ? h('button', { class: 'btn tiny', onclick: () => { f.mediaLink = t.fileLink; f.mediaFiles = t.files; toast('Set as ' + l.media + ' · tap Save'); } }, 'Use as ' + l.media) : null,
-          t.fileLink ? h('button', { class: 'btn tiny', onclick: () => { f.coverLink = t.fileLink; toast('Set as ' + l.cover + ' · tap Save'); } }, 'Use as ' + l.cover) : null,
+          t.fileLink ? h('button', { class: 'btn tiny', onclick: () => { f.mediaLink = t.fileLink; f.mediaFiles = t.files; drawSlots(); toast('Set as ' + l.media + ' · tap Save'); } }, 'Use as ' + l.media) : null,
+          t.fileLink ? h('button', { class: 'btn tiny', onclick: () => { f.coverLink = t.fileLink; drawSlots(); toast('Set as ' + l.cover + ' · tap Save'); } }, 'Use as ' + l.cover) : null,
           t.draftCaption ? h('button', { class: 'btn tiny', onclick: () => { f.caption = (f.caption ? f.caption + '\n\n' : '') + t.draftCaption; captionIn.value = f.caption; grow(captionIn); toast('Draft caption added'); } }, 'Add their caption') : null),
         t.draftCaption ? h('div', { class: 'small pre muted', dir: 'auto', style: 'padding-bottom:6px' }, t.draftCaption) : null))) : null);
   };
   drawHelpers();
 
-  const approved = S.state.ideas.filter((i) => i.execution === 'Approved' || i.id === f.id).slice().reverse();
-  const ideaSel = c ? null : field('Idea', selectBox([{ value: '', label: 'Pick an approved idea…' }].concat(approved.map((i) => ({ value: i.id, label: i.id + ' · ' + i.idea.slice(0, 50) }))),
-    f.id, (v) => { f.id = v; drawHelpers(); }, { full: true }));
+  // A new post: from an idea, or on its own (a title and a type are enough).
+  const approved = S.state.ideas.filter((i) => i.execution === 'Approved' && !i.hidden).slice().reverse();
+  const own = h('div');
+  const drawOwn = () => fill(own, f.id ? null : h('div', { class: 'two' },
+    field('Title', input(f, 'title', { placeholder: 'What is the post?' })),
+    field('Type', selectBox([{ value: '', label: 'Pick…' }].concat(S.state.types.map((x) => ({ value: x, label: x }))), f.type, (v) => { f.type = v; drawSlots(); }, { full: true }))));
+  drawOwn();
+  const ideaSel = c ? null : [
+    field(h('span', null, 'From an idea', h('i', null, 'optional')), selectBox([{ value: '', label: 'No idea, a post on its own' }].concat(approved.map((i) => ({ value: i.id, label: i.id + ' · ' + i.idea.slice(0, 50) }))),
+      f.id, (v) => { f.id = v; drawOwn(); drawSlots(); drawHelpers(); }, { full: true })),
+    own];
+
   const filled = f.postLinks.filter(Boolean).length;
   const linksBox = h('div');
   let shown = Math.min(5, Math.max(1, filled + 1));
@@ -2643,26 +2798,44 @@ function calSheet(key, ideaId) {
   };
   drawLinks();
 
+  // What happened to it, answered right here.
+  const missed = c && c.publishDate && c.publishDate < S.state.today && c.status !== 'Published' && c.status !== 'Cancelled';
+  const state = !c ? null
+    : missed ? h('div', { class: 'note gold' }, h('div', { class: 't' }, 'Its day passed. Did it go out?'),
+      h('div', { class: 'row', style: 'margin-top:6px' },
+        h('button', { class: 'btn good small', onclick: () => calMove(c, 'published') }, '✓ It went out'),
+        h('button', { class: 'btn small', onclick: () => calMove(c, 'ready') }, '↩ Back to Ready')))
+    : c.status === 'Published' ? h('div', { class: 'note green' }, h('div', { class: 't' }, '✓ Published' + (c.publishedAt ? ' · ' + fmtDT(c.publishedAt) : '')),
+      h('button', { class: 'btn tiny', style: 'margin-top:6px', onclick: () => calMove(c, 'unpublish') }, '↩ It didn\'t go out'))
+    : c.status === 'Cancelled' ? h('div', { class: 'note' }, h('div', { class: 't' }, 'Cancelled'),
+      h('button', { class: 'btn tiny', style: 'margin-top:6px', onclick: () => calMove(c, 'ready') }, '↩ Back to Ready'))
+    : null;
+
   const body = h('div', null,
-    c ? h('div', { style: 'margin-bottom:12px' }, h('div', { dir: 'auto', style: 'font-weight:550;font-size:15.5px' }, c.idea), h('div', { class: 'small muted' }, dots(c.type, c.status))) : ideaSel,
-    h('div', { class: 'related', style: 'margin-bottom:14px' }, slot(l.media, 'mediaLink', true), slot(l.cover, 'coverLink', false, 'image/*')),
-    field('Publish date', datePicker(f.publishDate, (v) => { f.publishDate = v; }, { anyDay: true, clearable: true, suggest: postDates(f) })),
+    c ? h('div', { class: 'info' },
+      h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, c.idea)),
+      h('div', { class: 'info-line' }, calBadge(c.status), h('span', { class: 'small muted' }, dots(c.type, c.publishDate ? dayLong(c.publishDate) : 'No date')))) : ideaSel,
+    state,
+    slotsBox,
+    h('div', { class: 'two' },
+      field('Publish date', dateField(f.publishDate, (v) => { f.publishDate = v; }, { anyDay: true, clearable: true })),
+      field('Status', selectBox([{ value: 'Draft', label: 'Draft' }, { value: 'Final', label: 'Final · ready' }, { value: 'Published', label: 'Published' }, { value: 'Cancelled', label: 'Cancelled' }],
+        f.status, (v) => { f.status = v; }, { full: true }))),
     field('Platforms', platformsBox),
     field('Caption', h('div', null, captionIn, c && c.caption ? h('button', { type: 'button', class: 'btn tiny', style: 'margin-top:6px', onclick: () => copyText(f.caption) }, 'Copy') : null)),
     c ? generatedCaptions(c, true) : null,
-    field('Status', selectBox([{ value: 'Draft', label: 'Draft · being prepared' }, { value: 'Final', label: 'Final · ready' }, { value: 'Published', label: 'Published' }, { value: 'Cancelled', label: 'Cancelled' }],
-      f.status, (v) => { f.status = v; }, { full: true })),
     helpers,
     h('details', { class: 'more', open: filled ? true : null }, h('summary', null, 'Post links'), linksBox),
     c ? commentsBox(c.id, { video: c.type === 'Video' }) : null);
-  const btn = h('button', { class: 'btn primary' }, 'Save');
-  btn.onclick = () => {
-    if (!f.id) { toast('Pick an idea.', true); return; }
+  const onSave = (btn) => {
+    if (!c && !f.id) {
+      if (!String(f.title || '').trim()) { toast('Write a title, or pick an idea.', true); return; }
+      if (!f.type) { toast('Pick a type.', true); return; }
+    }
     run(btn, 'cal.save', f, f.publishDate ? 'Saved' : 'Saved · it\'s in Ready');
   };
-  const back = c && c.publishDate ? h('button', { class: 'btn' }, '↩ Back to Ready') : null;
-  if (back) back.onclick = () => calMove(c, 'ready');
-  openSheet(c ? c.id + ' · Post' : 'New post', body, [back, btn]);
+  const del = c && c.status !== 'Cancelled' ? () => ask('Cancel ' + c.id + ' "' + (c.idea || '').slice(0, 40) + '"? It leaves the calendar.', 'Cancel post', true).then((ok) => { if (ok) calMove(c, 'cancel'); }) : null;
+  openSheet(c ? c.id + ' · Post' : 'New post', body, editFoot(onSave, del, { deleteLabel: 'Cancel post', dirty: !c }));
 }
 
 /* ======================================================================
@@ -2676,7 +2849,7 @@ function moreView() {
   const views = { team: teamView, auto: autoTasksView, captions: captionsView, app: appSettingsView, activity: activityView };
   return h('div', null,
     h('div', { class: 'page-head' }, h('h1', null, 'More')),
-    h('div', { class: 'stats', style: 'margin-bottom:10px' }, secs.map(([v, l]) => h('button', { class: 'chip' + (cur === v ? ' on' : ''), onclick: () => { S.ui.more = v; S.ui.log = null; S.enter = true; render(); } }, l))),
+    h('div', { class: 'chips-row', style: 'margin-bottom:10px' }, secs.map(([v, l]) => h('button', { class: 'chip' + (cur === v ? ' on' : ''), onclick: () => { S.ui.more = v; S.ui.log = null; S.enter = true; render(); } }, l))),
     views[cur]());
 }
 
@@ -2750,13 +2923,13 @@ function userSheet(id) {
   if (u) {
     const reset = h('button', { class: 'btn' }, 'Reset password');
     reset.onclick = async () => {
-      if (!confirm('Reset ' + u.name + '\'s password? They will be logged out everywhere.')) return;
+      if (!await ask('Reset ' + u.name + '\'s password? They will be logged out everywhere.', 'Reset')) return;
       const d = await run(reset, 'user.reset', { id: u.id }, 'Password reset');
       if (d && d.temp) showTemps([d.temp], 'New login for ' + d.temp.name);
     };
     const act = h('button', { class: 'btn ' + (u.active ? 'danger' : 'good') }, u.active ? 'Deactivate' : 'Reactivate');
-    act.onclick = () => {
-      if (u.active && !confirm('Deactivate ' + u.name + '? They can\'t log in anymore. Their ideas and tasks stay.')) return;
+    act.onclick = async () => {
+      if (u.active && !await ask('Deactivate ' + u.name + '? They can\'t log in anymore. Their ideas and tasks stay.', 'Deactivate', true)) return;
       run(act, 'user.active', { id: u.id, active: !u.active }, u.active ? u.name + ' deactivated' : u.name + ' reactivated');
     };
     if (u.id !== S.me.id) footer.unshift(act);
@@ -2813,7 +2986,7 @@ function captionsView() {
     list(set.platforms.map((p) => {
       const x = styles[p] || {};
       const n = String(x.examples || '').split(/\n---\n/).filter((e) => e.trim()).length;
-      return lrow({ onclick: () => platformSheet(p), title: p,
+      return lrow({ onclick: () => platformSheet(p), title: p, left: h('span', { class: 'pfbox' }, pfIcon(p, 18)),
         sub: dots(x.format === 'youtube' ? 'title, description, tags' : 'caption', n ? n + ' example' + (n === 1 ? '' : 's') : 'no examples yet') });
     })),
     h('div', { class: 'row', style: 'margin-top:8px' }, h('div', { class: 'grow' }, input(addF, 'v', { placeholder: 'New platform (e.g. Threads)' })), add),
@@ -2845,9 +3018,9 @@ function platformSheet(name) {
   const save = h('button', { class: 'btn primary' }, 'Save');
   save.onclick = () => run(save, 'settings.save', { captionStyles: { [name]: f } }, name + ' saved');
   const del = h('button', { class: 'btn danger' }, 'Remove');
-  del.onclick = () => {
+  del.onclick = async () => {
     if (set.platforms.length <= 1) { toast('Keep at least one platform.', true); return; }
-    if (!confirm('Remove ' + name + '? Posts keep what they had.')) return;
+    if (!await ask('Remove ' + name + '? Posts keep what they had.', 'Remove', true)) return;
     run(del, 'settings.save', { platforms: set.platforms.filter((p) => p !== name) }, name + ' removed');
   };
   openSheet(name, h('div', null,
