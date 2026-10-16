@@ -2233,15 +2233,27 @@ function createTasksSheet(idea, rows) {
 
 function quickTaskSheet() {
   const admin = isAdmin();
-  const f = { task: '', brief: '', scribble: '', type: '', assignedTo: '', deadline: '', channel: 'Social', reference: '' };
+  const f = { task: '', brief: '', scribble: '', type: '', assignedTo: '', deadline: '', channel: 'Social', reference: '', cover: true };
   const btn = h('button', { class: 'btn primary' }, 'Create task');
+  // A video (or a blog) for social media can bring its cover task along: "Also Video Cover → Nisreen".
+  const coversFor = () => (f.channel === 'Social' && (S.state.covers || {})[f.type]) || [];
+  const coverBox = h('div');
+  const showCover = () => {
+    const list = coversFor();
+    const when = (n) => (n === 0 ? 'same day' : n === 1 ? 'the workday after' : n + ' workdays after');
+    fill(coverBox, list.length ? h('label', { class: 'check', style: 'margin:-4px 0 8px' },
+      h('input', { type: 'checkbox', checked: f.cover, onchange: (e) => { f.cover = e.target.checked; } }),
+      h('span', null, 'Also ', list.map((c, i) => [i ? ', ' : '', h('b', null, c.task), ' → ' + c.name + ' · ' + when(c.daysAfter)]))) : null);
+  };
   btn.onclick = () => {
     if (!f.task.trim()) { toast('Write a title.', true); return; }
     if (!f.type) { toast('Pick a type.', true); return; }
     if (!f.assignedTo) { toast('Pick who does it.', true); return; }
     if (!f.deadline) { toast('Pick a deadline.', true); return; }
     const writing = admin && f.scribble.trim() && !f.brief.trim() && S.state.ai;
-    run(btn, 'task.quick', f, (d) => 'Task created · ' + d.id + (writing ? ' · the brief is being written' : ''));
+    const covers = f.cover ? coversFor() : [];
+    run(btn, 'task.quick', Object.assign({}, f, { cover: covers.length > 0 }), (d) => (covers.length ? 'Tasks created · ' + d.id + ' · ' +
+      covers.map((c) => c.task + ' for ' + c.name).join(', ') : 'Task created · ' + d.id) + (writing ? ' · the brief is being written' : ''));
   };
   const hint = h('div');
   const showHint = () => fill(hint, f.channel === 'Outside' && f.assignedTo === S.me.id
@@ -2251,11 +2263,12 @@ function quickTaskSheet() {
   openSheet('Quick task', h('div', null,
     field('Task', input(f, 'task', { placeholder: 'e.g. Open house stories' })),
     h('div', { class: 'two' },
-      field('Type', selectBox(types, '', (v) => { f.type = v; }, { full: true })),
-      channelField(f, showHint)),
+      field('Type', selectBox(types, '', (v) => { f.type = v; showCover(); }, { full: true })),
+      channelField(f, () => { showHint(); showCover(); })),
     h('div', { class: 'two' },
       field('Assigned to', selectBox([{ value: '', label: 'Pick…' }].concat(peopleOptions()), '', (v) => { f.assignedTo = v; showHint(); }, { full: true })),
       field('Deadline', dateField('', (v) => { f.deadline = v; }))),
+    coverBox,
     hint,
     admin ? field(h('span', null, 'Scribble', h('i', null, S.state.ai ? 'only you · becomes the brief' : 'only you')), area(f, 'scribble', { rows: 3, class: 'in private', placeholder: 'Your notes' })) : null,
     field(h('span', null, 'Brief', admin && S.state.ai ? h('i', null, 'or write it yourself') : null), area(f, 'brief', { rows: 3 })),
