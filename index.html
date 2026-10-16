@@ -1941,10 +1941,8 @@ function refLinks(text) {
 }
 
 /** On a row, "Not started" says nothing; the other states say a word. */
-function rowStatus(t) {
-  if (!t.cancelled && !t.status && t.review !== 'Edit' && t.review !== 'Approved') return null;
-  return statusBadge(t);
-}
+/** Every row says where the task stands, "Not started" included. */
+function rowStatus(t) { return statusBadge(t); }
 
 /** The main file of a video task is a video; its cover is an image. */
 function isVideoTask(t) { return t.type === 'Video' && (t.linkRole ? t.linkRole === 'Media' : !/cover/i.test(t.task)); }
@@ -2995,10 +2993,20 @@ function calSheet(key, ideaId) {
   drawSlots();
 
   const platformsBox = h('div');
+  let picked = !!c; // a new post follows its type's usual platforms until one is tapped
+  const usual = () => {
+    if (picked) return;
+    const list = ((S.state.settings && S.state.settings.postPlatforms) || {})[typeOf()] || [];
+    S.state.platforms.forEach((p) => { f.platforms[p] = list.indexOf(p) >= 0; });
+    drawPlatforms();
+  if (!c && f.id) usual(); // opened from an idea: its type's platforms
+    refreshLive();
+  };
   const drawPlatforms = () => fill(platformsBox, h('div', { class: 'chips' }, S.state.platforms.map((p) => h('button', {
     type: 'button', class: 'chip pfchip' + (f.platforms[p] ? ' on' : ''), 'data-nodirty': c ? '1' : null,
     onclick: () => {
       f.platforms[p] = !f.platforms[p];
+      picked = true;
       drawPlatforms();
       refreshLive();
       // An existing post saves its platforms at once, so each new one gets its caption written.
@@ -3026,11 +3034,11 @@ function calSheet(key, ideaId) {
   const own = h('div');
   const drawOwn = () => fill(own, f.id ? null : h('div', { class: 'two' },
     field('Title', input(f, 'title', { placeholder: 'What is the post?' })),
-    field('Type', selectBox([{ value: '', label: 'Pick…' }].concat(S.state.types.map((x) => ({ value: x, label: x }))), f.type, (v) => { f.type = v; drawSlots(); }, { full: true }))));
+    field('Type', selectBox([{ value: '', label: 'Pick…' }].concat(S.state.types.map((x) => ({ value: x, label: x }))), f.type, (v) => { f.type = v; drawSlots(); usual(); }, { full: true }))));
   drawOwn();
   const ideaSel = c ? null : [
     field(h('span', null, 'From an idea', h('i', null, 'optional')), selectBox([{ value: '', label: 'No idea, a post on its own' }].concat(approved.map((i) => ({ value: i.id, label: i.id + ' · ' + i.idea.slice(0, 50) }))),
-      f.id, (v) => { f.id = v; drawOwn(); drawSlots(); drawHelpers(); }, { full: true })),
+      f.id, (v) => { f.id = v; drawOwn(); drawSlots(); drawHelpers(); usual(); }, { full: true })),
     own];
 
   const filled = f.postLinks.filter(Boolean).length;
@@ -3209,6 +3217,27 @@ function autoTasksView() {
 }
 
 /** Captions: each platform's way of writing, the brief style, the license numbers; the fixed rules under Advanced. */
+/** Where each type's posts go by default; their captions are written as soon as the post is made. */
+function postPlatformsCard(set) {
+  const pp = JSON.parse(JSON.stringify(set.postPlatforms || {}));
+  const box = h('div');
+  const draw = () => fill(box, set.types.map((type) => h('div', { style: 'margin-bottom:10px' },
+    h('div', { class: 'small', style: 'font-weight:600;margin-bottom:4px' }, type),
+    h('div', { class: 'chips' }, set.platforms.map((p) => {
+      const on = (pp[type] || []).indexOf(p) >= 0;
+      return h('button', { type: 'button', class: 'chip pfchip' + (on ? ' on' : ''), onclick: () => {
+        pp[type] = on ? (pp[type] || []).filter((x) => x !== p) : (pp[type] || []).concat([p]);
+        draw();
+      } }, pfIcon(p, 13), p);
+    })))));
+  draw();
+  return [h('div', { class: 'section' }, h('h2', null, 'Where posts go')),
+    h('div', { class: 'card' },
+      h('div', { class: 'small faint', style: 'margin-bottom:10px' }, 'A new post of this type goes on these, and each one gets its caption right away. Others can be picked on the post.'),
+      box,
+      h('button', { class: 'btn primary small', onclick: (e) => run(e.currentTarget, 'settings.save', { postPlatforms: pp }, 'Saved') }, 'Save'))];
+}
+
 function captionsView() {
   const st = S.state;
   const set = st.settings;
@@ -3234,6 +3263,7 @@ function captionsView() {
         sub: dots(x.format === 'youtube' ? 'title, description, tags' : 'caption', n ? n + ' example' + (n === 1 ? '' : 's') : 'no examples yet') });
     })),
     h('div', { class: 'row', style: 'margin-top:8px' }, h('div', { class: 'grow' }, input(addF, 'v', { placeholder: 'New platform (e.g. Threads)' })), add),
+    postPlatformsCard(set),
     h('div', { class: 'section' }, h('h2', null, 'Brief from the Scribble')),
     h('div', { class: 'card' },
       area(brief, 'briefStyle', { rows: 6 }),
