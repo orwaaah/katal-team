@@ -272,6 +272,14 @@ textarea.in { resize: vertical; min-height: 70px; line-height: 1.5; }
 .capbox .pre { font-size: 14px; }
 .capbox .cap-k { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 8px 0 2px; display: flex; justify-content: space-between; align-items: center; }
 .capbox .cap-k:first-child { margin-top: 0; }
+/* Where Auto writes: open to type in at once, gold while it writes; orange when nothing came and a copy went in. */
+.capbox.auto, .in.auto { border-color: var(--gold); background: var(--gold-soft); }
+.capbox.auto .in { background: var(--card); }
+.auto-lbl { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--gold-ink); margin: 0 0 6px; }
+.auto-lbl::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); flex: none; animation: autopulse 1.2s ease-in-out infinite; }
+.auto-under { margin: -6px 0 12px; }
+@keyframes autopulse { 50% { opacity: .25; } }
+.copied-tag { display: inline-block; font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--orange); background: var(--orange-bg); border-radius: 7px; padding: 3px 8px; margin: 0 0 6px; }
 
 /* ----- Sheet ----- */
 #layer .overlay { position: fixed; inset: 0; z-index: 50; background: rgba(20,19,17,.42); display: flex; align-items: flex-end; justify-content: center; animation: fade .2s ease; }
@@ -2209,6 +2217,18 @@ function taskSheet(key) {
   const others = S.state.tasks.filter((o) => o.id === t.id && o.key !== t.key && !o.cancelled);
   const pending = isOpen(t) && t.status === 'Pending Approval';
   const saveNow = (extra, msg) => run(null, 'task.save', Object.assign({}, f, extra || {}), msg, { keepSheet: true });
+  // A brief that arrives while this is open (written by Auto, or the Scribble copied in) shows here,
+  // unless the brief was edited here meanwhile; saving never puts the old one back.
+  const briefIn = area(f, 'brief', { rows: 3 });
+  let lastBrief = t.brief;
+  const briefNote = liveBox(() => {
+    const cur = S.state.tasks.find((x) => x.key === t.key) || t;
+    if (cur.brief !== lastBrief && f.brief === lastBrief) { f.brief = cur.brief; briefIn.value = f.brief; grow(briefIn); }
+    lastBrief = cur.brief;
+    briefIn.classList.toggle('auto', cur.autoBrief === 'Waiting');
+    const tag = autoTag(cur.autoBrief, 'scribble', 'the brief');
+    return tag ? h('div', { class: 'auto-under' }, tag) : null;
+  });
   const del = t.cancelled
     ? () => setTaskCancelled(t, false)
     : () => ask('Delete "' + taskLabel(t) + '"? It leaves ' + t.assignee + '\'s list.', 'Delete', true).then((ok) => { if (ok) setTaskCancelled(t, true); });
@@ -2226,7 +2246,8 @@ function taskSheet(key) {
       h('button', { class: 'btn ghost tiny', onclick: () => requestEditSheet(t) }, '↩ Send back with a note')) : null,
     t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'Sent back'), h('div', { class: 'pre small', dir: 'auto' }, t.reviewNotes)) : null,
     fileField(t, f, (links) => saveNow({ files: links, fileLink: links[0] }, (links.length > 1 ? links.length + ' files' : 'File') + ' saved ✓')),
-    field('Brief', area(f, 'brief', { rows: 3 })),
+    field('Brief', briefIn),
+    briefNote,
     t.reference ? field('Reference', refLinks(t.reference)) : null,
     t.draftCaption || t.notes ? field('From ' + t.assignee, h('div', { class: 'brief pre', dir: 'auto' }, [t.draftCaption, t.notes].filter(Boolean).join('\n\n'))) : null,
     others.length ? h('div', { class: 'related' }, h('div', { class: 'head' }, 'Other tasks on ' + t.id),
@@ -2488,9 +2509,10 @@ function ideaSheet(id) {
     // The written brief arrived while this is open: show it (unless the brief was edited here meanwhile).
     if (cur.brief !== lastBrief && f.brief === lastBrief) { f.brief = cur.brief; briefIn.value = f.brief; grow(briefIn); }
     lastBrief = cur.brief;
-    if (cur.agentStatus === 'Waiting') return h('div', { class: 'small', style: 'margin:-8px 0 12px;color:var(--gold-ink)' }, 'Writing the brief…');
+    briefIn.classList.toggle('auto', cur.agentStatus === 'Waiting');
     if (cur.agentStatus === 'Error') return h('div', { class: 'note orange' }, S.state.aiLimit ? aiLimitText() : 'Couldn\'t write it. Tap "Turn into brief" again.');
-    return null;
+    const tag = autoTag(cur.agentStatus, cur.agentStatus === 'Copied' ? 'scribble' : '', 'the brief');
+    return tag ? h('div', { class: 'auto-under' }, tag) : null;
   });
   const del = i.hidden
     ? () => instant((st) => { const x = st.ideas.find((k) => k.id === i.id); if (x) x.hidden = false; }, 'idea.restore', { id: i.id }, i.id + ' restored')
@@ -2686,6 +2708,16 @@ function mediaOf(c) {
 
 /** Shown where generated text would be, once today's limit is used. */
 function aiLimitText() { return 'Today\'s limit of ' + S.state.aiLimit + ' is used up. It works again tomorrow.'; }
+/** Under a box Auto writes in: "Auto · writing…" while it writes; what went in instead when nothing came. */
+function autoTag(status, from, what) {
+  if (status === 'Waiting') return h('div', { class: 'auto-lbl' }, 'Auto · writing' + (what ? ' ' + what : '') + '… you can type here meanwhile');
+  if (status !== 'Copied' && status !== 'Kept') return null;
+  const text = status === 'Kept' || from === 'before' ? 'Kept the last one · Auto didn\'t write a new one'
+    : from === 'scribble' ? 'Copied from the Scribble · Auto didn\'t write it'
+    : from === 'none' ? 'Auto didn\'t write it · write it here'
+    : 'Copied from the draft · Auto didn\'t write it';
+  return h('div', null, h('span', { class: 'copied-tag' }, text), S.state.aiLimit ? h('div', { class: 'small muted', style: 'margin-bottom:6px' }, aiLimitText()) : null);
+}
 
 /** One-tap post moves: published, back to Ready, back to the calendar, cancelled. */
 function calMove(c, action) {
@@ -2936,7 +2968,10 @@ function captionsBox(c, f) {
       const styles = (S.state.settings && S.state.settings.captionStyles) || {};
       const youtube = x.title !== undefined || (styles[tab] || {}).format === 'youtube';
       const mine = f && f.capEdits[tab];
-      const val = (k) => (mine && mine[k] !== undefined ? mine[k] : k === 'tags' ? (x.tags || []).join(', ') : x[k] || '');
+      const waiting = x.status === 'Waiting';
+      // While a new one is written, the box keeps what it had (and comes back to it if none comes).
+      const src = waiting ? x.before || {} : x;
+      const val = (k) => (mine && mine[k] !== undefined ? mine[k] : k === 'tags' ? (src.tags || []).join(', ') : src[k] || '');
       const set = (k, v) => { f.capEdits[tab] = Object.assign(youtube ? { title: val('title'), description: val('description'), tags: val('tags') } : { text: val('text') }, f.capEdits[tab] || {}, { [k]: v }); };
       const ask2 = (e) => {
         const btn = e.currentTarget;
@@ -2946,7 +2981,7 @@ function captionsBox(c, f) {
       };
       const asker = edit && c && S.state.ai;
       let content;
-      if (x.status === 'Waiting') content = h('div', { class: 'small', style: 'color:var(--gold-ink)' }, 'Writing the ' + tab + ' caption…');
+      if (waiting && !edit) content = h('div', { class: 'small', style: 'color:var(--gold-ink)' }, 'Writing the ' + tab + ' caption…');
       else if (edit) {
         const box = (k, rows, ph) => {
           const t = h('textarea', { class: 'in', dir: 'auto', rows, placeholder: ph, oninput: (e) => { set(k, e.target.value); grow(t); } });
@@ -2956,6 +2991,7 @@ function captionsBox(c, f) {
         };
         const line = (k, ph) => h('input', { class: 'in', dir: 'auto', placeholder: ph, value: val(k), oninput: (e) => set(k, e.target.value) });
         content = [
+          mine ? null : autoTag(x.status, x.from, ''),
           x.status === 'Error' ? h('div', { class: 'small', style: 'margin-bottom:6px' }, S.state.aiLimit ? aiLimitText() : 'Couldn\'t write it. Try again, or write it here.') : null,
           youtube
             ? [h('div', { class: 'cap-k' }, 'Title', copyBtn(() => val('title'))), line('title', 'Video title'),
@@ -2964,18 +3000,18 @@ function captionsBox(c, f) {
             : [box('text', 5, 'Write the ' + tab + ' caption'),
               h('div', { class: 'row', style: 'margin-top:8px;gap:6px' }, copyBtn(() => val('text')),
                 x.edited || mine ? h('span', { class: 'small muted' }, mine ? 'not saved yet' : 'edited') : null)],
-          asker ? h('div', { style: 'margin-top:8px' }, h('button', { type: 'button', class: 'btn ghost tiny', onclick: ask2 },
-            x.status === 'Done' ? 'Write another' : x.status === 'Error' ? 'Try again' : 'Write it for me')) : null];
-      } else if (x.status === 'Done' && x.title !== undefined) {
+          asker && !waiting ? h('div', { style: 'margin-top:8px' }, h('button', { type: 'button', class: 'btn ghost tiny', onclick: ask2 },
+            x.status === 'Done' ? 'Write another' : x.status === 'Error' || x.status === 'Copied' ? 'Try again' : 'Write it for me')) : null];
+      } else if ((x.status === 'Done' || x.status === 'Copied') && x.title !== undefined) {
         content = [h('div', { class: 'cap-k' }, 'Title', copyBtn(() => x.title)), h('div', { class: 'pre', dir: 'auto' }, x.title),
           h('div', { class: 'cap-k' }, 'Description', copyBtn(() => x.description)), h('div', { class: 'pre', dir: 'auto' }, x.description),
           h('div', { class: 'cap-k' }, 'Tags', copyBtn(() => (x.tags || []).join(', '))), h('div', { class: 'small muted' }, (x.tags || []).join(', '))];
-      } else if (x.status === 'Done') content = [h('div', { class: 'pre', dir: 'auto' }, x.text), h('div', { class: 'row', style: 'margin-top:8px' }, copyBtn(() => x.text))];
+      } else if (x.status === 'Done' || x.status === 'Copied') content = [autoTag(x.status, x.from, ''), h('div', { class: 'pre', dir: 'auto' }, x.text), h('div', { class: 'row', style: 'margin-top:8px' }, copyBtn(() => x.text))];
       else content = h('div', { class: 'small faint' }, 'Not written yet.');
       perPlatform = [
         on.length > 1 ? h('div', { class: 'seg cap-tabs', style: 'margin-bottom:6px' }, on.map((p) => h('button', { type: 'button', class: p === tab ? 'on' : '',
           onclick: () => { S.ui.capTab = Object.assign({}, S.ui.capTab, { [id]: p }); refreshLive(); } }, pfIcon(p, 13), p))) : h('div', { class: 'small muted', style: 'margin-bottom:6px' }, pfIcon(tab, 13), ' ', tab),
-        h('div', { class: 'capbox' }, content)];
+        h('div', { class: 'capbox' + (waiting && edit && !mine ? ' auto' : '') }, content)];
     }
     if (!drafts.length && !oldBlock && !perPlatform) return null;
     return h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Captions'), draftBlocks, oldBlock, perPlatform);
