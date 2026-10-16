@@ -1,7 +1,7 @@
 // KATAL Team service worker: makes the app installable and lets it open without a connection.
 // The page is always fetched fresh when online (so updates arrive at once); the saved copy is
 // only used offline. Data never goes through here: sign-in and the api go straight to Supabase.
-const VERSION = '4de9d2ca3a10';
+const VERSION = '5f4ed3ec0243';
 const CACHE = 'katal-' + VERSION;
 const FILES = ['./', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 

@@ -323,9 +323,16 @@ button.cmt-tag { cursor: pointer; }
 .cmt-compose .time::placeholder { color: var(--faint); }
 
 /* ----- File preview, pins, uploads ----- */
-.pv { position: relative; border-radius: 12px; overflow: hidden; background: #111; margin-bottom: 8px; }
-.pv img { display: block; width: 100%; height: auto; cursor: crosshair; }
-.pv iframe { display: block; width: 100%; height: 62vh; border: 0; }
+/* The preview always fits on the screen with the comment box under it (same height in pvMaxH()). */
+:root { --pv-h: max(220px, min(62vh, calc(100vh - 300px))); }
+@supports (height: 1svh) { :root { --pv-h: max(220px, min(62svh, calc(100svh - 300px))); } }
+.pv-frame { display: flex; justify-content: center; align-items: center; min-height: 160px; border-radius: 12px; overflow: hidden; background: #111; margin-bottom: 8px; }
+/* Pins sit on .pv, which is exactly the image's size (the image is sized in fitPreviewImg). */
+.pv { position: relative; flex: none; max-width: 100%; }
+.pv img { display: block; max-width: 100%; max-height: var(--pv-h); width: auto; height: auto; cursor: crosshair; }
+.pv-vid { position: relative; height: var(--pv-h); border-radius: 12px; overflow: hidden; background: #111; margin-bottom: 8px; }
+.pv-vid iframe { position: absolute; top: 0; left: 0; display: block; width: 100%; height: 100%; border: 0; transform-origin: 0 0; }
+.pv-vid iframe:fullscreen { transform: none !important; width: 100% !important; height: 100% !important; }
 .pin { position: absolute; transform: translate(-50%, -50%); width: 24px; height: 24px; border-radius: 50%; background: var(--gold); color: #fff; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; box-shadow: 0 2px 6px rgba(0,0,0,.4); border: 2px solid #fff; pointer-events: none; }
 .pin.new { background: var(--brand); }
 .pin.focus { outline: 3px solid #ffd54a; }
@@ -1209,7 +1216,8 @@ function previewSheet(url, ctx) {
   const id = ctx.id;
   const video = !!ctx.video;
   const pin = { x: null, y: null };
-  const stage = h('div', { class: 'pv' });
+  const stage = h('div', { class: 'pv' }); // holds the image and its pins
+  let view, fit;
   const drawPins = () => {
     stage.querySelectorAll('.pin').forEach((p) => p.remove());
     if (video || !id) return;
@@ -1219,10 +1227,13 @@ function previewSheet(url, ctx) {
     if (pin.x !== null) stage.append(h('div', { class: 'pin new', style: 'left:' + pin.x + '%;top:' + pin.y + '%' }, '+'));
   };
   if (video) {
-    stage.append(h('iframe', { src: CFG.driveWeb + '/file/d/' + fid + '/preview', allow: 'autoplay; fullscreen', allowfullscreen: true }));
+    const player = h('iframe', { src: CFG.driveWeb + '/file/d/' + fid + '/preview', allow: 'autoplay; fullscreen', allowfullscreen: true });
+    view = h('div', { class: 'pv-vid' }, player);
+    fit = () => fitPreviewPlayer(view, player);
   } else {
     const img = h('img', {
       src: CFG.driveWeb + '/thumbnail?id=' + fid + '&sz=w2000', alt: 'Preview',
+      onload: () => fit(),
       onclick: (e) => {
         if (!id) return;
         const r = img.getBoundingClientRect();
@@ -1235,6 +1246,8 @@ function previewSheet(url, ctx) {
       onerror: () => fill(stage, h('div', { style: 'padding:24px;color:#fff' }, 'No preview for this file. Open it in Drive.'))
     });
     stage.append(img);
+    view = h('div', { class: 'pv-frame' }, stage);
+    fit = () => fitPreviewImg(view, img);
   }
   const files = ctx.files || null;
   const at = files ? ctx.index || 0 : 0;
@@ -1244,13 +1257,45 @@ function previewSheet(url, ctx) {
       h('button', { type: 'button', class: 'btn tiny', disabled: at === 0, onclick: () => go(at - 1) }, '‹'),
       h('span', { class: 'small muted' }, (at + 1) + ' / ' + files.length),
       h('button', { type: 'button', class: 'btn tiny', disabled: at === files.length - 1, onclick: () => go(at + 1) }, '›')) : null,
-    stage,
+    view,
     h('div', { class: 'files', style: 'margin-bottom:6px' },
       h('a', { class: 'fchip', href: CFG.driveWeb + '/uc?export=download&id=' + fid, target: '_blank', rel: 'noopener noreferrer' }, 'Download'),
       h('a', { class: 'fchip', href: url, target: '_blank', rel: 'noopener noreferrer' }, 'Open in Drive ↗')),
     id ? commentsBox(id, { title: false, video, file: url, pin: video ? null : pin, onDraw: drawPins }) : null);
   openSheet((id ? id + ' · ' : '') + (video ? 'Video' : 'File'), body);
   drawPins();
+  fit();
+  // Turning the phone or resizing the window fits it again (only the width matters, so the keyboard doesn't).
+  if (window.ResizeObserver) {
+    let lastW = view.clientWidth;
+    new ResizeObserver(() => { if (view.isConnected && view.clientWidth !== lastW) { lastW = view.clientWidth; fit(); } }).observe(view);
+  }
+}
+/** Tallest the preview may be: the comment box stays on screen under it. Same as --pv-h in the CSS. */
+function pvMaxH() {
+  const vh = document.documentElement.clientHeight || window.innerHeight;
+  return Math.max(220, Math.min(vh * 0.62, vh - 300));
+}
+/** The whole image on screen: as big as fits in the width and pvMaxH(), never bigger than the file. */
+function fitPreviewImg(view, img) {
+  const nw = img.naturalWidth, nh = img.naturalHeight, w = view.clientWidth;
+  if (!nw || !nh || !w) return;
+  const s = Math.min(1, w / nw, pvMaxH() / nh);
+  img.style.width = Math.floor(nw * s) + 'px';
+  img.style.height = Math.floor(nh * s) + 'px';
+}
+/**
+ * Drive's video player cuts its own buttons off when it's narrower than about 430px (most phones).
+ * On a narrow screen it gets a wider page and is scaled down to fit, so every button shows.
+ */
+const PV_PLAYER_W = 480;
+function fitPreviewPlayer(view, player) {
+  const w = view.clientWidth, ht = view.clientHeight;
+  if (!w || !ht) return;
+  const s = Math.min(1, w / PV_PLAYER_W);
+  player.style.width = s < 1 ? (w / s).toFixed(1) + 'px' : '';
+  player.style.height = s < 1 ? (ht / s).toFixed(1) + 'px' : '';
+  player.style.transform = s < 1 ? 'scale(' + s.toFixed(4) + ')' : '';
 }
 
 /* ----- Upload straight to Google Drive (folder per ID). The server hands out a short-lived token. ----- */
