@@ -145,6 +145,10 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 .seg button { flex: 1; border: 0; background: none; border-radius: 9px; min-height: 32px; font-size: 13.5px; font-weight: 550; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: background .2s, color .2s; white-space: nowrap; padding: 0 8px; }
 .seg button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(26,24,21,.08); }
 .seg.cap-tabs button { font-size: 12.5px; min-height: 28px; }
+/* Many platforms: the tabs scroll sideways inside their row (the page never does). */
+.seg.cap-tabs { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.seg.cap-tabs::-webkit-scrollbar { display: none; }
+.seg.cap-tabs button { flex: 1 0 auto; }
 .seg button .n { font-size: 11px; background: var(--gold); color: #fff; border-radius: 999px; min-width: 17px; height: 17px; padding: 0 5px; display: inline-grid; place-items: center; }
 .subnav { display: flex; gap: 14px; align-items: center; margin: -6px 0 12px; font-size: 13px; }
 .subnav button { border: 0; background: none; padding: 4px 0; color: var(--muted); cursor: pointer; font-weight: 500; display: inline-flex; gap: 5px; align-items: center; }
@@ -272,6 +276,11 @@ textarea.in { resize: vertical; min-height: 70px; line-height: 1.5; }
 .capbox .pre { font-size: 14px; }
 .capbox .cap-k { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 8px 0 2px; display: flex; justify-content: space-between; align-items: center; }
 .capbox .cap-k:first-child { margin-top: 0; }
+.cap-opt { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line); font-size: 13.5px; }
+.cap-opt:first-of-type { border-top: 0; }
+.cap-count { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--faint); }
+.cap-count.over { color: var(--red); font-weight: 650; }
+.cap-warn { margin-top: 8px; font-size: 12.5px; line-height: 1.45; color: var(--orange); background: var(--orange-bg); border-radius: 9px; padding: 7px 10px; }
 /* Where Auto writes: open to type in at once, gold while it writes; orange when nothing came and a copy went in. */
 .capbox.auto, .in.auto { border-color: var(--gold); background: var(--gold-soft); }
 .capbox.auto .in { background: var(--card); }
@@ -2939,6 +2948,24 @@ function rhythmRulesSheet() {
  * the post goes on, each written in that platform's own style. On the admin's post card (f given) each one can be
  * edited (kept in f.capEdits and saved with Save), copied, or written again; everyone else reads and copies them.
  */
+/**
+ * What each caption skill gives, piece by piece, each with its Copy (the options are other choices to copy).
+ * "only": shown when the skill gave it (a TikTok title for photo posts, Snapchat's Spotlight for videos, X's reply with a link).
+ */
+const CAP_FIELDS = {
+  instagram: [{ k: 'text', label: 'Caption', rows: 6 }, { k: 'hooks', label: 'Alternative hooks', options: true }],
+  tiktok: [{ k: 'text', label: 'Caption', rows: 5 }, { k: 'cover', label: 'Cover text', line: true }, { k: 'title', label: 'Title', line: true, only: true },
+    { k: 'searches', label: 'Alternative search lines', options: true }],
+  snapchat: [{ k: 'spotlight', label: 'Spotlight description', line: true, only: true }, { k: 'topics', label: 'Topics', line: true, only: true },
+    { k: 'story', label: 'Story text', line: true }],
+  youtube: [{ k: 'title', label: 'Title', line: true }, { k: 'titles', label: 'Other titles', options: true }, { k: 'description', label: 'Description', rows: 8 },
+    { k: 'tags', label: 'Tags', line: true }],
+  linkedin: [{ k: 'text', label: 'Post', rows: 8 }, { k: 'openings', label: 'Alternative openings', options: true }],
+  x: [{ k: 'text', label: 'Post', rows: 4, max: 280 }, { k: 'reply', label: 'Reply with the link', line: true, only: true }, { k: 'alt', label: 'Alternative post', options: true }]
+};
+const CAP_SKILLS = [{ value: 'instagram', label: 'Instagram skill (Instagram, Facebook)' }, { value: 'tiktok', label: 'TikTok skill' }, { value: 'snapchat', label: 'Snapchat skill' },
+  { value: 'youtube', label: 'YouTube skill' }, { value: 'linkedin', label: 'LinkedIn skill' }, { value: 'x', label: 'X skill' }];
+
 function captionsBox(c, f) {
   const edit = !!f;
   if (f && !f.capEdits) f.capEdits = {};
@@ -2966,13 +2993,16 @@ function captionsBox(c, f) {
       const tab = on.indexOf((S.ui.capTab || {})[id]) >= 0 ? S.ui.capTab[id] : on[0];
       const x = caps[tab] || {};
       const styles = (S.state.settings && S.state.settings.captionStyles) || {};
-      const youtube = x.title !== undefined || (styles[tab] || {}).format === 'youtube';
+      const fmt = CAP_FIELDS[(styles[tab] || {}).format] ? styles[tab].format : x.title !== undefined ? 'youtube' : 'instagram';
       const mine = f && f.capEdits[tab];
       const waiting = x.status === 'Waiting';
       // While a new one is written, the box keeps what it had (and comes back to it if none comes).
-      const src = waiting ? x.before || {} : x;
-      const val = (k) => (mine && mine[k] !== undefined ? mine[k] : k === 'tags' ? (src.tags || []).join(', ') : src[k] || '');
-      const set = (k, v) => { f.capEdits[tab] = Object.assign(youtube ? { title: val('title'), description: val('description'), tags: val('tags') } : { text: val('text') }, f.capEdits[tab] || {}, { [k]: v }); };
+      const src = Object.assign({}, waiting ? x.before || {} : x);
+      if (fmt === 'snapchat' && src.text && !src.story && !src.spotlight) src.story = src.text; // written before the skills
+      const fields = CAP_FIELDS[fmt].filter((d) => !d.only || src[d.k] !== undefined || (mine && mine[d.k] !== undefined));
+      const editable = fields.filter((d) => !d.options);
+      const val = (k) => (mine && mine[k] !== undefined ? mine[k] : k === 'tags' ? (src.tags || []).join(', ') : String(src[k] || ''));
+      const set = (k, v) => { f.capEdits[tab] = Object.assign(Object.fromEntries(editable.map((d) => [d.k, val(d.k)])), f.capEdits[tab] || {}, { [k]: v }); };
       const ask2 = (e) => {
         const btn = e.currentTarget;
         const go = () => { delete f.capEdits[tab]; run(btn, 'agent.ask', { entity: 'cal', key: c.key, platform: tab }, 'Writing another ' + tab + ' caption…', { keepSheet: true }); };
@@ -2980,37 +3010,46 @@ function captionsBox(c, f) {
         else go();
       };
       const asker = edit && c && S.state.ai;
+      const options = (d) => {
+        const list = (Array.isArray(src[d.k]) ? src[d.k] : src[d.k] ? [src[d.k]] : []).filter(Boolean);
+        return list.length ? [h('div', { class: 'cap-k' }, d.label),
+          list.map((o) => h('div', { class: 'cap-opt' }, h('div', { class: 'pre grow', dir: 'auto' }, o), copyBtn(() => o)))] : null;
+      };
+      const about = src.kind ? h('div', { class: 'small muted', style: 'margin-bottom:6px' }, dots(src.kind, src.media)) : null;
+      const warn = !mine && x.warnings && x.warnings.length && edit
+        ? h('div', { class: 'cap-warn' }, h('b', null, 'Check: '), x.warnings.join(' · ')) : null;
       let content;
       if (waiting && !edit) content = h('div', { class: 'small', style: 'color:var(--gold-ink)' }, 'Writing the ' + tab + ' caption…');
       else if (edit) {
-        const box = (k, rows, ph) => {
-          const t = h('textarea', { class: 'in', dir: 'auto', rows, placeholder: ph, oninput: (e) => { set(k, e.target.value); grow(t); } });
-          t.value = val(k);
-          requestAnimationFrame(() => grow(t));
-          return t;
-        };
-        const line = (k, ph) => h('input', { class: 'in', dir: 'auto', placeholder: ph, value: val(k), oninput: (e) => set(k, e.target.value) });
         content = [
           mine ? null : autoTag(x.status, x.from, ''),
           x.status === 'Error' ? h('div', { class: 'small', style: 'margin-bottom:6px' }, S.state.aiLimit ? aiLimitText() : 'Couldn\'t write it. Try again, or write it here.') : null,
-          youtube
-            ? [h('div', { class: 'cap-k' }, 'Title', copyBtn(() => val('title'))), line('title', 'Video title'),
-              h('div', { class: 'cap-k' }, 'Description', copyBtn(() => val('description'))), box('description', 4, 'Description'),
-              h('div', { class: 'cap-k' }, 'Tags', copyBtn(() => val('tags'))), line('tags', 'Search words, with commas')]
-            : [box('text', 5, 'Write the ' + tab + ' caption'),
-              h('div', { class: 'row', style: 'margin-top:8px;gap:6px' }, copyBtn(() => val('text')),
-                x.edited || mine ? h('span', { class: 'small muted' }, mine ? 'not saved yet' : 'edited') : null)],
+          about,
+          fields.map((d, i) => {
+            if (d.options) return options(d);
+            const count = d.max ? h('span', { class: 'cap-count' }) : null;
+            const recount = () => { if (count) { const n = val(d.k).length; count.textContent = n + ' / ' + d.max; count.classList.toggle('over', n > d.max); } };
+            const box = d.line
+              ? h('input', { class: 'in', dir: 'auto', placeholder: d.label, value: val(d.k), oninput: (e) => { set(d.k, e.target.value); recount(); } })
+              : h('textarea', { class: 'in', dir: 'auto', rows: d.rows || 4, placeholder: 'Write the ' + tab + ' ' + d.label.toLowerCase(), oninput: (e) => { set(d.k, e.target.value); grow(e.target); recount(); } });
+            if (!d.line) { box.value = val(d.k); requestAnimationFrame(() => grow(box)); }
+            recount();
+            return [h('div', { class: 'cap-k' }, h('span', null, d.label, count ? ' ' : '', count), copyBtn(() => val(d.k))), box,
+              i === 0 && (x.edited || mine) ? h('div', { class: 'small muted', style: 'margin-top:4px' }, mine ? 'not saved yet' : 'edited') : null];
+          }),
+          warn,
           asker && !waiting ? h('div', { style: 'margin-top:8px' }, h('button', { type: 'button', class: 'btn ghost tiny', onclick: ask2 },
             x.status === 'Done' ? 'Write another' : x.status === 'Error' || x.status === 'Copied' ? 'Try again' : 'Write it for me')) : null];
-      } else if ((x.status === 'Done' || x.status === 'Copied') && x.title !== undefined) {
-        content = [h('div', { class: 'cap-k' }, 'Title', copyBtn(() => x.title)), h('div', { class: 'pre', dir: 'auto' }, x.title),
-          h('div', { class: 'cap-k' }, 'Description', copyBtn(() => x.description)), h('div', { class: 'pre', dir: 'auto' }, x.description),
-          h('div', { class: 'cap-k' }, 'Tags', copyBtn(() => (x.tags || []).join(', '))), h('div', { class: 'small muted' }, (x.tags || []).join(', '))];
-      } else if (x.status === 'Done' || x.status === 'Copied') content = [autoTag(x.status, x.from, ''), h('div', { class: 'pre', dir: 'auto' }, x.text), h('div', { class: 'row', style: 'margin-top:8px' }, copyBtn(() => x.text))];
-      else content = h('div', { class: 'small faint' }, 'Not written yet.');
+      } else if (x.status === 'Done' || x.status === 'Copied') {
+        content = [autoTag(x.status, x.from, ''), about, fields.map((d) => d.options ? options(d)
+          : val(d.k) ? [h('div', { class: 'cap-k' }, d.label, copyBtn(() => val(d.k))), h('div', { class: 'pre', dir: 'auto' }, val(d.k))] : null)];
+      } else content = h('div', { class: 'small faint' }, 'Not written yet.');
+      const tabs = on.length > 1 ? h('div', { class: 'seg cap-tabs', style: 'margin-bottom:6px' }, on.map((p) => h('button', { type: 'button', class: p === tab ? 'on' : '',
+        onclick: () => { S.ui.capTab = Object.assign({}, S.ui.capTab, { [id]: p }); refreshLive(); } }, pfIcon(p, 13), p))) : null;
+      // The chosen tab stays in view when the row is wider than the phone.
+      if (tabs) requestAnimationFrame(() => { const b = tabs.querySelector('.on'); if (b) tabs.scrollLeft = Math.max(0, b.offsetLeft - (tabs.clientWidth - b.offsetWidth) / 2); });
       perPlatform = [
-        on.length > 1 ? h('div', { class: 'seg cap-tabs', style: 'margin-bottom:6px' }, on.map((p) => h('button', { type: 'button', class: p === tab ? 'on' : '',
-          onclick: () => { S.ui.capTab = Object.assign({}, S.ui.capTab, { [id]: p }); refreshLive(); } }, pfIcon(p, 13), p))) : h('div', { class: 'small muted', style: 'margin-bottom:6px' }, pfIcon(tab, 13), ' ', tab),
+        tabs || h('div', { class: 'small muted', style: 'margin-bottom:6px' }, pfIcon(tab, 13), ' ', tab),
         h('div', { class: 'capbox' + (waiting && edit && !mine ? ' auto' : '') }, content)];
     }
     if (!drafts.length && !oldBlock && !perPlatform) return null;
@@ -3304,7 +3343,7 @@ function captionsView() {
   const addF = { v: '' };
   const lic = { licenseNumbers: set.licenseNumbers };
   const brief = { briefStyle: set.briefStyle || set.defaultBriefStyle };
-  const adv = { captionRules: set.captionRules || set.defaultCaptionRules, model: set.model };
+  const adv = { model: set.model };
   const add = h('button', { class: 'btn small' }, 'Add');
   add.onclick = () => {
     const v = addF.v.trim();
@@ -3319,7 +3358,7 @@ function captionsView() {
       const x = styles[p] || {};
       const n = String(x.examples || '').split(/\n---\n/).filter((e) => e.trim()).length;
       return lrow({ onclick: () => platformSheet(p), title: p, left: h('span', { class: 'pfbox' }, pfIcon(p, 18)),
-        sub: dots(x.format === 'youtube' ? 'title, description, tags' : 'caption', n ? n + ' example' + (n === 1 ? '' : 's') : 'no examples yet') });
+        sub: dots((CAP_SKILLS.find((k) => k.value === x.format) || CAP_SKILLS[0]).label, n ? n + ' example' + (n === 1 ? '' : 's') : null, x.notes ? 'extra notes' : null) });
     })),
     h('div', { class: 'row', style: 'margin-top:8px' }, h('div', { class: 'grow' }, input(addF, 'v', { placeholder: 'New platform (e.g. Threads)' })), add),
     postPlatformsCard(set),
@@ -3336,18 +3375,16 @@ function captionsView() {
       h('button', { class: 'btn primary small', onclick: (e) => run(e.currentTarget, 'settings.save', lic, 'Saved') }, 'Save')),
     h('details', { class: 'more', style: 'margin-top:18px' }, h('summary', null, 'Advanced'),
       h('div', { class: 'card' },
-        field(h('span', null, 'Rules for every caption', h('i', null, 'never invent facts is always added')), area(adv, 'captionRules', { rows: 7, dir: 'ltr' })),
         field(h('span', null, 'Model', h('i', null, 'empty = automatic')), input(adv, 'model', { dir: 'ltr', placeholder: 'automatic' })),
         h('div', { class: 'row' },
-          h('button', { class: 'btn primary small', onclick: (e) => run(e.currentTarget, 'settings.save', adv, 'Saved') }, 'Save'),
-          h('button', { class: 'btn ghost tiny', onclick: (e) => { adv.captionRules = set.defaultCaptionRules; run(e.currentTarget, 'settings.save', { captionRules: adv.captionRules }, 'Back to the default'); } }, 'Use the default rules')))));
+          h('button', { class: 'btn primary small', onclick: (e) => run(e.currentTarget, 'settings.save', adv, 'Saved') }, 'Save')))));
 }
 
 /** One platform: how its caption is written (format, examples, notes), or remove it. */
 function platformSheet(name) {
   const set = S.state.settings;
-  const x = (set.captionStyles || {})[name] || { format: 'caption', examples: '', notes: '' };
-  const f = { format: x.format || 'caption', examples: x.examples || '', notes: x.notes || '' };
+  const x = (set.captionStyles || {})[name] || { format: 'instagram', examples: '', notes: '' };
+  const f = { format: x.format || 'instagram', examples: x.examples || '', notes: x.notes || '' };
   const save = h('button', { class: 'btn primary' }, 'Save');
   save.onclick = () => run(save, 'settings.save', { captionStyles: { [name]: f } }, name + ' saved');
   const del = h('button', { class: 'btn danger' }, 'Remove');
@@ -3357,9 +3394,10 @@ function platformSheet(name) {
     run(del, 'settings.save', { platforms: set.platforms.filter((p) => p !== name) }, name + ' removed');
   };
   openSheet(name, h('div', null,
-    field('Writes', selectBox([{ value: 'caption', label: 'A caption' }, { value: 'youtube', label: 'Title, description and tags' }], f.format, (v) => { f.format = v; }, { full: true })),
-    field(h('span', null, 'Examples', h('i', null, 'a line with --- between two')), area(f, 'examples', { rows: 10, dir: 'ltr', placeholder: 'Paste captions you like' })),
-    field(h('span', null, 'How to write it', h('i', null, 'length, tone, hashtags')), area(f, 'notes', { rows: 3, dir: 'ltr' }))), [del, save]);
+    field(h('span', null, 'Writes with', h('i', null, 'your caption skill')), selectBox(CAP_SKILLS, f.format, (v) => { f.format = v; }, { full: true })),
+    h('div', { class: 'small muted', style: 'margin:-6px 0 14px' }, 'The skill decides the structure, the CTA, the hashtags and the emojis. What you add below comes after it, and the skill wins when they disagree.'),
+    field(h('span', null, 'Extra notes', h('i', null, 'optional')), area(f, 'notes', { rows: 3, dir: 'ltr', placeholder: 'Anything to add for ' + name })),
+    field(h('span', null, 'Examples', h('i', null, 'optional · for the voice · a line with --- between two')), area(f, 'examples', { rows: 6, dir: 'ltr', placeholder: 'Past posts you like' }))), [del, save]);
 }
 
 /** App: name, idea types, work hours. */
