@@ -374,6 +374,9 @@ button.cmt-tag { cursor: pointer; }
 .vp-b:active { background: rgba(255,255,255,.12); }
 .vp-b svg { width: 18px; height: 18px; }
 .vp-t { flex: none; font-size: 12px; font-variant-numeric: tabular-nums; opacity: .85; padding: 0 6px; }
+.vp-b.vp-hd { width: auto; padding: 0 7px; font-size: 11px; font-weight: 700; letter-spacing: .04em; opacity: .55; }
+.vp-b.vp-hd[aria-pressed="true"] { opacity: 1; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.7); }
+#bgjob { position: fixed; right: 12px; bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom)); z-index: 70; background: var(--card); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.08); max-width: calc(100% - 24px); }
 .vp-seek { flex: 1; min-width: 0; accent-color: var(--gold); margin: 0 4px; }
 .pin { position: absolute; transform: translate(-50%, -50%); width: 24px; height: 24px; border-radius: 50%; background: var(--gold); color: #fff; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; box-shadow: 0 2px 6px rgba(0,0,0,.4); border: 2px solid #fff; pointer-events: none; }
 .pin.new { background: var(--brand); }
@@ -485,7 +488,9 @@ const CFG = Object.assign({
   region: 'ap-south-1',
   emailDomain: 'katal.team',
   driveApi: 'https://www.googleapis.com',
-  driveWeb: 'https://drive.google.com'
+  driveWeb: 'https://drive.google.com',
+  // Makes the light copies of videos on the uploader's device (loaded only then).
+  mediabunny: 'https://cdn.jsdelivr.net/npm/mediabunny@1.61.1/dist/bundles/mediabunny.min.mjs'
 }, window.KATAL_CONFIG || {});
 
 /** The KATAL wordmark (white, transparent), for the top bar and the sign-in screens. */
@@ -1362,6 +1367,8 @@ function fmtClock(sec) {
  */
 function videoPlayer(fid, fallback, onPause) {
   const vid = h('video', { playsinline: true, preload: 'metadata' });
+  // HD: shown when the video has a light copy (played first); on, it plays the original.
+  const hdBtn = h('button', { type: 'button', class: 'vp-b vp-hd', 'aria-label': 'Full quality', 'aria-pressed': 'false', title: 'Full quality', style: 'display:none' }, 'HD');
   const note = h('div', { class: 'vp-note' }, 'Loading…');
   const btn = (name, label, onclick) => h('button', { type: 'button', class: 'vp-b', 'aria-label': label, onclick }, icon(name));
   const playBtn = btn('play', 'Play', () => (vid.paused ? vid.play().catch(() => {}) : vid.pause()));
@@ -1372,10 +1379,18 @@ function videoPlayer(fid, fallback, onPause) {
   });
   const time = h('span', { class: 'vp-t' }, '0:00 / 0:00');
   const seek = h('input', { type: 'range', class: 'vp-seek', min: '0', max: '1000', value: '0', 'aria-label': 'Position' });
-  const wrap = h('div', { class: 'vp' }, h('div', { class: 'vp-stage' }, vid, note), h('div', { class: 'vp-bar' }, playBtn, time, seek, muteBtn, fullBtn));
+  const wrap = h('div', { class: 'vp' }, h('div', { class: 'vp-stage' }, vid, note), h('div', { class: 'vp-bar' }, playBtn, time, seek, hdBtn, muteBtn, fullBtn));
   let dragging = false;
   let failed = false;
-  const fail = () => { if (!failed && wrap.isConnected) { failed = true; fallback(); } };
+  const files = { light: null, full: null };
+  let playing = null; // the file in the player now
+  const fail = () => {
+    if (failed || !wrap.isConnected) return;
+    // The light copy won't play here: the original then; only if that won't either, Drive's player.
+    if (playing && playing === files.light && files.full) { files.light = null; hdBtn.style.display = 'none'; play(files.full).catch(() => fail()); return; }
+    failed = true;
+    fallback();
+  };
   const show = (text) => { note.textContent = text; note.style.display = text ? '' : 'none'; };
   const swap = (b, name) => fill(b, icon(name));
   const tick = () => {
@@ -1402,37 +1417,54 @@ function videoPlayer(fid, fallback, onPause) {
   vid.addEventListener('error', fail);
   seek.addEventListener('input', () => { dragging = true; if (vid.duration) { vid.currentTime = seek.value / 1000 * vid.duration; tick(); } });
   seek.addEventListener('change', () => { dragging = false; });
+  /** Puts a file in the player: the installed app streams it (service worker); elsewhere it's loaded first, with a note. */
+  async function play(f, at, go) {
+    playing = f;
+    hdBtn.setAttribute('aria-pressed', f === files.full && files.light ? 'true' : 'false');
+    if (at) vid.addEventListener('loadedmetadata', () => { vid.currentTime = at; if (go) vid.play().catch(() => {}); }, { once: true });
+    if (videoUrls.has(f.id)) { vid.src = videoUrls.get(f.id); return; }
+    const tok = (await mediaToken()).token;
+    if (window.KATAL_PWA && navigator.serviceWorker && navigator.serviceWorker.controller) {
+      // The service worker answers this address itself (it never reaches a server).
+      vid.src = 'drive-video/' + encodeURIComponent(f.id) + '?k=' + encodeURIComponent(tok) + '&n=' + f.size;
+      return;
+    }
+    if (f.size > VIDEO_MAX_LOAD) throw new Error('Too big to load');
+    const r = await fetch(CFG.driveApi + '/drive/v3/files/' + encodeURIComponent(f.id) + '?alt=media', { headers: { authorization: 'Bearer ' + tok } });
+    if (!r.ok || !r.body) throw new Error('Drive answered ' + r.status);
+    const reader = r.body.getReader();
+    const parts = [];
+    let got = 0;
+    show('Loading the video · 0%');
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!wrap.isConnected || playing !== f) { reader.cancel().catch(() => {}); return; }
+      parts.push(value);
+      got += value.length;
+      show('Loading the video · ' + Math.min(99, Math.floor(got / f.size * 100)) + '%');
+    }
+    const url = URL.createObjectURL(new Blob(parts, { type: f.mimeType }));
+    videoUrls.set(f.id, url);
+    while (videoUrls.size > 2) { const [old, u] = videoUrls.entries().next().value; URL.revokeObjectURL(u); videoUrls.delete(old); }
+    if (wrap.isConnected && playing === f) vid.src = url;
+  }
+  hdBtn.onclick = () => {
+    const to = playing === files.full ? files.light : files.full;
+    if (!to) return;
+    play(to, vid.currentTime, !vid.paused).catch(() => fail());
+  };
   (async () => {
     try {
-      if (videoUrls.has(fid)) { vid.src = videoUrls.get(fid); return; }
       const tok = (await mediaToken()).token;
-      const meta = await gapi('/drive/v3/files/' + encodeURIComponent(fid) + '?fields=size,mimeType', {}, tok);
+      const [meta, light] = await Promise.all([gapi('/drive/v3/files/' + encodeURIComponent(fid) + '?fields=size,mimeType', {}, tok), lightCopyOf(fid, tok)]);
       const size = Number(meta.size) || 0;
       if (!/^video\//.test(meta.mimeType || '') || !size) throw new Error('Not a video');
       if (!wrap.isConnected) return;
-      if (window.KATAL_PWA && navigator.serviceWorker && navigator.serviceWorker.controller) {
-        // The service worker answers this address itself (it never reaches a server).
-        vid.src = 'drive-video/' + encodeURIComponent(fid) + '?k=' + encodeURIComponent(tok) + '&n=' + size;
-        return;
-      }
-      if (size > VIDEO_MAX_LOAD) throw new Error('Too big to load');
-      const r = await fetch(CFG.driveApi + '/drive/v3/files/' + encodeURIComponent(fid) + '?alt=media', { headers: { authorization: 'Bearer ' + tok } });
-      if (!r.ok || !r.body) throw new Error('Drive answered ' + r.status);
-      const reader = r.body.getReader();
-      const parts = [];
-      let got = 0;
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (!wrap.isConnected) { reader.cancel().catch(() => {}); return; }
-        parts.push(value);
-        got += value.length;
-        show('Loading the video · ' + Math.min(99, Math.floor(got / size * 100)) + '%');
-      }
-      const url = URL.createObjectURL(new Blob(parts, { type: meta.mimeType }));
-      videoUrls.set(fid, url);
-      while (videoUrls.size > 2) { const [old, u] = videoUrls.entries().next().value; URL.revokeObjectURL(u); videoUrls.delete(old); }
-      if (wrap.isConnected) vid.src = url;
+      files.full = { id: fid, size, mimeType: meta.mimeType };
+      files.light = light;
+      if (light) hdBtn.style.display = '';
+      await play(light || files.full);
     } catch (e) {
       fail();
     }
@@ -1490,15 +1522,21 @@ async function driveFolder(tok, root, name) {
     body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [root] }) }, tok);
   return (folderIds[name] = made.id);
 }
-/** Uploads a file (any size, with progress) into the ID's folder; anyone with the link can view it. Returns its link. */
-async function driveUpload(file, ctx, onProgress) {
+/**
+ * Uploads a file (any size, with progress) into the ID's folder; anyone with the link can view it. Returns its link.
+ * extra: { name, properties, private } — a light copy has its own name, a "lightOf" mark and isn't shared.
+ */
+async function driveUpload(file, ctx, onProgress, extra) {
+  extra = extra || {};
   const { token, folderId } = await mediaToken();
   const parent = ctx.id ? await driveFolder(token, folderId, ctx.id) : folderId;
-  const name = [ctx.id, ctx.label, file.name].filter(Boolean).join(' · ');
+  const name = extra.name || [ctx.id, ctx.label, file.name].filter(Boolean).join(' · ');
+  const meta = { name, parents: [parent] };
+  if (extra.properties) meta.properties = extra.properties;
   const init = await fetch(CFG.driveApi + '/upload/drive/v3/files?uploadType=resumable&fields=id', {
     method: 'POST',
     headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json; charset=UTF-8', 'x-upload-content-type': file.type || 'application/octet-stream' },
-    body: JSON.stringify({ name, parents: [parent] })
+    body: JSON.stringify(meta)
   });
   // The session address is in "Location"; if the browser can't read it, it's rebuilt from the exposed upload id.
   const uid = init.headers.get('x-guploader-uploadid');
@@ -1512,9 +1550,69 @@ async function driveUpload(file, ctx, onProgress) {
     x.onerror = () => reject(new Error('The upload stopped. Check your internet and try again.'));
     x.send(file);
   });
-  await gapi('/drive/v3/files/' + done.id + '/permissions', { method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ role: 'reader', type: 'anyone' }) }, token);
+  if (!extra.private) {
+    await gapi('/drive/v3/files/' + done.id + '/permissions', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' }) }, token);
+  }
   return 'https://drive.google.com/file/d/' + done.id + '/view';
+}
+
+/* ----- Light copies: after a video is uploaded, this device makes a 720p copy of it (a few times smaller) and puts it
+   next to the original on Drive, marked "lightOf" the original and not shared. The player plays the light copy, so
+   videos don't stop on a weaker connection; HD and Download give the original. ----- */
+const LIGHT_SIDE = 720; // the shorter side of the light copy
+const LIGHT_BITRATE = 2500000;
+let lightQueue = Promise.resolve();
+const lightJobs = { n: 0, note: null };
+/** The light copy of a Drive video, if one was made: { id, size, mimeType }, else null. */
+async function lightCopyOf(fid, tok) {
+  const q = "properties has { key='lightOf' and value='" + fid + "' } and trashed=false";
+  const d = await gapi('/drive/v3/files?pageSize=1&fields=files(id,size,mimeType)&q=' + encodeURIComponent(q), {}, tok).catch(() => ({}));
+  const f = d.files && d.files[0];
+  return f && Number(f.size) ? { id: f.id, size: Number(f.size), mimeType: f.mimeType || 'video/mp4' } : null;
+}
+/** After the upload: one light copy at a time, in the background. Nothing breaks if it can't be made. */
+function lightCopyLater(file, link, ctx) {
+  const fid = driveIdOf(link);
+  if (!fid || !/^video\//.test(file.type || '') || typeof VideoEncoder === 'undefined') return;
+  lightJobs.n++;
+  lightQueue = lightQueue.then(() => makeLightCopy(file, fid, ctx)).catch(() => {}).then(() => {
+    if (--lightJobs.n) return;
+    if (lightJobs.note) { lightJobs.note.remove(); lightJobs.note = null; }
+    window.removeEventListener('beforeunload', lightLeaving);
+  });
+  window.addEventListener('beforeunload', lightLeaving);
+}
+function lightLeaving(e) { e.preventDefault(); e.returnValue = ''; }
+function lightNote(text) {
+  if (!lightJobs.note) { lightJobs.note = h('div', { id: 'bgjob', role: 'status' }); document.body.append(lightJobs.note); }
+  lightJobs.note.textContent = text;
+}
+async function makeLightCopy(file, fid, ctx) {
+  lightNote('Making a light copy for smooth playing…');
+  const blob = await lightVideo(file, (p) => lightNote('Making a light copy for smooth playing · ' + Math.round(p * 100) + '%'));
+  if (!blob) return;
+  lightNote('Saving the light copy…');
+  await driveUpload(blob, ctx, () => {}, { name: [ctx.id, ctx.label, 'light', file.name.replace(/\.\w+$/, '') + '.mp4'].filter(Boolean).join(' · '), properties: { lightOf: fid }, private: true });
+}
+/** A 720p H.264 copy of a video (the sound as it is), or null when it can't be made here or wouldn't be lighter. */
+async function lightVideo(file, onProgress) {
+  const mb = await import(CFG.mediabunny);
+  const input = new mb.Input({ formats: mb.ALL_FORMATS, source: new mb.BlobSource(file) });
+  const track = await input.getPrimaryVideoTrack();
+  if (!track) return null;
+  const w = track.displayWidth, ht = track.displayHeight;
+  const k = LIGHT_SIDE / Math.min(w, ht);
+  if (!(k < 1)) return null; // already small
+  const even = (n) => Math.max(2, Math.round(n * k / 2) * 2);
+  const output = new mb.Output({ format: new mb.Mp4OutputFormat({ fastStart: 'in-memory' }), target: new mb.BufferTarget() });
+  const conv = await mb.Conversion.init({ input, output,
+    video: { width: even(w), height: even(ht), fit: 'fill', codec: 'avc', bitrate: LIGHT_BITRATE, keyFrameInterval: 2 } });
+  if (!conv.isValid || !conv.utilizedTracks.some((t) => t.type === 'video')) return null;
+  conv.onProgress = onProgress;
+  await conv.execute();
+  const buf = output.target.buffer;
+  return buf && buf.byteLength < file.size * 0.8 ? new Blob([buf], { type: 'video/mp4' }) : null;
 }
 /**
  * Upload button. ctx: { id, label, multi, text }. onDone gets the Drive link, or with multi
@@ -1544,6 +1642,7 @@ function uploadButton(ctx, onDone) {
         }));
       }
       onDone(ctx.multi ? links : links[0]);
+      files.forEach((f, i) => lightCopyLater(f, links[i], ctx));
     } catch (err) {
       toast(err.message, true);
     } finally {
