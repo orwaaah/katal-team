@@ -1363,7 +1363,7 @@ function fmtClock(sec) {
 }
 /**
  * The video, then play/pause, time, a seek bar, sound and full screen under it. In the installed app the
- * service worker streams the file from Drive in pieces; elsewhere it is loaded first (with a progress note).
+ * service worker streams the file from Drive as it plays; elsewhere it is loaded first (with a progress note).
  * Anything that goes wrong (a link the app didn't upload, a format the phone can't play) calls fallback().
  */
 function videoPlayer(fid, fallback, onPause) {
