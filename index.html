@@ -204,6 +204,9 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
   .item .st { min-width: 128px; text-align: right; }
 }
 .section .count { font-size: 12px; color: var(--faint); font-weight: 600; }
+.namebox { display: flex; flex-direction: column; gap: 3px; }
+.ncount { align-self: flex-end; font-size: 11.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.ncount.over { color: var(--orange); font-weight: 600; }
 /* A task's facts in the same order as the list: who, when, where it stands. */
 .facts { display: grid; grid-template-columns: 84px 1fr; gap: 8px 10px; align-items: center; margin-top: 10px; font-size: 14px; }
 .facts .fl { font-size: 12px; color: var(--muted); }
@@ -225,6 +228,14 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .tile .play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(0,0,0,.18); }
 .tile .play svg { width: 28px; height: 28px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.4)); }
+.fedit .tile .tview { position: absolute; inset: 0; border: 0; padding: 0; background: none; cursor: pointer; color: inherit; }
+.fedit .tile .tview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fedit .tile .lnk { display: grid; place-items: center; height: 100%; font-size: 12px; font-weight: 600; color: var(--gold-ink); }
+.fedit .tile .tx { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: rgba(20,19,17,.66); color: #fff; font-size: 11px; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.fedit .tile .tmove { position: absolute; left: 4px; bottom: 4px; display: flex; gap: 3px; }
+.fedit .tile .tmove button { width: 24px; height: 22px; border-radius: 6px; border: 0; background: rgba(20,19,17,.66); color: #fff; font-size: 14px; line-height: 1; cursor: pointer; padding: 0; }
+.fedit .tile .tmove button:disabled { opacity: .3; cursor: default; }
+.fedit .tile .n { left: 5px; top: 5px; right: auto; bottom: auto; }
 .tile .n { position: absolute; right: 5px; bottom: 5px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; border-radius: 6px; padding: 0 5px; }
 .lrow .main-col { flex: 1; min-width: 0; }
 .lrow .t { font-weight: 550; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -957,6 +968,20 @@ function area(f, k, attrs) {
   t.value = f[k] || '';
   requestAnimationFrame(() => grow(t));
   return t;
+}
+/** A name: up to 30 characters, so it reads at a glance in every list; the count shows under it. */
+const NAME_MAX = 30;
+function nameInput(f, k, attrs) {
+  const count = h('span', { class: 'ncount', 'aria-live': 'polite' });
+  const paint = () => { const n = (f[k] || '').length; count.textContent = n + ' / ' + NAME_MAX; count.classList.toggle('over', n > NAME_MAX); };
+  const inp = input(f, k, Object.assign({ maxlength: (f[k] || '').length > NAME_MAX ? null : NAME_MAX }, attrs || {}));
+  inp.addEventListener('input', paint);
+  paint();
+  return h('div', { class: 'namebox' }, inp, count);
+}
+/** What an idea is, under its short name. */
+function detailsArea(f) {
+  return area(f, 'details', { rows: 4, placeholder: 'What the idea is: the text, the slides, the angle…' });
 }
 function grow(t) {
   t.style.height = 'auto';
@@ -2159,7 +2184,7 @@ function memberTaskCard(t) {
       });
   };
 
-  const more = restLines(t.idea);
+  const more = t.ideaDetails || restLines(t.idea);
   append(card, h('div', { class: 'trow-body' },
     h('div', { class: 'small muted', style: 'margin-bottom:6px' }, dots(t.type, approved ? null : dueChip(t, true))),
     w ? h('div', { class: 'note' }, 'Starts after ' + (w.name || 'the video') + ' delivers the video.') : null,
@@ -2182,13 +2207,12 @@ function memberTaskCard(t) {
           t.status === 'Pending Approval' ? '✓ Sent' : 'Send for approval')),
       h('div', { class: 'divider' }),
       field('File', h('div', null,
-        fileTiles(t.files, { id: t.id, video: isVideoTask(t) }),
-        h('div', { class: 'files', style: 'margin-bottom:6px' },
-          uploadButton({ id: t.id, label: t.task, multi: true }, (links) => {
-            d.fileLink = links[0];
-            instant((st) => { const x = st.tasks.find((k) => k.key === t.key); if (x) { x.fileLink = links[0]; x.files = links; } }, 'task.update', { key: t.key, files: links },
-              (links.length > 1 ? links.length + ' files uploaded ✓' : 'Uploaded ✓') + ' Now tap Send for approval');
-          })),
+        filesEditor(t.files && t.files.length ? t.files : (t.fileLink ? [t.fileLink] : []), { id: t.id, label: t.task, video: isVideoTask(t) }, (links) => {
+          const had = (t.files || []).length;
+          d.fileLink = links[0] || '';
+          instant((st) => { const x = st.tasks.find((k) => k.key === t.key); if (x) { x.fileLink = links[0] || ''; x.files = links; } }, 'task.update', { key: t.key, files: links },
+            links.length > had ? (links.length > 1 ? links.length + ' files ✓' : 'Uploaded ✓') + ' Now tap Send for approval' : links.length ? 'Files saved ✓' : 'File taken off');
+        }),
         input(d, 'fileLink', { type: 'url', dir: 'ltr', placeholder: S.state.media ? 'Or paste a link' : 'Paste the link', inputmode: 'url' }))),
       h('details', { class: 'more', open: t.draftCaption || t.notes ? true : null }, h('summary', null, 'Caption & notes'),
         field('Draft caption', area(d, 'draftCaption', { rows: 2 })),
@@ -2248,12 +2272,14 @@ function isVideoTask(t) { return t.type === 'Video' && (t.linkRole ? t.linkRole 
    ====================================================================== */
 /** Team and manager: suggest an idea. */
 function newIdeaSheet() {
-  const f = { idea: '', type: '' };
+  const f = { idea: '', details: '', type: '' };
   openSheet('New idea', h('div', null,
-    field('Idea', area(f, 'idea', { rows: 3, placeholder: 'What\'s the idea?' })),
+    field(h('span', null, 'Name', h('i', null, 'short')), nameInput(f, 'idea', { placeholder: 'e.g. Missoni carousel' })),
+    field('Details', detailsArea(f)),
     field('Type', selectBox([{ value: '', label: 'Pick…' }].concat(S.state.types.map((x) => ({ value: x, label: x }))), '', (v) => { f.type = v; }, { full: true }))),
   editFoot((btn) => {
-    if (!f.idea.trim()) { toast('Write the idea first.', true); return; }
+    if (!f.idea.trim()) { toast('Give the idea a name.', true); return; }
+    if (f.idea.trim().length > NAME_MAX) { toast('Keep the name to ' + NAME_MAX + ' characters. The rest goes in Details.', true); return; }
     if (!f.type) { toast('Pick a type.', true); return; }
     run(btn, 'idea.submit', f, (d) => 'Idea ' + d.id + ' submitted');
   }, null, { saveLabel: 'Submit idea', dirty: true }));
@@ -2275,15 +2301,17 @@ function memberIdeaSheet(id) {
     h('div', { class: 'info' },
       h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, i.idea), i.mine && i.execution === 'Later' ? h('button', { class: 'btn ghost tiny', onclick: () => editOwnIdea(i) }, 'Edit') : null),
       h('div', { class: 'info-line' }, personTag(i.mine ? 'You' : i.by), execBadge(i.execution), h('span', { class: 'small muted' }, dots(i.type, fmtShort((i.submittedAt || '').slice(0, 10)))))),
+    i.details ? field('Details', h('div', { class: 'brief pre', dir: 'auto' }, i.details)) : null,
     i.brief ? field('Brief', h('div', { class: 'brief pre', dir: 'auto' }, i.brief)) : null,
     i.reference ? field('Reference', refLinks(i.reference)) : null,
     commentsBox(i.id, { video: i.type === 'Video' })), editFoot(null));
 }
 
 function editOwnIdea(i) {
-  const f = { id: i.id, idea: i.idea, type: i.type };
+  const f = { id: i.id, idea: i.idea, details: i.details || '', type: i.type };
   openSheet('Edit ' + i.id, h('div', null,
-    field('Idea', area(f, 'idea', { rows: 3 })),
+    field(h('span', null, 'Name', h('i', null, 'short')), nameInput(f, 'idea')),
+    field('Details', detailsArea(f)),
     field('Type', selectBox(S.state.types.map((x) => ({ value: x, label: x })), f.type, (v) => { f.type = v; }, { full: true }))),
   editFoot((btn) => run(btn, 'idea.editOwn', f, 'Idea updated')));
 }
@@ -2489,13 +2517,46 @@ function fileTiles(files, ctx) {
     i === shown.length - 1 && drive.length > shown.length ? h('span', { class: 'n' }, '+' + (drive.length - shown.length)) : null))) : null,
     other.length ? h('div', { class: 'files', style: 'margin-bottom:6px' }, other.map((u) => fileLink(u, ctx))) : null];
 }
-/** The file of a task: what's there (tap to view), upload (saved at once), or paste a link. */
+/**
+ * The files of a piece of work, to manage: tap one to view it, ✕ takes it off (the file stays on Drive), ‹ › moves it
+ * (a carousel goes out in this order), "+ Add" uploads more after the others. onChange gets the new list.
+ * ctx: { id, label, video }.
+ */
+function filesEditor(files, ctx, onChange) {
+  files = (files || []).filter(Boolean);
+  const box = h('div', { class: 'fedit' });
+  const changed = () => { draw(); onChange(files.slice()); };
+  const move = (i, j) => { const x = files[i]; files[i] = files[j]; files[j] = x; changed(); };
+  const draw = () => {
+    const drive = files.filter((u) => driveIdOf(u));
+    const add = uploadButton({ id: ctx.id, label: ctx.label, multi: true, text: files.length ? 'Add more' : 'Upload' }, (links) => { files = files.concat([].concat(links)); changed(); });
+    fill(box,
+      files.length ? h('div', { class: 'tiles' }, files.map((u, i) => {
+        const fid = driveIdOf(u);
+        return h('div', { class: 'tile' + (fid ? '' : ' link') },
+          h('button', { type: 'button', class: 'tview', 'aria-label': 'View file ' + (i + 1),
+            onclick: (e) => { e.stopPropagation(); if (!fid) { window.open(u, '_blank', 'noopener'); return; } previewSheet(u, Object.assign({ id: ctx.id, video: ctx.video }, drive.length > 1 ? { files: drive, index: drive.indexOf(u) } : {})); } },
+          fid ? h('img', { src: CFG.driveWeb + '/thumbnail?id=' + fid + '&sz=w300', alt: '', loading: 'lazy', onerror: (e) => e.target.remove() }) : h('span', { class: 'lnk' }, 'Link ↗'),
+          ctx.video && fid ? h('span', { class: 'play' }, icon('play')) : null),
+          files.length > 1 ? h('span', { class: 'n' }, String(i + 1)) : null,
+          h('button', { type: 'button', class: 'tx', 'aria-label': 'Take file ' + (i + 1) + ' off', title: 'Take it off',
+            onclick: (e) => { e.stopPropagation(); ask('Take file ' + (i + 1) + ' off? It stays on Drive.', 'Take off', true).then((ok) => { if (ok) { files.splice(i, 1); changed(); } }); } }, '✕'),
+          files.length > 1 ? h('div', { class: 'tmove' },
+            h('button', { type: 'button', 'aria-label': 'Move file ' + (i + 1) + ' earlier', disabled: i === 0, onclick: (e) => { e.stopPropagation(); move(i, i - 1); } }, '‹'),
+            h('button', { type: 'button', 'aria-label': 'Move file ' + (i + 1) + ' later', disabled: i === files.length - 1, onclick: (e) => { e.stopPropagation(); move(i, i + 1); } }, '›')) : null);
+      })) : null,
+      h('div', { class: 'files', style: 'margin-bottom:6px' }, add,
+        files.length > 1 ? h('span', { class: 'small faint' }, files.length + ' files · ‹ › changes the order') : null));
+  };
+  draw();
+  return box;
+}
+/** The file of a task: what's there (tap to view, ✕ off, ‹ › order), more uploads (saved at once), or paste a link. */
 function fileField(t, f, onUploaded) {
   const fileIn = input(f, 'fileLink', { type: 'url', dir: 'ltr', placeholder: 'Or paste a link' });
   return field('File', h('div', null,
-    fileTiles(t.files && t.files.length ? t.files : (t.fileLink ? [t.fileLink] : []), { id: t.id, video: isVideoTask(t) }),
-    h('div', { class: 'files', style: 'margin-bottom:6px' },
-      uploadButton({ id: t.id, label: t.task, multi: true, text: t.fileLink ? 'Replace' : 'Upload' }, (links) => { f.files = links; f.fileLink = links[0]; fileIn.value = links[0]; onUploaded(links); })),
+    filesEditor(t.files && t.files.length ? t.files : (t.fileLink ? [t.fileLink] : []), { id: t.id, label: t.task, video: isVideoTask(t) },
+      (list) => { f.files = list; f.fileLink = list[0] || ''; fileIn.value = f.fileLink; onUploaded(list); }),
     fileIn));
 }
 /** A task's facts, label and value, in the same order as its row: who, when, where it stands. */
@@ -2505,7 +2566,7 @@ function facts(rows) {
 /** The top of every task's card: its name (and the rest of a long idea), then who, when, where it stands. */
 function taskInfo(t, o) {
   const p = taskParts(t);
-  const more = restLines(t.idea);
+  const more = t.ideaDetails || restLines(t.idea);
   return h('div', { class: 'info' },
     h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, p.main), o.edit ? h('button', { class: 'btn ghost tiny', onclick: o.edit }, 'Edit') : null),
     more ? h('div', { class: 'small muted pre', dir: 'auto', style: 'margin-top:6px' }, more) : null,
@@ -2585,7 +2646,7 @@ function editTaskSheet(t) {
   const f = { key: t.key, task: t.task, brief: t.brief, assignedTo: t.assignedTo, deadline: t.deadline, status: t.status,
     fileLink: t.fileLink, draftCaption: t.draftCaption, notes: t.notes, reviewNotes: t.reviewNotes };
   openSheet('Edit ' + t.id, h('div', null,
-    field('Task', input(f, 'task')),
+    field(h('span', null, 'Task', h('i', null, 'short name')), nameInput(f, 'task')),
     h('div', { class: 'two' },
       field('Assigned to', personSelect(f, 'assignedTo', { id: t.assignedTo, name: t.assignee })),
       field('Status', selectBox(STATUS_OPTIONS, f.status, (v) => { f.status = v; }, { full: true })))),
@@ -2658,7 +2719,7 @@ function managerEditSheet(t) {
   const personal = !!t.personal;
   const f = { key: t.key, task: t.task, brief: t.brief, assignedTo: t.assignedTo, deadline: t.deadline, status: t.status };
   openSheet('Edit ' + t.id, h('div', null,
-    field('Task', input(f, 'task')),
+    field(h('span', null, 'Task', h('i', null, 'short name')), nameInput(f, 'task')),
     h('div', { class: 'two' },
       field('Assigned to', personSelect(f, 'assignedTo', { id: t.assignedTo, name: t.assignee })),
       personal ? field('Status', selectBox([{ value: '', label: 'Not started' }, { value: 'Started', label: 'Started' }, { value: 'Done', label: 'Done' }],
@@ -2692,7 +2753,7 @@ function createTasksSheet(idea, rows) {
       rows.map((r, i) => h('div', { class: 'card', style: 'margin-bottom:10px;box-shadow:none;border:1px solid var(--line)' },
         h('div', { class: 'row', style: 'margin-bottom:8px' }, h('span', { class: 'eyebrow grow' }, 'Task ' + (i + 1)),
           rows.length > 1 ? h('button', { class: 'icon-btn', 'aria-label': 'Remove', onclick: () => { rows.splice(i, 1); draw(); } }, '✕') : null),
-        field('Task', input(r, 'task', { placeholder: 'Short title' })),
+        field(h('span', null, 'Task', h('i', null, 'short name')), nameInput(r, 'task', { placeholder: 'Short title' })),
         h('div', { class: 'two' },
           field('Assigned to', personSelect(r, 'assignedTo')),
           field('Goes on the post as', selectBox(linkRoleOptions(idea.type), r.linkRole || 'Media', (v) => { r.linkRole = v; }, { full: true }))),
@@ -2728,6 +2789,7 @@ function quickTaskSheet() {
   };
   btn.onclick = () => {
     if (!f.task.trim()) { toast('Write a title.', true); return; }
+    if (f.task.trim().length > NAME_MAX) { toast('Keep the name to ' + NAME_MAX + ' characters. Put the rest in the brief.', true); return; }
     if (!f.type) { toast('Pick a type.', true); return; }
     if (!f.assignedTo) { toast('Pick who does it.', true); return; }
     if (!f.deadline) { toast('Pick a deadline.', true); return; }
@@ -2742,7 +2804,7 @@ function quickTaskSheet() {
       admin ? 'Only you will see it.' : 'Only you and the admin will see it.') : null);
   const types = [{ value: '', label: 'Pick…' }].concat(S.state.types.map((x) => ({ value: x, label: x })));
   openSheet('Quick task', h('div', null,
-    field('Task', input(f, 'task', { placeholder: 'e.g. Open house stories' })),
+    field(h('span', null, 'Task', h('i', null, 'short name')), nameInput(f, 'task', { placeholder: 'e.g. Open house stories' })),
     h('div', { class: 'two' },
       field('Type', selectBox(types, '', (v) => { f.type = v; showCover(); }, { full: true })),
       channelField(f, () => { showHint(); showCover(); })),
@@ -2811,7 +2873,7 @@ function ideaSheet(id) {
   if (!id) { newIdeaAdminSheet(); return; }
   const i = S.state.ideas.find((x) => x.id === id);
   if (!i) return;
-  const f = { id: i.id, idea: i.idea, type: i.type, scribble: i.scribble, brief: i.brief, reference: i.reference || '', execution: i.execution, channel: i.channel };
+  const f = { id: i.id, idea: i.idea, details: i.details || '', type: i.type, scribble: i.scribble, brief: i.brief, reference: i.reference || '', execution: i.execution, channel: i.channel };
   const tasks = S.state.tasks.filter((t) => t.id === i.id);
   const cal = S.state.calendar.filter((c) => c.id === i.id);
   const approved = i.execution === 'Approved';
@@ -2854,6 +2916,7 @@ function ideaSheet(id) {
         h('span', { class: 'small muted' }, dots(i.type, i.channel === 'Outside' ? 'General' : 'Social media', fmtShort((i.submittedAt || '').slice(0, 10))))),
       i.hidden ? h('div', { class: 'small', style: 'color:var(--red)' }, 'Hidden. Tap the red button below to bring it back.') : null,
       !approved && !i.hidden ? h('button', { class: 'btn good block', style: 'margin-top:10px', onclick: () => approveSheet(i, f) }, '✓ Approve') : null),
+    field(h('span', null, 'Details', h('i', null, 'what the idea is')), detailsArea(f)),
     field(h('span', null, 'Scribble', h('i', null, 'only you')), area(f, 'scribble', { rows: 3, class: 'in private', placeholder: 'Your notes' })),
     toBrief,
     field(h('span', null, 'Brief', h('i', null, 'the team sees this')), briefIn),
@@ -2870,9 +2933,10 @@ function ideaSheet(id) {
 
 /** Admin: a new idea. */
 function newIdeaAdminSheet() {
-  const f = { idea: '', type: '', scribble: '', brief: '', reference: '', execution: 'Later', channel: 'Social' };
+  const f = { idea: '', details: '', type: '', scribble: '', brief: '', reference: '', execution: 'Later', channel: 'Social' };
   const valid = () => {
-    if (!f.idea.trim()) { toast('Write the idea.', true); return false; }
+    if (!f.idea.trim()) { toast('Give the idea a name.', true); return false; }
+    if (f.idea.trim().length > NAME_MAX) { toast('Keep the name to ' + NAME_MAX + ' characters. The rest goes in Details.', true); return false; }
     if (!f.type) { toast('Pick a type.', true); return false; }
     return true;
   };
@@ -2886,7 +2950,8 @@ function newIdeaAdminSheet() {
     };
   }
   openSheet('New idea', h('div', null,
-    field('Idea', area(f, 'idea', { rows: 2 })),
+    field(h('span', null, 'Name', h('i', null, 'short')), nameInput(f, 'idea', { placeholder: 'e.g. Missoni carousel' })),
+    field('Details', detailsArea(f)),
     h('div', { class: 'two' }, field('Type', selectBox([{ value: '', label: 'Pick…' }].concat(S.state.types.map((x) => ({ value: x, label: x }))), '', (v) => { f.type = v; }, { full: true })), channelField(f)),
     field(h('span', null, 'Scribble', h('i', null, 'only you')), area(f, 'scribble', { rows: 3, class: 'in private', placeholder: 'Your notes' })),
     toBrief,
@@ -2897,12 +2962,16 @@ function newIdeaAdminSheet() {
 
 /** The rarely changed parts of an idea. */
 function editIdeaSheet(i) {
-  const f = { id: i.id, idea: i.idea, type: i.type, scribble: i.scribble, brief: i.brief, reference: i.reference || '', execution: i.execution, channel: i.channel };
+  const f = { id: i.id, idea: i.idea, details: i.details || '', type: i.type, scribble: i.scribble, brief: i.brief, reference: i.reference || '', execution: i.execution, channel: i.channel };
   const types = Array.from(new Set(S.state.types.concat([i.type])));
   openSheet('Edit ' + i.id, h('div', null,
-    field('Idea', area(f, 'idea', { rows: 2 })),
+    field(h('span', null, 'Name', h('i', null, 'short')), nameInput(f, 'idea')),
     h('div', { class: 'two' }, field('Type', selectBox(types.map((x) => ({ value: x, label: x })), f.type, (v) => { f.type = v; }, { full: true })), channelField(f))),
-  editFoot((btn) => { if (!f.idea.trim()) { toast('Write the idea.', true); return; } run(btn, 'idea.save', f, 'Saved'); }));
+  editFoot((btn) => {
+    if (!f.idea.trim()) { toast('Give the idea a name.', true); return; }
+    if (f.idea.trim().length > NAME_MAX) { toast('Keep the name to ' + NAME_MAX + ' characters. The rest goes in Details.', true); return; }
+    run(btn, 'idea.save', f, 'Saved');
+  }));
 }
 
 /** Manager: an idea, read only (no Scribble), with its tasks, post and comments. */
@@ -2915,6 +2984,7 @@ function ideaViewSheet(id) {
     h('div', { class: 'info' },
       h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, i.idea)),
       h('div', { class: 'info-line' }, personTag(i.by), execBadge(i.execution), h('span', { class: 'small muted' }, dots(i.type, i.channel === 'Outside' ? 'General' : null, fmtShort((i.submittedAt || '').slice(0, 10)))))),
+    i.details ? field('Details', h('div', { class: 'brief pre', dir: 'auto' }, i.details)) : null,
     i.brief ? field('Brief', h('div', { class: 'brief pre', dir: 'auto' }, i.brief)) : null,
     i.reference ? field('Reference', refLinks(i.reference)) : null,
     tasks.length ? [h('div', { class: 'section' }, h('h2', null, 'Tasks')), list(tasks.map(taskRow))] : null,
@@ -3452,9 +3522,17 @@ function calSheet(key, ideaId) {
     const linkIn = input(f, key2, { type: 'url', dir: 'ltr', placeholder: 'Paste a link', class: 'in' + (f[key2] && !driveIdOf(f[key2]) ? '' : ' hidden'), style: 'margin:0 0 8px' });
     const r = h('div', { class: 'r' });
     const draw = () => fill(r, h('b', { style: 'min-width:70px' }, label),
+      multi ? h('div', { class: 'grow' }, filesEditor((f.mediaFiles || []).length ? f.mediaFiles : f[key2] ? [f[key2]] : [], { id: f.id || 'posts', label: 'post', video: typeOf() === 'Video' }, (links) => {
+        f.mediaFiles = links;
+        f[key2] = links[0] || '';
+        linkIn.value = f[key2];
+        const save = document.querySelector('#layer .sheet-foot [data-save]');
+        if (save) save.disabled = false;
+        toast('Tap Save to keep it');
+      }), h('button', { type: 'button', class: 'fchip', onclick: () => linkIn.classList.toggle('hidden') }, 'Link')) :
       h('div', { class: 'files grow' },
-        key2 === 'mediaLink' && (f.mediaFiles || []).length > 1 ? filesLink(f.mediaFiles, { id: f.id }) : fileLink(f[key2], { id: f.id, video: key2 === 'mediaLink' && typeOf() === 'Video' }),
-        uploadButton({ id: f.id || 'posts', label: key2 === 'coverLink' ? 'cover' : 'post', multi, accept, text: f[key2] ? 'Replace' : 'Upload' }, (links) => {
+        fileLink(f[key2], { id: f.id, video: false }),
+        uploadButton({ id: f.id || 'posts', label: 'cover', multi, accept, text: f[key2] ? 'Replace' : 'Upload' }, (links) => {
           links = [].concat(links);
           f[key2] = links[0];
           if (key2 === 'mediaLink') f.mediaFiles = links;
@@ -3512,7 +3590,7 @@ function calSheet(key, ideaId) {
   const approved = S.state.ideas.filter((i) => i.execution === 'Approved' && !i.hidden).slice().reverse();
   const own = h('div');
   const drawOwn = () => fill(own, f.id ? null : h('div', { class: 'two' },
-    field('Title', input(f, 'title', { placeholder: 'What is the post?' })),
+    field(h('span', null, 'Title', h('i', null, 'short')), nameInput(f, 'title', { placeholder: 'What is the post?' })),
     field('Type', selectBox([{ value: '', label: 'Pick…' }].concat(S.state.types.map((x) => ({ value: x, label: x }))), f.type, (v) => { f.type = v; drawSlots(); usual(); }, { full: true }))));
   drawOwn();
   const ideaSel = c ? null : [
@@ -3830,7 +3908,7 @@ function templateSheet(key, type) {
   const btn = h('button', { class: 'btn primary' }, 'Save');
   btn.onclick = () => run(btn, 'template.save', f, 'Saved');
   openSheet(t ? 'Auto task' : 'New auto task', h('div', null,
-    field('Task', input(f, 'task')),
+    field(h('span', null, 'Task', h('i', null, 'short name')), nameInput(f, 'task')),
     h('div', { class: 'two' },
       field('Type', selectBox(S.state.types.map((x) => ({ value: x, label: x })), f.type, (v) => { f.type = v; }, { full: true })),
       field('Person', selectBox(peopleOptions(true), f.assignee, (v) => { f.assignee = v; }, { full: true }))),
