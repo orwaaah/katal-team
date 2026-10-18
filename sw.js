@@ -2,7 +2,7 @@
 // The page is always fetched fresh when online (so updates arrive at once); the saved copy is
 // only used offline. Data never goes through here (sign-in and the api go straight to Supabase),
 // except Drive videos for the app's own player, streamed from Drive (see driveVideo below).
-const VERSION = 'f6634616306b';
+const VERSION = '104e2883c1eb';
 const CACHE = 'katal-' + VERSION;
 const FILES = ['./', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 

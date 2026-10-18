@@ -43,6 +43,7 @@
   --blue: #46658f;  --blue-bg: #eef2f7;
   --purple: #6c5da3; --purple-bg: #f2f0f8;
   --gray-bg: #f0ede7;
+  --rh-empty: #f6f4f0; /* a Rhythm square with nothing in it: just there */
   --radius: 14px;
   --shadow: 0 1px 2px rgba(26,24,21,.04), 0 4px 14px rgba(26,24,21,.04);
   --nav-h: 58px;
@@ -387,10 +388,6 @@ button.cmt-tag { cursor: pointer; }
 .rgrid th.d { width: 62px; }
 .rgrid td { text-align: center; height: 24px; border-radius: 6px; background: var(--card); cursor: pointer; font-weight: 600; font-size: 11.5px; }
 .rgrid td.d { text-align: left; padding: 0 2px; font-weight: 500; white-space: nowrap; background: none; cursor: default; font-size: 11.5px; color: var(--muted); }
-.rgrid td.off { background: transparent; color: var(--faint); font-weight: 400; }
-.rgrid td.ok { background: var(--green-bg); color: var(--green); }
-.rgrid td.part { background: var(--orange-bg); color: var(--orange); }
-.rgrid td.miss { background: var(--red-bg); color: var(--red); }
 .rgrid tr.today td.d { color: var(--gold-ink); font-weight: 650; }
 .rgrid tr.wk td { border-top: 6px solid transparent; }
 .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: var(--muted); margin: 10px 0 0; }
@@ -441,21 +438,18 @@ button.cmt-tag { cursor: pointer; }
 .rgrid thead th { position: sticky; top: calc(52px + env(safe-area-inset-top)); z-index: 3; background: var(--card); padding-top: 6px; box-shadow: 0 -4px 0 var(--card); }
 @media (min-width: 900px) { .rgrid thead th { top: calc(99px + env(safe-area-inset-top)); } }
 .rgrid thead th.dn, .rgrid thead th.dd { background: var(--card); }
-.rgrid td.c { background: var(--soft); }
-.rgrid td.c.off { background: var(--gray-bg); }
-.rgrid td.c.extra { background: var(--gray-bg); color: var(--muted); font-weight: 600; }
-.rgrid td.c.moved { background: var(--card); box-shadow: inset 0 0 0 1.5px #a9cfb8; color: var(--green); }
-.rgrid td.c.ok { background: var(--green-bg); color: var(--green); }
-.rgrid td.c.part { background: var(--orange-bg); color: var(--orange); }
-.rgrid td.c.need { background: transparent; box-shadow: inset 0 0 0 1.5px var(--red-line); color: var(--red); }
+.rgrid.rules thead th { position: static; box-shadow: none; }
+.rgrid.rules td.c { height: 30px; }
+/* Every square looks the same on every platform: faint gray, green with a post, a gold + where a post is needed, red when missed. */
+.rgrid td.c { background: var(--rh-empty); }
+.rgrid td.c.post { background: var(--green-bg); color: var(--green); }
+.rgrid td.c.need { color: var(--gold-ink); font-weight: 700; font-size: 13px; }
 .rgrid td.c.miss { background: var(--red-bg); color: var(--red); }
 .legend i { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; font-style: normal; font-size: 10px; font-weight: 700; margin-right: 4px; vertical-align: -3px; }
-.legend i.ok { background: var(--green-bg); color: var(--green); }
-.legend i.part { background: var(--orange-bg); color: var(--orange); }
-.legend i.need { box-shadow: inset 0 0 0 1.5px var(--red-line); color: var(--red); }
+.legend i { background: var(--rh-empty); }
+.legend i.post { background: var(--green-bg); color: var(--green); }
+.legend i.need { color: var(--gold-ink); font-size: 12px; }
 .legend i.miss { background: var(--red-bg); color: var(--red); }
-.legend i.extra, .legend i.off { background: var(--gray-bg); color: var(--muted); }
-.legend i.moved { box-shadow: inset 0 0 0 1.5px #a9cfb8; color: var(--green); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -2862,10 +2856,16 @@ function calendarList() {
 
 /* ----- Rhythm: are we posting as often as planned? Days × platforms. ----- */
 
+/** The posts on one day and platform (not cancelled). */
+function rhythmPosts(d, p) {
+  return S.state.calendar.filter((c) => c.publishDate === d && c.platforms[p] && c.status !== 'Cancelled');
+}
+
 /**
- * A platform's week (Sun–Sat) against its rule. Each day of the rule wants r.min posts, but the week is what counts:
- * a post on another day of the same week covers the nearest rule day still short (LinkedIn on a Monday instead of
- * the Tuesday: the Tuesday stops asking, the Friday still does). Past days count what went out; today on, what is planned.
+ * A platform's week (Sun–Sat) against its rule. The days are the rule (each wants one post, or r.min), but the week is
+ * what counts: a post on another day covers a rule day still short — one already gone by first (it can't be posted any
+ * more), else the nearest one ahead (LinkedIn on a Monday instead of the Tuesday: the Tuesday stops asking, the Friday
+ * still does). Days gone by count what went out; today on, what is planned. Every platform works the same way.
  */
 function rhythmWeek(p, d) {
   const st = S.state;
@@ -2874,59 +2874,54 @@ function rhythmWeek(p, d) {
   const key = p + '|' + sun;
   if (rhythmWeek.cache.m[key]) return rhythmWeek.cache.m[key];
   const r = (st.rhythm || {})[p] || { days: [], min: 0, time: '' };
+  const per = r.days.length ? Math.max(1, r.min || 0) : 0;
   const days = DAYN.map((x, i) => addDays(sun, i));
   const need = {}, short = {}, coveredBy = {};
   const surplus = [];
   days.forEach((x) => {
-    const posts = st.calendar.filter((c) => c.publishDate === x && c.platforms[p] && c.status !== 'Cancelled');
-    const have = (x < st.today ? posts.filter((c) => c.status === 'Published') : posts).length;
-    need[x] = r.min > 0 && r.days.indexOf(wd(x)) >= 0 ? r.min : 0;
+    const have = rhythmPosts(x, p).filter((c) => x >= st.today || c.status === 'Published').length;
+    need[x] = per && r.days.indexOf(wd(x)) >= 0 ? per : 0;
     short[x] = Math.max(0, need[x] - have);
     for (let i = need[x]; i < have; i++) surplus.push(x);
   });
   const gap = (a, b) => Math.abs(ymdUTC(a) - ymdUTC(b));
+  const gone = (x) => (x < st.today ? 0 : 1);
   surplus.forEach((from) => {
-    const open = days.filter((x) => short[x] > 0).sort((a, b) => gap(a, from) - gap(b, from) || (a < b ? -1 : 1));
+    const open = days.filter((x) => short[x] > 0).sort((a, b) => gone(a) - gone(b) || gap(a, from) - gap(b, from) || (a < b ? -1 : 1));
     if (open.length) { short[open[0]]--; coveredBy[open[0]] = from; }
   });
-  return (rhythmWeek.cache.m[key] = { r, need, short, coveredBy });
+  return (rhythmWeek.cache.m[key] = { r, per, need, short, coveredBy });
 }
 
 /**
- * One day × one platform. On a rule day: ✓ went out / planned, ✎ still a draft, + needs a post, ✕ missed, and a light ✓
- * when a post on another day of the week covers it. Any other day is a light gray square, with ✎ or ✓ if a post goes there.
+ * One day × one platform, the same on every platform: a post there is green, ✓ (ready, or it went out) or ✎ (still a
+ * draft), a number when there are more; + where the week still needs a post; ✕ when a post didn't go out or a rule day
+ * was missed; otherwise an empty square.
  */
 function rhythmCell(d, p) {
-  const st = S.state;
   const w = rhythmWeek(p, d);
-  const need = w.need[d];
-  const posts = st.calendar.filter((c) => c.publishDate === d && c.platforms[p] && c.status !== 'Cancelled');
-  const past = d < st.today;
-  const counted = past ? posts.filter((c) => c.status === 'Published') : posts;
-  const ready = counted.filter((c) => c.status !== 'Draft').length;
-  let cls, mark, coveredBy = '';
-  if (!need) {
-    // Another day with a post: it counts for the week (green like any post) when the platform has a rule; quiet when not.
-    const ruled = w.r.min > 0 && w.r.days.length > 0;
-    cls = !counted.length ? 'off' : !ruled ? 'extra' : past || ready >= counted.length ? 'ok' : 'part';
-    mark = counted.length > 1 ? String(counted.length) : counted.length ? (past || ready ? '✓' : '✎') : '';
-  } else if (counted.length >= need) { cls = past || ready >= need ? 'ok' : 'part'; mark = past || ready >= need ? '✓' : '✎'; }
-  else if (!w.short[d]) { cls = 'moved'; mark = '✓'; coveredBy = w.coveredBy[d]; }
-  else if (past) { cls = 'miss'; mark = '✕'; }
-  else { cls = 'need'; mark = counted.length ? counted.length + '/' + need : '+'; }
-  return { cls, mark, need, posts, r: w.r, coveredBy };
+  const posts = rhythmPosts(d, p);
+  const past = d < S.state.today;
+  const short = w.short[d];
+  let cls = '', mark = '';
+  if (posts.length && past && posts.some((c) => c.status !== 'Published')) { cls = 'miss'; mark = '✕'; }
+  else if (posts.length) {
+    cls = 'post';
+    mark = short ? posts.length + '/' + w.need[d] : posts.length > 1 ? String(posts.length) : past || posts[0].status !== 'Draft' ? '✓' : '✎';
+  } else if (short) { cls = past ? 'miss' : 'need'; mark = past ? '✕' : '+'; }
+  return { cls, mark, need: w.need[d], short, posts, r: w.r, coveredBy: w.coveredBy[d] || '' };
 }
 
 function rhythmView() {
   const st = S.state;
   const today = st.today;
   const plats = S.ui.calFilter.platform ? [S.ui.calFilter.platform] : st.platforms;
-  const anyRule = plats.some((p) => (st.rhythm[p] || {}).min > 0 && (st.rhythm[p] || {}).days.length);
+  const anyRule = plats.some((p) => ((st.rhythm[p] || {}).days || []).length);
   // From today on; last week (what went out, what was missed) behind its button.
   const showPast = !!S.ui.rhythmPast;
   const days = [];
   for (let i = showPast ? -7 : 0; i < 21; i++) days.push(addDays(today, i));
-  const gaps = days.filter((d) => d >= today).reduce((n, d) => n + plats.filter((p) => rhythmCell(d, p).cls === 'need').length, 0);
+  const gaps = days.filter((d) => d >= today).reduce((n, d) => n + plats.reduce((m, p) => m + rhythmWeek(p, d).short[d], 0), 0);
   const rows = [];
   days.forEach((d, i) => {
     const newMonth = i === 0 || d.slice(8, 10) === '01';
@@ -2934,11 +2929,11 @@ function rhythmView() {
     if (newMonth) rows.push(h('tr', { class: 'month' + (i ? ' gap' : '') }, h('td', { colspan: plats.length + 2 }, DAYS_MONTH[Number(d.slice(5, 7)) - 1])));
     rows.push(h('tr', { class: (d === today ? 'today' : '') + (d < today ? ' past' : '') + (newWeek ? ' wk' : '') },
       h('td', { class: 'dn' }, wd(d)), h('td', { class: 'dd' }, Number(d.slice(8, 10))),
-      plats.map((p) => { const x = rhythmCell(d, p); return h('td', { class: 'c ' + x.cls, title: p, onclick: () => rhythmCellSheet(d, p) }, x.mark); })));
+      plats.map((p) => { const x = rhythmCell(d, p); return h('td', { class: ('c ' + x.cls).trim(), title: p, onclick: () => rhythmCellSheet(d, p) }, x.mark); })));
   });
   return h('div', null,
     h('div', { class: 'row', style: 'margin-bottom:8px' },
-      h('div', { class: 'grow small' }, anyRule ? (gaps ? h('span', { style: 'color:var(--red)' }, gaps + ' post' + (gaps === 1 ? '' : 's') + ' still needed in the next 3 weeks') : h('span', { style: 'color:var(--green)' }, '✓ The next 3 weeks are covered'))
+      h('div', { class: 'grow small' }, anyRule ? (gaps ? h('span', { style: 'color:var(--gold-ink);font-weight:600' }, gaps + ' post' + (gaps === 1 ? '' : 's') + ' still needed in the next 3 weeks') : h('span', { style: 'color:var(--green)' }, '✓ The next 3 weeks are covered'))
         : h('span', { class: 'muted' }, 'No rules yet.')),
       h('button', { class: 'btn ghost tiny', 'aria-pressed': showPast ? 'true' : 'false', onclick: () => { S.ui.rhythmPast = !showPast; render(); } }, showPast ? 'Hide last week' : 'Last week'),
       isAdmin() ? h('button', { class: 'btn tiny', onclick: rhythmRulesSheet }, 'Rules') : null),
@@ -2946,12 +2941,10 @@ function rhythmView() {
       h('thead', null, h('tr', null, h('th', { class: 'dn' }), h('th', { class: 'dd' }), plats.map((p) => h('th', { title: p }, pfIcon(p, 15))))),
       h('tbody', null, rows))),
     h('div', { class: 'legend' },
-      h('span', null, h('i', { class: 'ok' }, '✓'), 'covered'),
-      h('span', null, h('i', { class: 'part' }, '✎'), 'still a draft'),
-      h('span', null, h('i', { class: 'need' }, '+'), 'needs a post'),
-      h('span', null, h('i', { class: 'miss' }, '✕'), 'missed'),
-      h('span', null, h('i', { class: 'moved' }, '✓'), 'covered by another day'),
-      h('span', null, h('i', { class: 'off' }), 'free day')));
+      h('span', null, h('i', { class: 'post' }, '✓'), 'post ready'),
+      h('span', null, h('i', { class: 'post' }, '✎'), 'post still a draft'),
+      h('span', null, h('i', { class: 'need' }, '+'), 'post needed'),
+      h('span', null, h('i', { class: 'miss' }, '✕'), 'missed')));
 }
 const DAYS_MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -2959,8 +2952,9 @@ function rhythmCellSheet(d, p) {
   const x = rhythmCell(d, p);
   const ready = readyPosts();
   openSheet(p + ' · ' + dayShort(d), h('div', null,
-    h('div', { class: 'small muted', style: 'margin-bottom:10px' }, x.need ? 'Plan: ' + x.need + ' post' + (x.need > 1 ? 's' : '') + (x.r.time ? ' at ' + x.r.time : '') : 'No post planned for this day.'),
-    x.coveredBy ? h('div', { class: 'note green', style: 'margin-bottom:10px' }, '✓ Covered by the post on ' + dayShort(x.coveredBy) + ': the week still has its posts.') : null,
+    h('div', { class: 'small muted', style: 'margin-bottom:10px' }, rhythmPlan(x.r)),
+    x.coveredBy && !x.posts.length ? h('div', { class: 'note green', style: 'margin-bottom:10px' }, '✓ Nothing needed: the post on ' + dayShort(x.coveredBy) + ' counts for this week.') : null,
+    x.short && d >= S.state.today ? h('div', { class: 'note', style: 'margin-bottom:10px' }, 'This week still needs a post on ' + p + '. Here, or any other day this week.') : null,
     h('div', { class: 'section', style: 'margin-top:4px' }, h('h2', null, 'On ' + p + ' this day')),
     x.posts.length ? list(x.posts.map((c) => postRow(c))) : h('div', { class: 'small faint' }, 'Nothing yet.'),
     isAdmin() && d >= S.state.today ? [
@@ -2978,23 +2972,43 @@ async function schedulePostTo(c, date, platform, btn) {
   if (d) rhythmCellSheet(date, platform);
 }
 
+/** "Posts on Tue and Fri at 10:00" — a platform's rule in words. */
+function rhythmPlan(r) {
+  if (!r.days.length) return 'No rule: posts here are welcome, none are asked for.';
+  const days = r.days.length === 7 ? 'every day' : r.days.join(', ');
+  return (r.min > 1 ? r.min + ' posts' : 'A post') + ' on ' + days + (r.time ? ' at ' + r.time : '') + '. Another day of the same week counts too.';
+}
+
+/** The rules the same way as the table: days down, platforms across; a tap turns a day on or off. Times under it. */
 function rhythmRulesSheet() {
   const st = S.state;
   const rules = JSON.parse(JSON.stringify(st.rhythm || {}));
+  st.platforms.forEach((p) => { if (!rules[p]) rules[p] = { days: [], min: 0, time: '' }; });
   const btn = h('button', { class: 'btn primary' }, 'Save rules');
   btn.onclick = () => run(btn, 'settings.save', { rhythm: rules }, 'Rhythm saved');
+  const cell = (d, p) => {
+    const r = rules[p];
+    const td = h('td', { class: 'c', role: 'checkbox', tabindex: '0', title: p + ' · ' + d });
+    const paint = () => { const on = r.days.indexOf(d) >= 0; td.className = 'c' + (on ? ' post' : ''); td.textContent = on ? '✓' : ''; td.setAttribute('aria-checked', on ? 'true' : 'false'); };
+    const flip = () => {
+      r.days = r.days.indexOf(d) >= 0 ? r.days.filter((x) => x !== d) : DAYN.filter((x) => x === d || r.days.indexOf(x) >= 0);
+      r.min = r.days.length ? Math.max(1, r.min || 0) : 0;
+      paint();
+    };
+    td.onclick = flip;
+    td.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } };
+    paint();
+    return td;
+  };
   openSheet('Posting rhythm', h('div', null,
-    h('p', { class: 'muted', style: 'margin-top:0' }, 'For each platform: which days, how many posts, and at what time.'),
-    st.platforms.map((p) => {
-      const r = rules[p] || (rules[p] = { days: [], min: 0, time: '' });
-      const on = {};
-      DAYN.forEach((d) => { on[d] = r.days.indexOf(d) >= 0; });
-      return h('div', { class: 'card', style: 'margin-bottom:12px;border:1px solid var(--line)' },
-        h('h3', null, p),
-        field('Days', multi(DAYN, on, (v) => { r.days = DAYN.filter((d) => v[d]); })),
-        field('Posts per day', choice([0, 1, 2, 3].map((n) => ({ value: n, label: n ? String(n) : 'None' })), r.min, (v) => { r.min = v; })),
-        field('Time', h('input', { class: 'in', type: 'time', style: 'width:auto', value: r.time || '', onchange: (e) => { r.time = e.target.value; } })));
-    })), btn);
+    h('p', { class: 'muted', style: 'margin-top:0' }, 'Tap the days each platform posts on: one post on each. A post on another day of the same week counts too. A platform with no days asks for nothing.'),
+    h('div', { class: 'card', style: 'padding:8px 6px;border:1px solid var(--line)' }, h('table', { class: 'rgrid rules' },
+      h('thead', null, h('tr', null, h('th', { class: 'dn' }), st.platforms.map((p) => h('th', { title: p }, pfIcon(p, 15))))),
+      h('tbody', null, DAYN.map((d) => h('tr', null, h('td', { class: 'dn' }, d), st.platforms.map((p) => cell(d, p))))))),
+    h('div', { class: 'section' }, h('h2', null, 'Posting time'), h('span', { class: 'small faint' }, 'optional')),
+    h('div', { class: 'list' }, st.platforms.map((p) => h('div', { class: 'lrow', style: 'cursor:default' },
+      h('div', { class: 'main-col' }, h('div', { class: 't', style: 'display:flex;align-items:center;gap:8px' }, pfIcon(p, 16), p)),
+      h('input', { class: 'in', type: 'time', style: 'width:auto', value: rules[p].time || '', 'aria-label': p + ' time', onchange: (e) => { rules[p].time = e.target.value; } }))))), btn);
 }
 
 /**
