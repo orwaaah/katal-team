@@ -77,6 +77,11 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 @media (max-width: 420px) { .me-btn .nm { display: none; } }
 .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--gold-soft); color: var(--gold-ink); display: grid; place-items: center; font-weight: 650; font-size: 13px; flex: none; }
 .topbar .avatar { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(179,148,99,.55); }
+.topbar.as { background: #3a2f1c; }
+.aspill { margin-left: auto; border: 1px solid rgba(179,148,99,.7); background: rgba(179,148,99,.18); color: #f1e3c6; border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
+.topbar.as .me-btn { margin-left: 8px; }
+.asbar { display: flex; align-items: center; gap: 10px; padding: 8px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left)); background: var(--gold-soft); color: var(--gold-ink); font-size: 13px; }
+.asbar b { font-weight: 650; }
 .main { max-width: 860px; margin: 0 auto; padding: 18px max(16px, env(safe-area-inset-right)) calc(var(--nav-h) + 30px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
 .main.enter { animation: enter .22s var(--ease); }
 .tabs { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; background: rgba(255,255,255,.94); -webkit-backdrop-filter: saturate(1.6) blur(14px); backdrop-filter: saturate(1.6) blur(14px); border-top: 1px solid var(--line); display: flex; justify-content: center; padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
@@ -158,14 +163,69 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 
 /* ----- Lists ----- */
 /* Each row is its own small card, with a little space between them. */
-.list { display: flex; flex-direction: column; gap: 8px; }
+/* A list is one white block with thin lines between its rows (easier to scan than a pile of cards). */
+.list { display: flex; flex-direction: column; gap: 0; background: var(--card); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+.list > .lrow { border-radius: 0; box-shadow: none; }
+.list > .lrow + .lrow { border-top: 1px solid var(--line); }
 .lrow { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 0; border-radius: 14px; box-shadow: var(--shadow); cursor: pointer; position: relative; background: var(--card); transition: background .15s; width: 100%; text-align: left; font: inherit; color: inherit; }
 /* Inside a sheet (already white), a thin line instead of a shadow. */
-.sheet .list { gap: 6px; }
-.sheet .lrow { box-shadow: none; border: 1px solid var(--line); border-radius: 12px; }
+.sheet .list { box-shadow: none; border: 1px solid var(--line); border-radius: 12px; }
+.sheet .lrow { box-shadow: none; }
+.sheet .list > .lrow { border-left: 0; border-right: 0; border-bottom: 0; }
 .lrow:active { background: var(--soft); }
 .lrow.late::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--red-line); }
 .lrow.done { opacity: .62; }
+/* One row for every list: the kind of work, the name and where it stands; under the name, always in the same places,
+   the ID, who (or where) and when. Colour only where something needs attention. */
+.lrow.item { align-items: flex-start; gap: 12px; padding: 11px 14px; }
+.kind { flex: none; width: 30px; height: 30px; border-radius: 9px; background: var(--soft); color: var(--muted); display: grid; place-items: center; margin-top: 1px; }
+.kind svg { width: 16px; height: 16px; }
+.item .l1 { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.lrow.item .t, .trow-head.item .t { flex: 1; min-width: 0; white-space: normal; text-overflow: clip; text-align: left; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.38; font-weight: 550; font-size: 14.5px; overflow-wrap: anywhere; }
+.item .t .tpart { display: inline-block; vertical-align: 1px; margin-inline-start: 7px; max-width: none; }
+.st { flex: none; font-size: 12.5px; font-weight: 550; color: var(--ink); white-space: nowrap; line-height: 1.6; }
+.st.faint { color: var(--faint); font-weight: 500; }
+.st.gold { color: var(--gold-ink); }
+.st.orange { color: var(--orange); }
+.st.green { color: var(--green); }
+.st.red { color: var(--red); }
+.item .meta { display: flex; align-items: center; margin-top: 3px; font-size: 12.5px; color: var(--muted); white-space: nowrap; min-width: 0; line-height: 1.5; }
+.item .meta > span { flex: none; overflow: hidden; text-overflow: ellipsis; }
+.item .m-id { width: 48px; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.item .m-who { width: 112px; padding-right: 10px; }
+.item .m-who .person { font-weight: 500; color: var(--muted); }
+.item .m-when { flex: 0 1 auto !important; min-width: 0; }
+.item .m-marks { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; overflow: visible !important; }
+.item .m-marks .badge { font-size: 11px; padding: 0 7px; }
+@media (min-width: 760px) {
+  .item .m-id { width: 60px; }
+  .item .m-who { width: 150px; }
+  .item .m-when { width: 170px; flex: none !important; }
+  .item .st { min-width: 128px; text-align: right; }
+}
+.section .count { font-size: 12px; color: var(--faint); font-weight: 600; }
+/* A task's facts in the same order as the list: who, when, where it stands. */
+.facts { display: grid; grid-template-columns: 84px 1fr; gap: 8px 10px; align-items: center; margin-top: 10px; font-size: 14px; }
+.facts .fl { font-size: 12px; color: var(--muted); }
+.facts .fv { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.facts .fv .st { font-size: 14px; }
+/* Every part of the same ID, in one place. */
+.post-strip { border: 1px solid var(--line); border-radius: 12px; padding: 4px 12px; margin: 0 0 14px; }
+.post-strip .head { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 8px 0 2px; }
+.post-strip .r { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.post-strip .r:last-child { border-bottom: 0; }
+.post-strip .r.here { font-weight: 600; }
+.post-strip .r .kind { width: 26px; height: 26px; border-radius: 8px; margin: 0; }
+.post-strip .r .kind svg { width: 14px; height: 14px; }
+.post-strip .r .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.post-strip .r .who { width: 92px; flex: none; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The work itself, as pictures to tap: images and video frames from Drive. */
+.tiles { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.tile { position: relative; width: 96px; height: 96px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--soft); padding: 0; cursor: pointer; }
+.tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tile .play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(0,0,0,.18); }
+.tile .play svg { width: 28px; height: 28px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.4)); }
+.tile .n { position: absolute; right: 5px; bottom: 5px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; border-radius: 6px; padding: 0 5px; }
 .lrow .main-col { flex: 1; min-width: 0; }
 .lrow .t { font-weight: 550; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* A task's name with its part (e.g. Video Cover) small next to it; a long name is cut, the part always shows. */
@@ -181,7 +241,7 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 .lrow .datebox { width: 38px; flex: none; text-align: center; line-height: 1.1; }
 .lrow .datebox b { display: block; font-size: 17px; font-weight: 650; }
 .lrow .datebox span { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-.idtag { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; color: var(--muted); letter-spacing: .02em; }
+.idtag { font-size: 12px; color: var(--muted); letter-spacing: .01em; font-variant-numeric: tabular-nums; }
 .cdot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); flex: none; display: inline-block; }
 .ccount { font-size: 12px; color: var(--faint); display: inline-flex; align-items: center; gap: 3px; }
 .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px; position: relative; }
@@ -220,6 +280,7 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 .trow-body { padding: 0 14px 14px; animation: enter .2s var(--ease); }
 /* Open, the card shows the task's whole name (closed, a long one is cut with "…"). */
 .trow.open .trow-head .ttl { align-items: flex-start; }
+.trow.open .trow-head.item .t { -webkit-line-clamp: unset; display: block; }
 .trow.open .trow-head .ttl .tm { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
 .chev { width: 8px; height: 8px; border-right: 1.5px solid var(--faint); border-bottom: 1.5px solid var(--faint); transform: rotate(-45deg); transition: transform .2s var(--ease); flex: none; margin-right: 2px; }
 .trow.open .chev { transform: rotate(45deg); }
@@ -524,7 +585,9 @@ function call(action, payload) {
   return sb.auth.getSession().then(({ data }) => {
     const headers = { 'content-type': 'application/json', 'x-region': CFG.region };
     if (data && data.session) headers.authorization = 'Bearer ' + data.session.access_token;
-    return fetch(CFG.url + '/functions/v1/api', { method: 'POST', headers, body: JSON.stringify({ action, payload: payload || {} }) })
+    // Inside someone's account (the admin only): every call runs as them on the server.
+    const body = S.viewAs ? Object.assign({}, payload || {}, { as: S.viewAs.id }) : payload || {};
+    return fetch(CFG.url + '/functions/v1/api', { method: 'POST', headers, body: JSON.stringify({ action, payload: body }) })
       .catch(() => { throw new Error('Connection problem. Check your internet and try again.'); });
   }).then((r) => r.json().catch(() => { throw new Error('Unexpected reply from the server.'); }))
     .then((res) => {
@@ -814,6 +877,9 @@ const ICONS = {
   upload: '<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  video: '<rect x="3" y="6" width="12.5" height="12" rx="3"/><path d="m15.5 10.5 5-3v9l-5-3"/>',
+  image: '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m4.5 17.5 4.5-4 4 3.5 3-2.5 3.5 3"/>',
+  doc: '<path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10A.5.5 0 0 1 6.5 20V4A.5.5 0 0 1 7 3.5z"/><path d="M14 3.5V8h4M9.5 12h5M9.5 15.5h5"/>',
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'
 };
 function icon(name) {
@@ -901,16 +967,6 @@ function password(f, k, attrs) {
   const eye = h('button', { type: 'button', class: 'eye', onclick: () => { i.type = i.type === 'password' ? 'text' : 'password'; eye.textContent = i.type === 'password' ? 'Show' : 'Hide'; } }, 'Show');
   return h('div', { class: 'pw-wrap' }, i, eye);
 }
-/** Single choice as tap targets. */
-function choice(options, value, onPick, cls) {
-  const wrap = h('div', { class: 'chips ' + (cls || '') });
-  const draw = () => fill(wrap, ...options.map((o) => h('button', {
-    type: 'button', class: 'chip' + (o.value === value ? ' on' : ''),
-    onclick: () => { value = o.value; onPick(o.value); draw(); }
-  }, o.label, o.n !== undefined ? h('span', { class: 'n' }, o.n) : null)));
-  draw();
-  return wrap;
-}
 
 /** A dropdown. options: [{ value, label, n }]. opts.full: a form field; opts.on: highlighted (a filter that is set). */
 function selectBox(options, value, onPick, opts) {
@@ -944,6 +1000,34 @@ function lrow(o) {
     h('div', { class: 'main-col' }, h('div', { class: 't', dir: 'auto' }, o.title), o.sub ? h('div', { class: 's' }, o.sub) : null),
     o.end && o.end.filter(Boolean).length ? h('div', { class: 'end' }, o.end) : null);
 }
+/**
+ * One row for every list (tasks, ideas, posts), the same thing always in the same place: an icon for the kind of
+ * work, the name, and where it stands at the top right; under the name, in fixed places, the ID, who (or where) and
+ * when, then small marks (new comments, a check to fix). o: { onclick, icon, title, state, id, who, when, marks, done }
+ */
+function itemRow(o) {
+  return h('div', { class: 'lrow item' + (o.done ? ' done' : ''), role: 'button', tabindex: 0, 'data-key': o.key || null, onclick: (e) => { if (!selecting(e)) o.onclick(e); },
+    onkeydown: (e) => { if (e.key === 'Enter') o.onclick(e); } },
+    h('span', { class: 'kind', 'aria-hidden': 'true' }, icon(o.icon || 'tasks')),
+    h('div', { class: 'main-col' },
+      h('div', { class: 'l1' }, h('div', { class: 't' }, o.title), o.state || null),
+      itemMeta(o)));
+}
+/** The line under a name: ID, who, when in fixed places (so they line up row under row), then the marks. */
+function itemMeta(o) {
+  const marks = (o.marks || []).filter(Boolean);
+  return h('div', { class: 'meta' },
+    h('span', { class: 'm-id' }, o.id || ''),
+    o.who === false ? null : h('span', { class: 'm-who' }, o.who || ''),
+    h('span', { class: 'm-when' }, o.when || ''),
+    marks.length ? h('span', { class: 'm-marks' }, marks) : null);
+}
+/** A name in a row: in its own direction (Arabic reads right to left), with a part like "Video Cover" small after it. */
+function rowTitle(main, part) {
+  return [h('span', { dir: 'auto' }, main), part ? h('span', { class: 'tpart' }, part) : null];
+}
+/** The first line of a name: a long idea (slides, notes) goes by its first line; the rest is in its card. */
+function firstLine(s) { return String(s || '').split('\n').map((x) => x.trim()).find(Boolean) || ''; }
 function list(rows, empty) {
   rows = rows.filter(Boolean);
   return rows.length ? h('div', { class: 'list' }, rows) : h('div', { class: 'empty' }, empty || 'Nothing here.');
@@ -953,16 +1037,6 @@ function dots(...parts) {
   const out = [];
   parts.flat().filter((p) => p !== null && p !== undefined && p !== false && p !== '').forEach((p, i) => { if (i) out.push(' · '); out.push(p); });
   return out;
-}
-/** Multiple choice: values is an object {name: true}. */
-function multi(options, values, onChange) {
-  const wrap = h('div', { class: 'chips' });
-  const draw = () => fill(wrap, ...options.map((o) => h('button', {
-    type: 'button', class: 'chip' + (values[o] ? ' on' : ''),
-    onclick: () => { values[o] = !values[o]; onChange(values); draw(); }
-  }, values[o] ? '✓ ' + o : o)));
-  draw();
-  return wrap;
 }
 function peopleOptions(includeNone) {
   const opts = S.state.people.map((p) => ({ value: p.id, label: p.name }));
@@ -1108,20 +1182,39 @@ function isAdmin() { return !!(S.me && S.me.role === 'Admin'); }
 /** Manager: sees what the admin sees (no Scribble), comments, changes nothing. */
 function isManager() { return !!(S.me && S.me.role === 'Manager'); }
 function isStaff() { return isAdmin() || isManager(); }
-/** Four states: not started, started, pending approval, done. */
-function statusBadge(t) {
-  if (t.cancelled) return h('span', { class: 'badge' }, 'Deleted');
-  if (t.review === 'Approved' || t.status === 'Done') return h('span', { class: 'badge b-green' }, 'Done');
-  if (t.status === 'Pending Approval') return h('span', { class: 'badge b-purple' }, 'Pending approval');
-  if (t.status === 'Started' || t.review === 'Edit') return h('span', { class: 'badge b-blue' }, 'Started');
-  return h('span', { class: 'badge' }, 'Not started');
+/**
+ * Where a task stands, in a word, the same everywhere (rows, cards, lists of the other parts). Colour only when it
+ * needs the person looking: gold waits for the admin's OK, orange is a change asked of you, green is done.
+ */
+function taskState(t) {
+  if (t.cancelled) return { text: 'Deleted', cls: 'faint' };
+  if (t.review === 'Approved' || t.status === 'Done') return { text: '✓ Done', cls: 'green' };
+  if (t.status === 'Pending Approval') return isAdmin() ? { text: 'To approve', cls: 'gold' } : { text: 'Waiting approval', cls: '' };
+  if (t.review === 'Edit') return { text: 'Changes asked', cls: !isStaff() || t.assignedTo === S.me.id ? 'orange' : '' };
+  if (waitingFor(t)) return { text: 'Waiting', cls: 'faint' };
+  if (t.status === 'Started') return { text: 'In progress', cls: '' };
+  return { text: 'Not started', cls: 'faint' };
 }
-/** The deadline as quiet text; late work is a soft red, never a block of red. */
+function statusBadge(t) { const x = taskState(t); return h('span', { class: 'st ' + x.cls }, x.text); }
+/**
+ * A video's cover can't start before the video is delivered: the video it waits for, else null.
+ * (Only videos: a blog's image and its upload are done side by side.)
+ */
+function waitingFor(t) {
+  if (t.linkRole !== 'Cover' || t.type !== 'Video' || !isOpen(t)) return null;
+  const others = t.related || S.state.tasks.filter((o) => o.id === t.id && o.key !== t.key && !o.cancelled);
+  return others.find((o) => (o.linkRole || 'Media') !== 'Cover' && o.review !== 'Approved' && o.status !== 'Done' && o.status !== 'Pending Approval') || null;
+}
+/** What kind of work: the icon at the start of its row. */
+function kindIcon(type, role) {
+  return role === 'Cover' || type === 'Design' ? 'image' : type === 'Video' ? 'video' : type === 'Blog' ? 'doc' : 'tasks';
+}
+/** The deadline as quiet text; late work is a soft red, never a block of red (not while it waits for another task). */
 function dueChip(t, long) {
   if (!t.deadline) return null;
-  const open = isOpen(t);
+  const open = isOpen(t) && !waitingFor(t);
   const label = long ? dayLong(t.deadline) : dayShort(t.deadline);
-  return h('span', { class: 'due' + (open && t.color !== 'none' ? ' ' + t.color : '') }, label + (open && t.overdue ? ' · late' : t.late ? (long ? ' · delivered late' : ' · late') : ''));
+  return h('span', { class: 'due' + (open && t.color === 'red' ? ' red' : '') }, label + (open && t.overdue ? ' · late' : t.late ? (long ? ' · delivered late' : ' · late') : ''));
 }
 
 function execBadge(e) {
@@ -1859,7 +1952,7 @@ async function changeOwnPassword(current, next) {
 async function logout() {
   stopListening();
   try { await sb.auth.signOut(); } catch (e) { /* ignore */ }
-  S.state = null; S.me = null; S.ui.tab = ''; S.drafts = {};
+  S.state = null; S.me = null; S.ui.tab = ''; S.drafts = {}; S.viewAs = null;
   closeSheet();
   S.screen = 'login';
   if (!S.status) { try { S.status = await call('status'); } catch (e) { /* ignore */ } }
@@ -1880,14 +1973,44 @@ function appShell() {
   const views = { today: todayView, tasks: isStaff() ? adminTasksView : memberTasksView, ideas: isStaff() ? adminIdeasView : memberIdeasView, calendar: calendarView, more: moreView };
   if (!tabs.some((x) => x[0] === S.ui.tab)) S.ui.tab = tabs[0][0];
   return h('div', null,
-    h('header', { class: 'topbar' },
+    h('header', { class: 'topbar' + (S.viewAs ? ' as' : '') },
       h('div', { class: 'brandmark' }, h('img', { src: LOGO, alt: 'KATAL' }), h('span', { class: 'sep' }), h('span', { class: 'team' }, 'Team')),
-      h('button', { class: 'me-btn', onclick: accountSheet, 'aria-label': 'Your account' },
+      // Always in sight while inside someone's account (the bar stays on top when scrolling).
+      S.viewAs ? h('button', { class: 'aspill', onclick: leaveAccount }, S.viewAs.name + '\'s account · Back') : null,
+      h('button', { class: 'me-btn', onclick: S.viewAs ? leaveAccount : accountSheet, 'aria-label': S.viewAs ? 'Back to your account' : 'Your account' },
         h('span', { class: 'nm' }, S.me.name), h('span', { class: 'avatar' }, (S.me.name || '?').charAt(0).toUpperCase()))),
+    S.viewAs ? h('div', { class: 'asbar', role: 'status' }, h('span', { class: 'grow' }, 'You are in ', h('b', null, S.viewAs.name + '\'s account'), '. What you do here is saved as theirs.'),
+      h('button', { class: 'btn tiny', onclick: leaveAccount }, 'Back to mine')) : null,
     h('nav', { class: 'tabs' }, tabs.map(([key, label, n]) => h('button', {
       class: S.ui.tab === key ? 'on' : '', onclick: () => { if (S.ui.tab === key) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; } goTab(key); }
     }, icon(key), label, n ? h('span', { class: 'dot' }, n) : null))),
     h('main', { class: 'main' }, views[S.ui.tab]()));
+}
+
+/**
+ * The admin opens a team member's (or the manager's) account from Team: the app shows exactly what they see, and
+ * whatever is done there is saved as theirs. What is read there stays unread for them. "Back to mine" leaves; a
+ * reload leaves too.
+ */
+async function enterAccount(u) {
+  closeSheet();
+  S.viewAs = { id: u.id, name: u.name };
+  S.state = null;
+  S.ui.tab = '';
+  S.drafts = {};
+  try { await loadState(); } catch (e) { S.viewAs = null; handleErr(e); await loadState(); }
+  window.scrollTo(0, 0);
+  toast('You are in ' + u.name + '\'s account');
+}
+async function leaveAccount() {
+  closeSheet();
+  S.viewAs = null;
+  S.state = null;
+  S.drafts = {};
+  S.ui.tab = 'more';
+  S.ui.more = 'team';
+  await loadState();
+  window.scrollTo(0, 0);
 }
 
 function accountSheet() {
@@ -1983,8 +2106,9 @@ function memberTasksView() {
     h('div', { class: 'page-head' }, h('div', null, h('div', { class: 'eyebrow' }, dayLong(st.today).replace(' · Today', '')), h('h1', null, 'My tasks'))),
     seg([{ value: 'active', label: 'To do', n: active.length }, { value: 'done', label: 'Completed' }],
       S.ui.memberTab, (v) => { S.ui.memberTab = v; render(); }),
-    items.length ? h('div', { class: 'stack' }, items.map(memberTaskCard))
-      : h('div', { class: 'empty' }, S.ui.memberTab === 'done' ? 'Nothing completed yet.' : [h('span', { class: 'big' }, '✓'), 'Nothing on your list right now.']));
+    !items.length ? h('div', { class: 'empty' }, S.ui.memberTab === 'done' ? 'Nothing completed yet.' : [h('span', { class: 'big' }, '✓'), 'Nothing on your list right now.'])
+      : S.ui.memberTab === 'done' ? h('div', { class: 'stack' }, items.map(memberTaskCard))
+        : taskGroups(items, true).map(([id, title, rows]) => [listSection('mg-' + id, title, rows.length), h('div', { class: 'stack' }, rows.map(memberTaskCard))]));
 }
 
 /** One task as a slim row; tap it to open the details. Rows with requested changes start open. */
@@ -1994,16 +2118,18 @@ function memberTaskCard(t) {
   // Open/closed is remembered per review state, so a task sent back always opens again.
   const ok = t.key + '|' + (t.review || '');
   const isOpenRow = S.ui.open[ok] !== undefined ? S.ui.open[ok] : t.review === 'Edit';
-  const late = !approved && t.color === 'red';
-  const cls = 'card trow' + (late ? ' late' : '') + (isOpenRow ? ' open' : '');
+  const cls = 'card trow' + (isOpenRow ? ' open' : '');
+  const p = taskParts(t);
+  const w = waitingFor(t);
   const toggle = (e) => { if (selecting(e)) return; S.ui.open[ok] = !isOpenRow; render(); };
   // Not a <button>: its words can be selected and copied with the mouse.
-  const head = h('div', { class: 'trow-head', role: 'button', tabindex: 0, onclick: toggle, 'aria-expanded': isOpenRow ? 'true' : 'false',
+  const head = h('div', { class: 'trow-head item', role: 'button', tabindex: 0, onclick: toggle, 'aria-expanded': isOpenRow ? 'true' : 'false',
     onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); } } },
+    h('span', { class: 'kind', 'aria-hidden': 'true' }, icon(kindIcon(t.type, t.linkRole))),
     h('div', { class: 'main-col grow' },
-      h('div', { style: 'font-weight:550;font-size:14.5px' }, taskTitle(t)),
-      h('div', { class: 'small muted', style: 'margin-top:2px' }, dots(h('span', { class: 'idtag' }, t.id), approved ? null : dueChip(t), rowStatus(t), checkBadge(t)))),
-    commentBadge(t.id), h('span', { class: 'chev' }));
+      h('div', { class: 'l1' }, h('div', { class: 't' }, rowTitle(p.main, p.part)), statusBadge(t)),
+      itemMeta({ id: t.id, who: false, when: approved ? null : dueChip(t), marks: [checkBadge(t), commentBadge(t.id)] })),
+    h('span', { class: 'chev' }));
   const card = h('div', { class: cls, style: approved ? 'opacity:.7' : '' }, head);
   if (!isOpenRow) return card;
 
@@ -2033,8 +2159,11 @@ function memberTaskCard(t) {
       });
   };
 
+  const more = restLines(t.idea);
   append(card, h('div', { class: 'trow-body' },
     h('div', { class: 'small muted', style: 'margin-bottom:6px' }, dots(t.type, approved ? null : dueChip(t, true))),
+    w ? h('div', { class: 'note' }, 'Starts after ' + (w.name || 'the video') + ' delivers the video.') : null,
+    more ? h('div', { class: 'brief pre', dir: 'auto' }, more) : null,
     t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'To fix'), h('div', { class: 'pre', dir: 'auto' }, t.reviewNotes)) : null,
     approved ? h('div', { class: 'note green' }, h('div', { class: 't' }, '✓ Approved, great work')) : null,
     approved ? null : checkNote(t),
@@ -2042,11 +2171,9 @@ function memberTaskCard(t) {
       h('div', { class: 'brief pre' + (longBrief && !expanded ? ' clamp' : ''), dir: 'auto' }, t.brief),
       longBrief ? h('button', { class: 'btn ghost tiny', onclick: () => { S.ui.expanded[t.key] = !expanded; render(); } }, expanded ? 'Show less' : 'Show all') : null) : null,
     t.reference ? field('Reference', refLinks(t.reference)) : null,
-    t.related.length ? h('div', { class: 'related' }, h('div', { class: 'head' }, 'Team files'),
-      t.related.map((r) => h('div', { class: 'r' }, h('b', null, r.name), h('span', { class: 'muted grow' }, r.task), rowStatus(r),
-        filesLink(r.files, { id: t.id, video: t.type === 'Video' && r.task !== 'Video Cover' })))) : null,
+    postStrip(t),
     approved ? [
-      t.fileLink ? h('div', { class: 'files', style: 'margin-top:6px' }, filesLink(t.files, { id: t.id, video: isVideoTask(t) })) : null,
+      t.fileLink ? h('div', { style: 'margin-top:6px' }, fileTiles(t.files, { id: t.id, video: isVideoTask(t) })) : null,
       t.draftCaption ? h('div', { class: 'brief pre', dir: 'auto' }, t.draftCaption) : null
     ] : [
       h('div', { class: 'statusbar' },
@@ -2055,7 +2182,8 @@ function memberTaskCard(t) {
           t.status === 'Pending Approval' ? '✓ Sent' : 'Send for approval')),
       h('div', { class: 'divider' }),
       field('File', h('div', null,
-        h('div', { class: 'files', style: 'margin-bottom:6px' }, filesLink(t.files, { id: t.id, video: isVideoTask(t) }),
+        fileTiles(t.files, { id: t.id, video: isVideoTask(t) }),
+        h('div', { class: 'files', style: 'margin-bottom:6px' },
           uploadButton({ id: t.id, label: t.task, multi: true }, (links) => {
             d.fileLink = links[0];
             instant((st) => { const x = st.tasks.find((k) => k.key === t.key); if (x) { x.fileLink = links[0]; x.files = links; } }, 'task.update', { key: t.key, files: links },
@@ -2080,16 +2208,36 @@ function refLinks(text) {
     : h('span', { class: 'small', dir: 'auto' }, p)));
 }
 
-/** On a row, "Not started" says nothing; the other states say a word. */
-/** Every row says where the task stands, "Not started" included. */
-function rowStatus(t) { return statusBadge(t); }
 
 /** The main file of a video task is a video; its cover is an image. */
 /** A task goes by the name typed for it (its idea); a part of it, like "Video Cover", shows small next to that. */
-function taskParts(t) { return { main: t.idea || t.task, part: t.idea && t.task !== t.idea ? t.task : '' }; }
-function taskTitle(t) {
-  const p = taskParts(t);
-  return h('span', { class: 'ttl' }, h('span', { class: 'tm', dir: 'auto' }, p.main), p.part ? h('span', { class: 'tpart', dir: 'auto' }, p.part) : null);
+function taskParts(t) { return { main: firstLine(t.idea || t.task), part: t.idea && t.task !== t.idea ? t.task : '' }; }
+/** A long idea's lines after its first (the slides, the notes): shown under the name in its card. */
+function restLines(s) {
+  const lines = String(s || '').split('\n');
+  const at = lines.findIndex((x) => x.trim());
+  return at < 0 ? '' : lines.slice(at + 1).join('\n').trim();
+}
+/**
+ * Every part of the same ID in one place: each task (who, where it stands, its file) and the post's day.
+ * The team sees their own work and the others' on the same ID; the admin and the manager see all of it.
+ */
+function postStrip(t) {
+  const st = S.state;
+  const parts = t.related
+    ? [Object.assign({ name: 'You', here: true }, t)].concat(t.related.map((r) => Object.assign({ type: t.type, id: t.id }, r)))
+    : st.tasks.filter((o) => o.id === t.id && !o.cancelled).map((o) => Object.assign({ name: o.assignee, here: o.key === t.key }, o));
+  const post = (st.calendar || []).find((c) => c.id === t.id && c.status !== 'Cancelled');
+  if (parts.length < 2 && !post) return null;
+  return h('div', { class: 'post-strip' }, h('div', { class: 'head' }, 'Everything on ' + t.id),
+    parts.map((o) => h('div', { class: 'r' + (o.here ? ' here' : '') },
+      h('span', { class: 'kind', 'aria-hidden': 'true' }, icon(kindIcon(t.type, o.linkRole))),
+      h('span', { class: 'nm', dir: 'auto' }, o.task && o.task !== t.idea ? o.task : t.type || 'Task'),
+      h('span', { class: 'who' }, o.name),
+      statusBadge(o),
+      o.here ? null : filesLink(o.files, { id: t.id, video: t.type === 'Video' && o.linkRole !== 'Cover' }))),
+    post ? h('div', { class: 'r' }, h('span', { class: 'kind', 'aria-hidden': 'true' }, icon('calendar')), h('span', { class: 'nm' }, 'Post'),
+      h('span', { class: 'who' }, post.publishDate ? dayShort(post.publishDate) : 'No date'), postStateTag(post)) : null);
 }
 /** The same in plain text, for messages: "Ali video 1 (Video Cover)". */
 function taskLabel(t) { const p = taskParts(t); return p.part ? p.main + ' (' + p.part + ')' : p.main; }
@@ -2117,12 +2265,7 @@ function memberIdeasView() {
   return h('div', null,
     h('div', { class: 'page-head' }, h('h1', null, 'Ideas'), h('button', { class: 'btn primary quick', onclick: newIdeaSheet }, '+ New idea')),
     seg([{ value: 'all', label: 'Everyone' }, { value: 'mine', label: 'Mine' }], S.ui.ideaScope, (v) => { S.ui.ideaScope = v; render(); }),
-    list(items.map((i) => lrow({
-      onclick: () => memberIdeaSheet(i.id),
-      title: i.idea,
-      sub: dots(h('span', { class: 'idtag' }, i.id), personTag(i.mine ? 'You' : i.by), i.type, fmtShort((i.submittedAt || '').slice(0, 10))),
-      end: [commentBadge(i.id), i.execution === 'Approved' ? execBadge(i.execution) : null]
-    })), 'No ideas yet. Be the first.'));
+    list(items.map((i) => ideaRow(i, () => memberIdeaSheet(i.id))), 'No ideas yet. Be the first.'));
 }
 
 function memberIdeaSheet(id) {
@@ -2154,7 +2297,7 @@ function todayView() {
   const tomorrow = addDays(today, 1);
   const open = st.tasks.filter(isOpen);
   const pending = open.filter((t) => t.status === 'Pending Approval').sort(byUrgency);
-  const working = open.filter((t) => t.status !== 'Pending Approval');
+  const working = open.filter((t) => t.status !== 'Pending Approval' && !waitingFor(t));
   const overdue = working.filter((t) => t.overdue).sort(byUrgency);
   const dueToday = working.filter((t) => t.deadline === today && !t.overdue).sort(byUrgency);
   const dueTomorrow = working.filter((t) => t.deadline === tomorrow).sort(byUrgency);
@@ -2167,7 +2310,7 @@ function todayView() {
   const stat = (n, label, cls, go) => n ? h('button', { class: 'stat ' + (cls || ''), onclick: go }, h('div', { class: 'v' }, n), h('div', { class: 'l' }, label)) : null;
   const stats = [
     stat(pending.length, isAdmin() ? 'To approve' : 'Pending approval', 'gold', jump('sec-pending')),
-    stat(overdue.length, 'Overdue', 'red', jump('sec-overdue')),
+    stat(overdue.length, 'Late', 'red', jump('sec-overdue')),
     stat(dueToday.length, 'Due today', '', jump('sec-today')),
     stat(dueTomorrow.length, 'Due tomorrow', '', jump('sec-tomorrow')),
     stat(later.length, 'Ideas to decide', '', () => goTab('ideas', { ideaView: 'Later' })),
@@ -2175,7 +2318,7 @@ function todayView() {
     stat(missedPosts().length, 'Didn\'t go out', 'red', () => goTab('calendar', { calSeg: 'missed' })),
     stat(notReady.length, 'Drafts due soon', '', jump('sec-drafts'))
   ].filter(Boolean);
-  const sec = (id, title, items, rowFn) => items.length ? [h('div', { class: 'section', id }, h('h2', null, title)), list(items.map(rowFn))] : null;
+  const sec = (id, title, items, rowFn) => items.length ? [listSection(id, title, items.length), list(items.map(rowFn))] : null;
   const people = st.people.map((p) => {
     const mine = open.filter((t) => t.assignedTo === p.id);
     return { p, open: mine.length, overdue: mine.filter((t) => t.overdue).length, waiting: mine.filter((t) => t.status === 'Pending Approval').length };
@@ -2186,8 +2329,8 @@ function todayView() {
       h('div', null, h('div', { class: 'eyebrow' }, wd(today) + ' ' + fmtShort(today)), h('h1', null, hello)),
       h('button', { class: 'btn primary quick', onclick: () => quickTaskSheet() }, '+ Quick task')),
     stats.length ? h('div', { class: 'stats' }, stats) : h('div', { class: 'allclear' }, h('b', null, '✓ '), 'All clear. Nothing waiting.'),
-    sec('sec-pending', isAdmin() ? 'To approve' : 'Pending approval', pending, taskRow),
-    sec('sec-overdue', 'Overdue', overdue, taskRow),
+    sec('sec-pending', isAdmin() ? 'Waiting for your approval' : 'Waiting for approval', pending, taskRow),
+    sec('sec-overdue', 'Late', overdue, taskRow),
     sec('sec-today', 'Due today', dueToday, taskRow),
     sec('sec-tomorrow', 'Due tomorrow', dueTomorrow, taskRow),
     sec('sec-drafts', 'Publishing soon, still a draft', notReady, (c) => postRow(c, { date: true })),
@@ -2208,10 +2351,7 @@ function todayView() {
    Admin: Tasks
    ====================================================================== */
 const TASK_FILTERS = [
-  ['active', 'All open', isOpen],
-  ['notstarted', 'Not started', (t) => isOpen(t) && !t.status && t.review !== 'Edit'],
-  ['started', 'Started', (t) => isOpen(t) && (t.status === 'Started' || (!t.status && t.review === 'Edit'))],
-  ['pending', 'Pending approval', (t) => isOpen(t) && t.status === 'Pending Approval'],
+  ['active', 'Open', isOpen],
   ['done', 'Done', (t) => !t.cancelled && !isOpen(t)]
 ];
 
@@ -2245,18 +2385,50 @@ function adminTasksView() {
       selectBox([{ value: '', label: 'Everyone' }].concat(people.map((u) => ({ value: u.id, label: u.name }))), S.ui.person,
         (v) => { S.ui.person = v; render(); }, { label: 'Person', on: !!S.ui.person })
     ], 'q', 'Search ID, task, person…'),
-    list(items.map(taskRow), 'No tasks here.'));
+    filter[0] === 'done' || !items.length ? list(items.map(taskRow), filter[0] === 'done' ? 'Nothing done yet.' : 'No open tasks.')
+      : taskGroups(items).map(([id, title, rows]) => [listSection('tg-' + id, title, rows.length), list(rows.map(taskRow))]));
 }
 
-/** A task as one line: title; ID, person and deadline under it; its state on the right. */
+/** A task in a list: the one row (name, where it stands; ID, person, deadline under it). */
 function taskRow(t) {
-  const open = isOpen(t);
-  return lrow({
-    onclick: () => openTask(t.key), late: open && t.color === 'red', done: !open,
-    title: taskTitle(t),
-    sub: dots(h('span', { class: 'idtag' }, t.id), personTag(t.assignee), dueChip(t)),
-    end: [personalBadge(t), commentBadge(t.id), checkBadge(t), rowStatus(t)]
+  const p = taskParts(t);
+  return itemRow({
+    onclick: () => openTask(t.key), key: t.key, done: !isOpen(t), icon: kindIcon(t.type, t.linkRole),
+    title: rowTitle(p.main, p.part), state: statusBadge(t),
+    id: t.id, who: personTag(t.assignee), when: dueChip(t),
+    marks: [personalBadge(t), commentBadge(t.id), checkBadge(t)]
   });
+}
+/**
+ * Open work in the order it needs attention, the same for the admin, the manager and the team:
+ * waiting for approval, late, this week, later, and last what can't start yet (a cover before its video).
+ */
+function taskGroups(items, mineOnly) {
+  const today = S.state.today;
+  const endOfWeek = addDays(today, 6 - DAYN.indexOf(wd(today)));
+  const groups = { changes: [], pending: [], late: [], week: [], later: [], waiting: [] };
+  items.slice().sort(byUrgency).forEach((t) => {
+    if (waitingFor(t)) groups.waiting.push(t);
+    else if (t.status === 'Pending Approval') groups.pending.push(t);
+    else if (mineOnly && t.review === 'Edit') groups.changes.push(t);
+    else if (t.overdue) groups.late.push(t);
+    else if (!t.deadline || t.deadline <= endOfWeek) groups.week.push(t);
+    else groups.later.push(t);
+  });
+  const pending = ['pending', mineOnly ? 'Sent for approval' : isAdmin() ? 'Waiting for your approval' : 'Waiting for approval', groups.pending];
+  return [
+    ['changes', 'Changes asked', groups.changes],
+    mineOnly ? null : pending,
+    ['late', 'Late', groups.late],
+    ['week', 'This week', groups.week],
+    ['later', 'Later', groups.later],
+    ['waiting', 'Waiting for another task', groups.waiting],
+    mineOnly ? pending : null
+  ].filter((g) => g && g[2].length);
+}
+/** A titled part of a list, with how many are in it. */
+function listSection(id, title, n) {
+  return h('div', { class: 'section', id }, h('h2', null, title), h('span', { class: 'count' }, String(n)));
 }
 
 /** The admin edits every task; a manager edits the tasks they made and works on the ones given to them. */
@@ -2300,14 +2472,53 @@ function requestEditSheet(t) {
 
 const STATUS_OPTIONS = [{ value: '', label: 'Not started' }, { value: 'Started', label: 'Started' }, { value: 'Pending Approval', label: 'Pending approval' }, { value: 'Done', label: 'Done' }];
 
-/** The file of a task: view what's there, upload (saved at once), or paste a link. */
+/** A task's files as pictures to tap (images, or a video's frame with ▶); a link elsewhere is a View chip. */
+function fileTiles(files, ctx) {
+  files = (files || []).filter(Boolean);
+  const drive = files.filter((u) => driveIdOf(u));
+  const other = files.filter((u) => !driveIdOf(u));
+  if (!files.length) return null;
+  const shown = drive.slice(0, 6);
+  return [
+    shown.length ? h('div', { class: 'tiles' }, shown.map((u, i) => h('button', {
+      type: 'button', class: 'tile', 'aria-label': ctx.video ? 'Play the video' : 'View ' + (drive.length > 1 ? 'image ' + (i + 1) : 'the file'),
+      onclick: (e) => { e.stopPropagation(); previewSheet(u, Object.assign({}, ctx, drive.length > 1 ? { files: drive, index: i } : {})); }
+    },
+    h('img', { src: CFG.driveWeb + '/thumbnail?id=' + driveIdOf(u) + '&sz=w300', alt: '', loading: 'lazy', onerror: (e) => e.target.remove() }),
+    ctx.video ? h('span', { class: 'play' }, icon('play')) : null,
+    i === shown.length - 1 && drive.length > shown.length ? h('span', { class: 'n' }, '+' + (drive.length - shown.length)) : null))) : null,
+    other.length ? h('div', { class: 'files', style: 'margin-bottom:6px' }, other.map((u) => fileLink(u, ctx))) : null];
+}
+/** The file of a task: what's there (tap to view), upload (saved at once), or paste a link. */
 function fileField(t, f, onUploaded) {
   const fileIn = input(f, 'fileLink', { type: 'url', dir: 'ltr', placeholder: 'Or paste a link' });
   return field('File', h('div', null,
-    h('div', { class: 'files', style: 'margin-bottom:6px' }, filesLink(t.files && t.files.length ? t.files : (t.fileLink ? [t.fileLink] : []), { id: t.id, video: isVideoTask(t) }),
+    fileTiles(t.files && t.files.length ? t.files : (t.fileLink ? [t.fileLink] : []), { id: t.id, video: isVideoTask(t) }),
+    h('div', { class: 'files', style: 'margin-bottom:6px' },
       uploadButton({ id: t.id, label: t.task, multi: true, text: t.fileLink ? 'Replace' : 'Upload' }, (links) => { f.files = links; f.fileLink = links[0]; fileIn.value = links[0]; onUploaded(links); })),
     fileIn));
 }
+/** A task's facts, label and value, in the same order as its row: who, when, where it stands. */
+function facts(rows) {
+  return h('div', { class: 'facts' }, rows.filter(Boolean).map(([label, value]) => [h('div', { class: 'fl' }, label), h('div', { class: 'fv' }, value)]));
+}
+/** The top of every task's card: its name (and the rest of a long idea), then who, when, where it stands. */
+function taskInfo(t, o) {
+  const p = taskParts(t);
+  const more = restLines(t.idea);
+  return h('div', { class: 'info' },
+    h('div', { class: 'info-top' }, h('h3', { dir: 'auto' }, p.main), o.edit ? h('button', { class: 'btn ghost tiny', onclick: o.edit }, 'Edit') : null),
+    more ? h('div', { class: 'small muted pre', dir: 'auto', style: 'margin-top:6px' }, more) : null,
+    facts([
+      ['Person', personTag(t.assignee)],
+      ['Due', o.due || [h('b', { style: 'font-weight:550' }, t.deadline ? dayLong(t.deadline) : '—'), isOpen(t) && t.overdue && !waitingFor(t) ? h('span', { class: 'due red' }, 'late') : null]],
+      ['Status', [statusBadge(t), personalBadge(t)]],
+      t.delivered ? ['Delivered', fmtDT(t.delivered) + (t.late ? ' · late' : '')] : null
+    ]),
+    t.cancelled ? h('div', { class: 'small', style: 'color:var(--red);margin-top:8px' }, 'Deleted. Tap the red button below to bring it back.') : null);
+}
+/** The card's title bar: the ID and which part of the work this is. */
+function taskSheetTitle(t) { const p = taskParts(t); return t.id + ' · ' + (p.part || t.type || 'Task'); }
 
 function personSelect(f, key, current) {
   const people = peopleOptions();
@@ -2331,7 +2542,6 @@ function taskSheet(key) {
   if (!t) return;
   const f = { key: t.key, task: t.task, brief: t.brief, assignedTo: t.assignedTo, deadline: t.deadline, status: t.status,
     fileLink: t.fileLink, draftCaption: t.draftCaption, notes: t.notes, reviewNotes: t.reviewNotes };
-  const others = S.state.tasks.filter((o) => o.id === t.id && o.key !== t.key && !o.cancelled);
   const pending = isOpen(t) && t.status === 'Pending Approval';
   const saveNow = (extra, msg) => run(null, 'task.save', Object.assign({}, f, extra || {}), msg, { keepSheet: true });
   // A brief that arrives while this is open (written by Auto, or the Scribble copied in) shows here,
@@ -2349,26 +2559,22 @@ function taskSheet(key) {
   const del = t.cancelled
     ? () => setTaskCancelled(t, false)
     : () => ask('Delete "' + taskLabel(t) + '"? It leaves ' + t.assignee + '\'s list.', 'Delete', true).then((ok) => { if (ok) setTaskCancelled(t, true); });
-  openSheet(t.id + ' · Task', h('div', null,
-    h('div', { class: 'info' },
-      h('div', { class: 'info-top' }, h('h3', null, taskTitle(t)), h('button', { class: 'btn ghost tiny', onclick: () => editTaskSheet(t) }, 'Edit')),
-      h('div', { class: 'info-line' }, personTag(t.assignee), statusBadge(t), personalBadge(t), t.type ? h('span', { class: 'small muted' }, t.type) : null),
-      h('div', { class: 'info-line' }, dateField(f.deadline, (v) => { f.deadline = v; saveNow({ deadline: v }, 'Deadline: ' + dayShort(v)); }, { autosave: true }),
-        isOpen(t) && t.overdue ? h('span', { class: 'due red' }, 'late') : null),
-      t.delivered ? h('div', { class: 'small muted' }, 'Delivered ' + fmtDT(t.delivered) + (t.late ? ' · late' : '')) : null,
-      t.cancelled ? h('div', { class: 'small', style: 'color:var(--red)' }, 'Deleted. Tap the red button below to bring it back.') : null),
+  // The file, then Approve right under it: look, then decide. The other parts of the post after that.
+  openSheet(taskSheetTitle(t), h('div', null,
+    taskInfo(t, { edit: () => editTaskSheet(t),
+      due: [dateField(f.deadline, (v) => { f.deadline = v; saveNow({ deadline: v }, 'Deadline: ' + dayShort(v)); }, { autosave: true }),
+        isOpen(t) && t.overdue && !waitingFor(t) ? h('span', { class: 'due red' }, 'late') : null] }),
     liveBox(() => checkNote(S.state.tasks.find((x) => x.key === t.key) || t)),
+    fileField(t, f, (links) => saveNow({ files: links, fileLink: links[0] }, (links.length > 1 ? links.length + ' files' : 'File') + ' saved ✓')),
     pending ? h('div', { class: 'approve-box' },
       h('button', { class: 'btn good block', onclick: (e) => approve(e.currentTarget, t) }, '✓ Approve'),
       h('button', { class: 'btn ghost tiny', onclick: () => requestEditSheet(t) }, '↩ Send back with a note')) : null,
     t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'Sent back'), h('div', { class: 'pre small', dir: 'auto' }, t.reviewNotes)) : null,
-    fileField(t, f, (links) => saveNow({ files: links, fileLink: links[0] }, (links.length > 1 ? links.length + ' files' : 'File') + ' saved ✓')),
+    postStrip(t),
     field('Brief', briefIn),
     briefNote,
     t.reference ? field('Reference', refLinks(t.reference)) : null,
     t.draftCaption || t.notes ? field('From ' + t.assignee, h('div', { class: 'brief pre', dir: 'auto' }, [t.draftCaption, t.notes].filter(Boolean).join('\n\n'))) : null,
-    others.length ? h('div', { class: 'related' }, h('div', { class: 'head' }, 'Other tasks on ' + t.id),
-      others.map((o) => h('div', { class: 'r' }, personTag(o.assignee), h('span', { class: 'muted grow' }, o.task), rowStatus(o), filesLink(o.files, { id: o.id, video: isVideoTask(o) })))) : null,
     h('div', { class: 'small faint' }, 'Created ' + fmtDT(t.createdAt)),
     commentsBox(t.id, { video: t.type === 'Video' })),
   editFoot((btn) => run(btn, 'task.save', f, 'Saved'), del, { deleteLabel: t.cancelled ? 'Restore task' : 'Delete task' }));
@@ -2390,20 +2596,14 @@ function editTaskSheet(t) {
 function taskViewSheet(key) {
   const t = S.state.tasks.find((x) => x.key === key);
   if (!t) return;
-  const others = S.state.tasks.filter((o) => o.id === t.id && o.key !== t.key && !o.cancelled);
-  openSheet(t.id + ' · Task', h('div', null,
-    h('div', { class: 'info' },
-      h('div', { class: 'info-top' }, h('h3', null, taskTitle(t))),
-      h('div', { class: 'info-line' }, personTag(t.assignee), statusBadge(t), t.type ? h('span', { class: 'small muted' }, t.type) : null),
-      h('div', { class: 'info-line small muted' }, 'Deadline ', h('b', { style: 'color:var(--ink);font-weight:550' }, dayLong(t.deadline)))),
+  openSheet(taskSheetTitle(t), h('div', null,
+    taskInfo(t, {}),
     t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'Sent back'), h('div', { class: 'pre small', dir: 'auto' }, t.reviewNotes)) : null,
     liveBox(() => checkNote(S.state.tasks.find((x) => x.key === t.key) || t)),
+    t.fileLink ? field('File', fileTiles(t.files, { id: t.id, video: isVideoTask(t) })) : null,
+    postStrip(t),
     t.brief ? field('Brief', h('div', { class: 'brief pre', dir: 'auto' }, t.brief)) : null,
     t.reference ? field('Reference', refLinks(t.reference)) : null,
-    t.fileLink ? field('File', h('div', { class: 'files' }, filesLink(t.files, { id: t.id, video: isVideoTask(t) }))) : null,
-    others.length ? h('div', { class: 'related' }, h('div', { class: 'head' }, 'Other tasks on ' + t.id),
-      others.map((o) => h('div', { class: 'r' }, personTag(o.assignee), h('span', { class: 'muted grow' }, o.task), rowStatus(o),
-        filesLink(o.files, { id: o.id, video: isVideoTask(o) })))) : null,
     commentsBox(t.id, { video: t.type === 'Video' })), editFoot(null));
 }
 
@@ -2419,7 +2619,6 @@ function managerTaskSheet(key) {
   const working = mine && isOpen(t) && !personal;
   const f = { key: t.key, task: t.task, brief: t.brief, assignedTo: t.assignedTo, deadline: t.deadline, status: t.status };
   const w = { fileLink: t.fileLink, draftCaption: t.draftCaption, notes: t.notes };
-  const others = S.state.tasks.filter((o) => o.id === t.id && o.key !== t.key && !o.cancelled);
   const mgrSave = (extra) => (personal ? Object.assign({}, f, extra) : Object.assign({ key: f.key, task: f.task, brief: f.brief, assignedTo: f.assignedTo, deadline: f.deadline }, extra || {}));
   const work = (btn, status) => {
     if (w.fileLink && !/^(https?:\/\/)?[^\s.]+\.[^\s]+$/i.test(w.fileLink.trim())) { toast('The file link doesn\'t look like a link.', true); return; }
@@ -2430,13 +2629,9 @@ function managerTaskSheet(key) {
   const del = !t.canEdit ? null : t.cancelled ? () => setTaskCancelled(t, false)
     : () => ask('Delete "' + taskLabel(t) + '"?', 'Delete', true).then((ok) => { if (ok) setTaskCancelled(t, true); });
 
-  openSheet(t.id + ' · Task', h('div', null,
-    h('div', { class: 'info' },
-      h('div', { class: 'info-top' }, h('h3', null, taskTitle(t)), t.canEdit ? h('button', { class: 'btn ghost tiny', onclick: () => managerEditSheet(t) }, 'Edit') : null),
-      h('div', { class: 'info-line' }, personTag(t.assignee), statusBadge(t), personalBadge(t)),
-      h('div', { class: 'info-line' }, t.canEdit
-        ? dateField(f.deadline, (v) => { f.deadline = v; run(null, 'task.save', mgrSave({ deadline: v }), 'Deadline: ' + dayShort(v), { keepSheet: true }); }, { autosave: true })
-        : h('span', { class: 'small muted' }, 'Deadline ', h('b', { style: 'color:var(--ink);font-weight:550' }, dayLong(t.deadline))))),
+  openSheet(taskSheetTitle(t), h('div', null,
+    taskInfo(t, { edit: t.canEdit ? () => managerEditSheet(t) : null,
+      due: t.canEdit ? dateField(f.deadline, (v) => { f.deadline = v; run(null, 'task.save', mgrSave({ deadline: v }), 'Deadline: ' + dayShort(v), { keepSheet: true }); }, { autosave: true }) : null }),
     t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'Sent back'), h('div', { class: 'pre small', dir: 'auto' }, t.reviewNotes)) : null,
     liveBox(() => checkNote(S.state.tasks.find((x) => x.key === t.key) || t)),
     t.canEdit ? field('Brief', area(f, 'brief', { rows: 3 })) : t.brief ? field('Brief', h('div', { class: 'brief pre', dir: 'auto' }, t.brief)) : null,
@@ -2452,10 +2647,8 @@ function managerTaskSheet(key) {
         field('Draft caption', area(w, 'draftCaption', { rows: 2 })),
         field('Notes', area(w, 'notes', { rows: 2 }))),
       h('button', { class: 'btn block', onclick: (e) => work(e.currentTarget) }, 'Save my work')
-    ] : t.fileLink ? field('File', h('div', { class: 'files' }, filesLink(t.files, { id: t.id, video: isVideoTask(t) }))) : null,
-    others.length ? h('div', { class: 'related' }, h('div', { class: 'head' }, 'Other tasks on ' + t.id),
-      others.map((o) => h('div', { class: 'r' }, personTag(o.assignee), h('span', { class: 'muted grow' }, o.task), rowStatus(o),
-        filesLink(o.files, { id: o.id, video: isVideoTask(o) })))) : null,
+    ] : t.fileLink ? field('File', fileTiles(t.files, { id: t.id, video: isVideoTask(t) })) : null,
+    postStrip(t),
     commentsBox(t.id, { video: t.type === 'Video' })),
   editFoot(t.canEdit ? (btn) => run(btn, 'task.save', mgrSave(), 'Saved') : null, del, { deleteLabel: 'Delete task' }));
 }
@@ -2591,16 +2784,26 @@ function adminIdeasView() {
       selectBox([{ value: '', label: 'Everyone' }].concat(authors.map((p) => ({ value: p.id, label: p.name }))), S.ui.ideaBy || '',
         (v) => { S.ui.ideaBy = v; render(); }, { label: 'Person', on: !!S.ui.ideaBy })
     ], 'ideaQ', 'Search ideas…'),
-    list(items.map((i) => {
-      const tasks = st.tasks.filter((t) => t.id === i.id && !t.cancelled);
-      const done = tasks.filter((t) => !isOpen(t)).length;
-      return lrow({
-        onclick: () => (isAdmin() ? ideaSheet(i.id) : ideaViewSheet(i.id)),
-        title: i.idea,
-        sub: dots(h('span', { class: 'idtag' }, i.id), personTag(i.by), i.type, fmtShort((i.submittedAt || '').slice(0, 10)), tasks.length ? done + '/' + tasks.length + ' done' : null),
-        end: [commentBadge(i.id)]
-      });
-    }), view === 'Later' ? 'No ideas being discussed.' : 'No approved ideas yet.'));
+    list(items.map((i) => ideaRow(i, () => (isAdmin() ? ideaSheet(i.id) : ideaViewSheet(i.id)))),
+      view === 'Later' ? 'No ideas being discussed.' : 'No approved ideas yet.'));
+}
+
+/** Where an idea stands: being discussed, or approved and how far its work is. */
+function ideaState(i) {
+  if (i.execution !== 'Approved') return { text: 'Discussing', cls: 'faint' };
+  const tasks = (S.state.tasks || []).filter((t) => t.id === i.id && !t.cancelled);
+  if (!isStaff() || !tasks.length) return { text: 'Approved', cls: 'green' };
+  const done = tasks.filter((t) => !isOpen(t)).length;
+  return done === tasks.length ? { text: '✓ Done', cls: 'green' } : { text: 'In work · ' + done + '/' + tasks.length, cls: '' };
+}
+/** An idea in a list: the one row (name, where it stands; ID, who suggested it, when under it). */
+function ideaRow(i, onclick) {
+  const x = ideaState(i);
+  return itemRow({
+    onclick, icon: 'ideas', title: rowTitle(firstLine(i.idea), i.type), state: h('span', { class: 'st ' + x.cls }, x.text),
+    id: i.id, who: personTag(i.mine ? 'You' : i.by), when: fmtShort((i.submittedAt || '').slice(0, 10)),
+    marks: [commentBadge(i.id)]
+  });
 }
 
 /** Admin: an idea as an info card. Scribble, brief and reference change in place; the title and type behind Edit. */
@@ -2804,17 +3007,25 @@ function weekEntry(c) {
     on.length || mark ? h('div', { class: 'wsub' }, on.length ? h('span', { class: 'pfs' }, on.map((p) => pfIcon(p, 11))) : null, mark) : null);
 }
 
-/** A post as one line: title; ID, date, type and platform icons under it. Tapping opens it. */
+/** Where a post stands, in a word. */
+function postState(c) {
+  if (c.status === 'Published') return { text: '✓ Posted', cls: 'green' };
+  if (c.status === 'Cancelled') return { text: 'Cancelled', cls: 'faint' };
+  if (c.publishDate && c.publishDate < S.state.today) return { text: 'Didn\'t go out', cls: 'red' };
+  if (c.status === 'Draft') return { text: 'Draft', cls: 'faint' };
+  return { text: 'Ready', cls: '' };
+}
+function postStateTag(c) { const x = postState(c); return h('span', { class: 'st ' + x.cls }, x.text); }
+/** A post in a list: the one row (name, where it stands; ID, platforms, day under it). Tapping opens it. */
 function postRow(c, opts) {
   opts = opts || {};
   const on = Object.keys(c.platforms || {}).filter((p) => c.platforms[p]);
   const open = () => (opts.onclick ? opts.onclick(c) : isAdmin() ? calSheet(c.key) : postViewSheet(c));
-  return lrow({
-    onclick: open,
-    title: c.idea || c.id,
-    sub: dots(h('span', { class: 'idtag' }, c.id), opts.date ? (c.publishDate ? dayShort(c.publishDate) : 'No date') : null, c.type,
-      on.length ? h('span', { class: 'pfs' }, on.map((p) => pfIcon(p, 12))) : null, opts.postedAt && c.publishedAt ? 'marked ' + fmtDT(c.publishedAt) : null),
-    end: [commentBadge(c.id), c.status === 'Draft' ? h('span', { class: 'badge b-orange' }, 'Draft') : c.status === 'Cancelled' ? h('span', { class: 'badge' }, 'Cancelled') : null]
+  return itemRow({
+    onclick: open, icon: kindIcon(c.type), title: rowTitle(firstLine(c.idea) || c.id), state: postStateTag(c),
+    id: c.id, who: on.length ? h('span', { class: 'pfs' }, on.map((p) => pfIcon(p, 12))) : h('span', { class: 'faint' }, 'No platform'),
+    when: c.publishDate ? dayShort(c.publishDate) : 'No date',
+    marks: [commentBadge(c.id), opts.postedAt && c.publishedAt ? h('span', { class: 'small faint' }, 'marked ' + fmtDT(c.publishedAt)) : null]
   });
 }
 
@@ -3018,8 +3229,10 @@ function rhythmView() {
   const anyRule = plats.some((p) => ((st.rhythm[p] || {}).days || []).length);
   // From today on; last week (what went out, what was missed) behind its button.
   const showPast = !!S.ui.rhythmPast;
+  // Three weeks from today; "More" under the table adds a week each time.
+  const weeks = Math.max(3, Number(S.ui.rhythmWeeks) || 3);
   const days = [];
-  for (let i = showPast ? -7 : 0; i < 21; i++) days.push(addDays(today, i));
+  for (let i = showPast ? -7 : 0; i < weeks * 7; i++) days.push(addDays(today, i));
   const gaps = days.filter((d) => d >= today).reduce((n, d) => n + plats.reduce((m, p) => m + rhythmWeek(p, d).short[d], 0), 0);
   const rows = [];
   days.forEach((d, i) => {
@@ -3032,13 +3245,14 @@ function rhythmView() {
   });
   return h('div', null,
     h('div', { class: 'row', style: 'margin-bottom:8px' },
-      h('div', { class: 'grow small' }, anyRule ? (gaps ? h('span', { style: 'color:var(--gold-ink);font-weight:600' }, gaps + ' post' + (gaps === 1 ? '' : 's') + ' still needed in the next 3 weeks') : h('span', { style: 'color:var(--green)' }, '✓ The next 3 weeks are covered'))
+      h('div', { class: 'grow small' }, anyRule ? (gaps ? h('span', { style: 'color:var(--gold-ink);font-weight:600' }, gaps + ' post' + (gaps === 1 ? '' : 's') + ' still needed in the next ' + weeks + ' weeks') : h('span', { style: 'color:var(--green)' }, '✓ The next ' + weeks + ' weeks are covered'))
         : h('span', { class: 'muted' }, 'No rules yet.')),
       h('button', { class: 'btn ghost tiny', 'aria-pressed': showPast ? 'true' : 'false', onclick: () => { S.ui.rhythmPast = !showPast; render(); } }, showPast ? 'Hide last week' : 'Last week'),
       isAdmin() ? h('button', { class: 'btn tiny', onclick: rhythmRulesSheet }, 'Rules') : null),
     h('div', { class: 'card', style: 'padding:8px 6px' }, h('table', { class: 'rgrid' },
       h('thead', null, h('tr', null, h('th', { class: 'dn' }), h('th', { class: 'dd' }), plats.map((p) => h('th', { title: p }, pfIcon(p, 15))))),
-      h('tbody', null, rows))),
+      h('tbody', null, rows)),
+      h('button', { class: 'btn ghost block', style: 'margin-top:6px', onclick: () => { S.ui.rhythmWeeks = weeks + 1; render(); } }, 'More · one more week')),
     h('div', { class: 'legend' },
       h('span', null, h('i', { class: 'post' }, '✓'), 'post ready'),
       h('span', null, h('i', { class: 'post' }, '✎'), 'post still a draft'),
@@ -3437,6 +3651,9 @@ function userSheet(id) {
     if (d && d.temp) showTemps([d.temp], 'Login details for ' + d.temp.name);
   };
   const footer = [save];
+  // Into their account: see it as they do, fix what they couldn't (saved as theirs).
+  const open = u && u.active && u.role !== 'Admin' && u.id !== S.me.id
+    ? h('button', { class: 'btn block', style: 'margin-bottom:14px', onclick: () => enterAccount(u) }, 'Open ' + u.name + '\'s account') : null;
   if (u) {
     const reset = h('button', { class: 'btn' }, 'Reset password');
     reset.onclick = async () => {
@@ -3453,6 +3670,7 @@ function userSheet(id) {
     footer.unshift(reset);
   }
   openSheet(u ? u.name : 'Add person', h('div', null,
+    open,
     field('Name', nameIn),
     field('Title', input(f, 'title', { placeholder: 'e.g. Graphic Designer' })),
     field('Role', selectBox([{ value: 'Member', label: 'Member · their own tasks' }, { value: 'Manager', label: 'Manager · sees all, own tasks' }, { value: 'Admin', label: 'Admin · everything' }],
