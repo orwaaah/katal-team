@@ -217,6 +217,9 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 .trow-head { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; text-align: left; padding: 12px 14px; cursor: pointer; font: inherit; color: inherit; position: relative; }
 .trow.late .trow-head::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--red-line); }
 .trow-body { padding: 0 14px 14px; animation: enter .2s var(--ease); }
+/* Open, the card shows the task's whole name (closed, a long one is cut with "…"). */
+.trow.open .trow-head .ttl { align-items: flex-start; }
+.trow.open .trow-head .ttl .tm { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
 .chev { width: 8px; height: 8px; border-right: 1.5px solid var(--faint); border-bottom: 1.5px solid var(--faint); transform: rotate(-45deg); transition: transform .2s var(--ease); flex: none; margin-right: 2px; }
 .trow.open .chev { transform: rotate(45deg); }
 .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -1926,7 +1929,9 @@ function memberTaskCard(t) {
   };
 
   append(card, h('div', { class: 'trow-body' },
-    h('div', { class: 'small muted', style: 'margin-bottom:6px' }, dots(t.type, approved ? null : dueChip(t, true))),
+    h('div', { class: 'row', style: 'margin-bottom:6px;gap:8px' },
+      h('div', { class: 'small muted grow' }, dots(t.type, approved ? null : dueChip(t, true))),
+      h('button', { type: 'button', class: 'btn ghost tiny', onclick: () => copyText(taskParts(t).main) }, 'Copy name')),
     t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'To fix'), h('div', { class: 'pre', dir: 'auto' }, t.reviewNotes)) : null,
     approved ? h('div', { class: 'note green' }, h('div', { class: 't' }, '✓ Approved, great work')) : null,
     approved ? null : checkNote(t),
@@ -2873,8 +2878,10 @@ function rhythmView() {
   const today = st.today;
   const plats = S.ui.calFilter.platform ? [S.ui.calFilter.platform] : st.platforms;
   const anyRule = plats.some((p) => (st.rhythm[p] || {}).min > 0 && (st.rhythm[p] || {}).days.length);
+  // From today on; last week (what went out, what was missed) behind its button.
+  const showPast = !!S.ui.rhythmPast;
   const days = [];
-  for (let i = -7; i < 21; i++) days.push(addDays(today, i));
+  for (let i = showPast ? -7 : 0; i < 21; i++) days.push(addDays(today, i));
   const gaps = days.filter((d) => d >= today).reduce((n, d) => n + plats.filter((p) => rhythmCell(d, p).cls === 'need').length, 0);
   const rows = [];
   days.forEach((d, i) => {
@@ -2889,6 +2896,7 @@ function rhythmView() {
     h('div', { class: 'row', style: 'margin-bottom:8px' },
       h('div', { class: 'grow small' }, anyRule ? (gaps ? h('span', { style: 'color:var(--red)' }, gaps + ' post' + (gaps === 1 ? '' : 's') + ' still needed in the next 3 weeks') : h('span', { style: 'color:var(--green)' }, '✓ The next 3 weeks are covered'))
         : h('span', { class: 'muted' }, 'No rules yet.')),
+      h('button', { class: 'btn ghost tiny', 'aria-pressed': showPast ? 'true' : 'false', onclick: () => { S.ui.rhythmPast = !showPast; render(); } }, showPast ? 'Hide last week' : 'Last week'),
       isAdmin() ? h('button', { class: 'btn tiny', onclick: rhythmRulesSheet }, 'Rules') : null),
     h('div', { class: 'card', style: 'padding:8px 6px' }, h('table', { class: 'rgrid' },
       h('thead', null, h('tr', null, h('th', { class: 'dn' }), h('th', { class: 'dd' }), plats.map((p) => h('th', { title: p }, pfIcon(p, 15))))),
