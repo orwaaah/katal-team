@@ -442,8 +442,9 @@ button.cmt-tag { cursor: pointer; }
 @media (min-width: 900px) { .rgrid thead th { top: calc(99px + env(safe-area-inset-top)); } }
 .rgrid thead th.dn, .rgrid thead th.dd { background: var(--card); }
 .rgrid td.c { background: var(--soft); }
-.rgrid td.c.off { background: transparent; }
-.rgrid td.c.extra { background: var(--soft); color: var(--muted); font-weight: 600; }
+.rgrid td.c.off { background: var(--gray-bg); }
+.rgrid td.c.extra { background: var(--gray-bg); color: var(--muted); font-weight: 600; }
+.rgrid td.c.moved { background: var(--card); box-shadow: inset 0 0 0 1.5px #a9cfb8; color: var(--green); }
 .rgrid td.c.ok { background: var(--green-bg); color: var(--green); }
 .rgrid td.c.part { background: var(--orange-bg); color: var(--orange); }
 .rgrid td.c.need { background: transparent; box-shadow: inset 0 0 0 1.5px var(--red-line); color: var(--red); }
@@ -453,7 +454,8 @@ button.cmt-tag { cursor: pointer; }
 .legend i.part { background: var(--orange-bg); color: var(--orange); }
 .legend i.need { box-shadow: inset 0 0 0 1.5px var(--red-line); color: var(--red); }
 .legend i.miss { background: var(--red-bg); color: var(--red); }
-.legend i.extra { background: var(--soft); color: var(--muted); }
+.legend i.extra, .legend i.off { background: var(--gray-bg); color: var(--muted); }
+.legend i.moved { box-shadow: inset 0 0 0 1.5px #a9cfb8; color: var(--green); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -928,8 +930,16 @@ function seg(options, value, onPick) {
 }
 
 /** One line in a list: title, a muted line under it, small things on the right. */
+/** The mouse was dragged over words inside this (to select and copy them): open nothing. A plain click always opens. */
+let pressAt = null;
+document.addEventListener('pointerdown', (e) => { pressAt = { x: e.clientX, y: e.clientY }; }, true);
+function selecting(e) {
+  const sel = window.getSelection && window.getSelection();
+  const dragged = pressAt && e && Math.hypot(e.clientX - pressAt.x, e.clientY - pressAt.y) > 4;
+  return !!(dragged && sel && !sel.isCollapsed && String(sel).trim() && e.currentTarget && e.currentTarget.contains(sel.anchorNode));
+}
 function lrow(o) {
-  return h('div', { class: 'lrow' + (o.late ? ' late' : '') + (o.done ? ' done' : ''), role: 'button', tabindex: 0, onclick: o.onclick,
+  return h('div', { class: 'lrow' + (o.late ? ' late' : '') + (o.done ? ' done' : ''), role: 'button', tabindex: 0, onclick: (e) => { if (!selecting(e)) o.onclick(e); },
     onkeydown: (e) => { if (e.key === 'Enter') o.onclick(e); } },
     o.left || null,
     h('div', { class: 'main-col' }, h('div', { class: 't', dir: 'auto' }, o.title), o.sub ? h('div', { class: 's' }, o.sub) : null),
@@ -1893,8 +1903,10 @@ function memberTaskCard(t) {
   const isOpenRow = S.ui.open[ok] !== undefined ? S.ui.open[ok] : t.review === 'Edit';
   const late = !approved && t.color === 'red';
   const cls = 'card trow' + (late ? ' late' : '') + (isOpenRow ? ' open' : '');
-  const toggle = () => { S.ui.open[ok] = !isOpenRow; render(); };
-  const head = h('button', { class: 'trow-head', onclick: toggle, 'aria-expanded': isOpenRow ? 'true' : 'false' },
+  const toggle = (e) => { if (selecting(e)) return; S.ui.open[ok] = !isOpenRow; render(); };
+  // Not a <button>: its words can be selected and copied with the mouse.
+  const head = h('div', { class: 'trow-head', role: 'button', tabindex: 0, onclick: toggle, 'aria-expanded': isOpenRow ? 'true' : 'false',
+    onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); } } },
     h('div', { class: 'main-col grow' },
       h('div', { style: 'font-weight:550;font-size:14.5px' }, taskTitle(t)),
       h('div', { class: 'small muted', style: 'margin-top:2px' }, dots(h('span', { class: 'idtag' }, t.id), approved ? null : dueChip(t), rowStatus(t), checkBadge(t)))),
@@ -1929,9 +1941,7 @@ function memberTaskCard(t) {
   };
 
   append(card, h('div', { class: 'trow-body' },
-    h('div', { class: 'row', style: 'margin-bottom:6px;gap:8px' },
-      h('div', { class: 'small muted grow' }, dots(t.type, approved ? null : dueChip(t, true))),
-      h('button', { type: 'button', class: 'btn ghost tiny', onclick: () => copyText(taskParts(t).main) }, 'Copy name')),
+    h('div', { class: 'small muted', style: 'margin-bottom:6px' }, dots(t.type, approved ? null : dueChip(t, true))),
     t.review === 'Edit' ? h('div', { class: 'note orange' }, h('div', { class: 't' }, 'To fix'), h('div', { class: 'pre', dir: 'auto' }, t.reviewNotes)) : null,
     approved ? h('div', { class: 'note green' }, h('div', { class: 't' }, '✓ Approved, great work')) : null,
     approved ? null : checkNote(t),
@@ -2853,24 +2863,58 @@ function calendarList() {
 /* ----- Rhythm: are we posting as often as planned? Days × platforms. ----- */
 
 /**
- * One day × one platform. Past days: ✓ went out, ✕ missed. Today on: ✓ planned, ✎ still a draft, + needs a post.
- * With no rule for the day, it just shows how many posts there are.
+ * A platform's week (Sun–Sat) against its rule. Each day of the rule wants r.min posts, but the week is what counts:
+ * a post on another day of the same week covers the nearest rule day still short (LinkedIn on a Monday instead of
+ * the Tuesday: the Tuesday stops asking, the Friday still does). Past days count what went out; today on, what is planned.
+ */
+function rhythmWeek(p, d) {
+  const st = S.state;
+  if (!rhythmWeek.cache || rhythmWeek.cache.st !== st) rhythmWeek.cache = { st, m: {} };
+  const sun = addDays(d, -DAYN.indexOf(wd(d)));
+  const key = p + '|' + sun;
+  if (rhythmWeek.cache.m[key]) return rhythmWeek.cache.m[key];
+  const r = (st.rhythm || {})[p] || { days: [], min: 0, time: '' };
+  const days = DAYN.map((x, i) => addDays(sun, i));
+  const need = {}, short = {}, coveredBy = {};
+  const surplus = [];
+  days.forEach((x) => {
+    const posts = st.calendar.filter((c) => c.publishDate === x && c.platforms[p] && c.status !== 'Cancelled');
+    const have = (x < st.today ? posts.filter((c) => c.status === 'Published') : posts).length;
+    need[x] = r.min > 0 && r.days.indexOf(wd(x)) >= 0 ? r.min : 0;
+    short[x] = Math.max(0, need[x] - have);
+    for (let i = need[x]; i < have; i++) surplus.push(x);
+  });
+  const gap = (a, b) => Math.abs(ymdUTC(a) - ymdUTC(b));
+  surplus.forEach((from) => {
+    const open = days.filter((x) => short[x] > 0).sort((a, b) => gap(a, from) - gap(b, from) || (a < b ? -1 : 1));
+    if (open.length) { short[open[0]]--; coveredBy[open[0]] = from; }
+  });
+  return (rhythmWeek.cache.m[key] = { r, need, short, coveredBy });
+}
+
+/**
+ * One day × one platform. On a rule day: ✓ went out / planned, ✎ still a draft, + needs a post, ✕ missed, and a light ✓
+ * when a post on another day of the week covers it. Any other day is a light gray square, with ✎ or ✓ if a post goes there.
  */
 function rhythmCell(d, p) {
   const st = S.state;
-  const r = (st.rhythm || {})[p] || { days: [], min: 0, time: '' };
-  const need = r.min > 0 && r.days.indexOf(wd(d)) >= 0 ? r.min : 0;
+  const w = rhythmWeek(p, d);
+  const need = w.need[d];
   const posts = st.calendar.filter((c) => c.publishDate === d && c.platforms[p] && c.status !== 'Cancelled');
   const past = d < st.today;
   const counted = past ? posts.filter((c) => c.status === 'Published') : posts;
   const ready = counted.filter((c) => c.status !== 'Draft').length;
-  let cls, mark;
-  if (!need) { cls = posts.length ? 'extra' : 'off'; mark = posts.length ? String(posts.length) : ''; }
-  else if (past) { cls = counted.length >= need ? 'ok' : 'miss'; mark = counted.length >= need ? '✓' : '✕'; }
-  else if (counted.length < need) { cls = 'need'; mark = counted.length ? counted.length + '/' + need : '+'; }
-  else if (ready < need) { cls = 'part'; mark = '✎'; }
-  else { cls = 'ok'; mark = '✓'; }
-  return { cls, mark, need, posts, r };
+  let cls, mark, coveredBy = '';
+  if (!need) {
+    // Another day with a post: it counts for the week (green like any post) when the platform has a rule; quiet when not.
+    const ruled = w.r.min > 0 && w.r.days.length > 0;
+    cls = !counted.length ? 'off' : !ruled ? 'extra' : past || ready >= counted.length ? 'ok' : 'part';
+    mark = counted.length > 1 ? String(counted.length) : counted.length ? (past || ready ? '✓' : '✎') : '';
+  } else if (counted.length >= need) { cls = past || ready >= need ? 'ok' : 'part'; mark = past || ready >= need ? '✓' : '✎'; }
+  else if (!w.short[d]) { cls = 'moved'; mark = '✓'; coveredBy = w.coveredBy[d]; }
+  else if (past) { cls = 'miss'; mark = '✕'; }
+  else { cls = 'need'; mark = counted.length ? counted.length + '/' + need : '+'; }
+  return { cls, mark, need, posts, r: w.r, coveredBy };
 }
 
 function rhythmView() {
@@ -2906,7 +2950,8 @@ function rhythmView() {
       h('span', null, h('i', { class: 'part' }, '✎'), 'still a draft'),
       h('span', null, h('i', { class: 'need' }, '+'), 'needs a post'),
       h('span', null, h('i', { class: 'miss' }, '✕'), 'missed'),
-      h('span', null, h('i', { class: 'extra' }, '1'), 'posts on a free day')));
+      h('span', null, h('i', { class: 'moved' }, '✓'), 'covered by another day'),
+      h('span', null, h('i', { class: 'off' }), 'free day')));
 }
 const DAYS_MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -2915,6 +2960,7 @@ function rhythmCellSheet(d, p) {
   const ready = readyPosts();
   openSheet(p + ' · ' + dayShort(d), h('div', null,
     h('div', { class: 'small muted', style: 'margin-bottom:10px' }, x.need ? 'Plan: ' + x.need + ' post' + (x.need > 1 ? 's' : '') + (x.r.time ? ' at ' + x.r.time : '') : 'No post planned for this day.'),
+    x.coveredBy ? h('div', { class: 'note green', style: 'margin-bottom:10px' }, '✓ Covered by the post on ' + dayShort(x.coveredBy) + ': the week still has its posts.') : null,
     h('div', { class: 'section', style: 'margin-top:4px' }, h('h2', null, 'On ' + p + ' this day')),
     x.posts.length ? list(x.posts.map((c) => postRow(c))) : h('div', { class: 'small faint' }, 'Nothing yet.'),
     isAdmin() && d >= S.state.today ? [
