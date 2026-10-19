@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = true; window.KATAL_VERSION = '6f308ea4f1c3';</script>
+<script>window.KATAL_PWA = true; window.KATAL_VERSION = '8814cb7995ec';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -89,6 +89,12 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 .topbar.as { background: #3a2f1c; }
 .aspill { margin-left: auto; border: 1px solid rgba(179,148,99,.7); background: rgba(179,148,99,.18); color: #f1e3c6; border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
 .topbar.as .me-btn { margin-left: 8px; }
+/* The team chat's button, up top; a red count when something new came. */
+.chat-btn { position: relative; flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.08); color: inherit; display: grid; place-items: center; cursor: pointer; padding: 0; transition: background .2s; }
+.chat-btn:hover { background: rgba(255,255,255,.16); }
+.chat-btn svg { width: 19px; height: 19px; }
+.chat-btn .dot { position: absolute; top: -3px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; line-height: 1; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--brand); }
+.topbar.as .chat-btn .dot { box-shadow: 0 0 0 2px #3a2f1c; }
 .asbar { display: flex; align-items: center; gap: 10px; padding: 8px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left)); background: var(--gold-soft); color: var(--gold-ink); font-size: 13px; }
 .asbar b { font-weight: 650; }
 .main { max-width: 860px; margin: 0 auto; padding: 18px max(16px, env(safe-area-inset-right)) calc(var(--nav-h) + 30px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
@@ -393,6 +399,24 @@ textarea.in { resize: vertical; min-height: 70px; line-height: 1.5; }
 .sheet-body { padding: 16px; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 .sheet-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); display: flex; gap: 8px; }
 .sheet-foot .btn { flex: 1; min-width: 0; }
+/* The team chat: messages one after the other (yours on the right), the box to write in at the bottom. */
+.sheet.chat { height: min(680px, 88vh); }
+.sheet.chat .sheet-body { flex: 1; padding: 6px 14px 14px; background: var(--bg); }
+.chat-list { display: flex; flex-direction: column; min-height: 100%; justify-content: flex-end; }
+.chat-empty { margin: auto 0; padding: 40px 10px; color: var(--faint); font-size: 14px; text-align: center; }
+.cmsg { display: flex; flex-direction: column; align-items: flex-start; max-width: 84%; margin-top: 12px; }
+.cmsg.cont { margin-top: 3px; }
+.cmsg.mine { align-self: flex-end; align-items: flex-end; }
+.cmsg-who { display: flex; align-items: baseline; gap: 7px; margin: 0 6px 3px; font-size: 12.5px; font-weight: 650; color: var(--ink); }
+.cmsg-at { font-size: 11px; font-weight: 500; color: var(--faint); }
+.cmsg-text { background: var(--card); border-radius: 15px; padding: 8px 12px; font-size: 14.5px; line-height: 1.42; white-space: pre-wrap; overflow-wrap: anywhere; unicode-bidi: plaintext; box-shadow: 0 1px 2px rgba(26,24,21,.07); }
+.cmsg.mine .cmsg-text { background: var(--gold-soft); }
+.cmsg.pending { opacity: .55; }
+.cmsg.new { animation: enter .22s var(--ease); }
+.chat-compose { display: flex; align-items: flex-end; gap: 8px; width: 100%; }
+textarea.in.chat-in { flex: 1; min-width: 0; min-height: 44px; max-height: 140px; resize: none; padding-top: 10px; padding-bottom: 10px; }
+.sheet-foot .chat-send { flex: none; width: 44px; height: 44px; padding: 0; border-radius: 50%; display: grid; place-items: center; }
+.chat-send svg { width: 19px; height: 19px; }
 @keyframes up { from { transform: translateY(40px); opacity: 0; } }
 @keyframes down { to { transform: translateY(40px); opacity: 0; } }
 @keyframes fade { from { opacity: 0; } }
@@ -637,10 +661,11 @@ button.cmt-tag { cursor: pointer; }
 .tc-due { margin-left: auto; flex: none; font-weight: 550; white-space: nowrap; }
 .tc-due.late { color: var(--red); font-weight: 650; }
 .tc-state { flex: none; font-size: 11.5px; font-weight: 650; border-radius: 6px; padding: 1px 7px; background: var(--sbg); color: var(--sc); }
-/* New comments: red so they're noticed; read ones only a quiet count. */
-.cmark { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; line-height: 1; border-radius: 999px; padding: 3px 7px 3px 6px; background: var(--red); color: #fff; }
-.cmark svg, .tc-top .cmark svg { width: 12px; height: 12px; color: currentColor; }
-.cmark.read { background: none; color: var(--faint); font-weight: 550; padding: 3px 0; }
+/* New comments: a small red mark right after the name (only while there are new ones). A long name makes room for it. */
+.tc-name { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.tc-name .tc-title { min-width: 0; }
+.cmark { flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; line-height: 1; border-radius: 999px; padding: 3px 6px 3px 5px; background: var(--red); color: #fff; }
+.cmark svg { width: 11px; height: 11px; color: currentColor; }
 /* Lists of cards outside the board (Today, an idea's road): the same card, one under the other. */
 .cards { display: flex; flex-direction: column; gap: 8px; }
 /* ----- Pages (a task, an idea, a post): open on top, full screen on a phone; back closes only the top one ----- */
@@ -860,7 +885,8 @@ const S = {
     ideaFilter: 'Later', ideaSource: 'Idea', ideaType: '', ideaQ: '', calMode: 'list', weekStart: '', showPast: false,
     more: 'team', expanded: {}, open: {}, log: null, calView: 'upcoming', calFilter: { platform: '', type: '' },
     calSeg: 'calendar', ideaView: 'Later', capTab: {}, search: ''
-  }
+  },
+  chat: { messages: [], pulse: '', unread: 0, canClear: false, draft: '', loaded: false } // the team chat (chatReset)
 };
 
 /*
@@ -908,13 +934,14 @@ const emailOf = (username) => String(username || '').trim().toLowerCase() + '@' 
 /* ======================================================================
    Server calls
    ====================================================================== */
-function call(action, payload) {
+function call(action, payload, opts) {
   const started = Date.now();
   return sb.auth.getSession().then(({ data }) => {
     const headers = { 'content-type': 'application/json', 'x-region': CFG.region };
     if (data && data.session) headers.authorization = 'Bearer ' + data.session.access_token;
-    // Inside someone's account (the admin only): every call runs as them on the server.
-    const body = S.viewAs ? Object.assign({}, payload || {}, { as: S.viewAs.id }) : payload || {};
+    // Inside someone's account (the admin only): every call runs as them on the server. Not the chat's (opts.own):
+    // there everyone always writes as themselves.
+    const body = S.viewAs && !(opts && opts.own) ? Object.assign({}, payload || {}, { as: S.viewAs.id }) : payload || {};
     return fetch(CFG.url + '/functions/v1/' + CFG.fn, { method: 'POST', headers, body: JSON.stringify({ action, payload: body }) })
       .catch(() => { throw new Error('Connection problem. Check your internet and try again.'); });
   }).then((r) => r.json().catch(() => { throw new Error('Unexpected reply from the server.'); }))
@@ -1041,6 +1068,7 @@ function enterApp(st) {
   S.screen = 'app';
   render();
   listen();
+  if (!S.chat.loaded) chatFetch();
   armBack();
 }
 
@@ -1051,6 +1079,11 @@ function listen() {
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'Meta' }, (msg) => {
       const v = msg && msg.new && msg.new.Value;
       if (v && S.state && v !== S.state.ver && !S.pending) loadState(true).catch(() => {});
+    })
+    // The chat: a message or a Clear changes its pulse, and only the chat is fetched.
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'Pulse' }, (msg) => {
+      const v = msg && msg.new && msg.new.Value;
+      if (v && v !== S.chat.pulse) chatFetch();
     })
     // Changes made while connecting are not sent, so check once when the connection is ready.
     .subscribe((status) => { if (status === 'SUBSCRIBED') checkForChanges(true); });
@@ -1068,6 +1101,7 @@ async function loadState(silent) {
   if (S.screen !== 'app') armBack();
   S.screen = 'app';
   listen();
+  if (!S.chat.loaded) chatFetch();
   if (silent) announceChanges(before, st);
   if (!silent || (!S.sheetOpen && !isTyping())) render();
   else S.needsRender = true;
@@ -1175,8 +1209,9 @@ async function checkForChanges(force) {
   S.checking = true;
   try {
     const stale = Date.now() - S.lastLoad > 300000;
-    const { ver } = stale ? { ver: null } : await call('ping');
-    if (stale || ver !== S.state.ver) await loadState(true);
+    const r = stale ? {} : await call('ping');
+    if (stale || r.ver !== S.state.ver) await loadState(true);
+    if (stale || (r.chat !== undefined && r.chat !== S.chat.pulse)) chatFetch();
   } catch (e) {
     if (e.code === 'AUTH') handleErr(e);
   } finally {
@@ -1256,7 +1291,9 @@ const ICONS = {
   rocket: '<path d="M12 3c3.5 2.2 5 5.6 5 9.5L14.5 15h-5L7 12.5C7 8.6 8.5 5.2 12 3z"/><circle cx="12" cy="9.5" r="1.6"/><path d="M9.5 15 8 19.5l2.5-1.5M14.5 15l1.5 4.5-2.5-1.5"/>',
   play2: '<rect x="3.5" y="4" width="17" height="16" rx="3"/><path d="M8 20V12l4-3.5 4 3.5v8M10.5 20v-3.5h3V20"/>',
   flow: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H14a3 3 0 0 1 3 3v6.5M6 8.5V18h9.5"/>',
-  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>'
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  chat: '<path d="M4.5 4.5h10a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H9l-3.5 3v-3h-1A1.5 1.5 0 0 1 3 12.5V6a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M16 8.5h3.5A1.5 1.5 0 0 1 21 10v6.5a1.5 1.5 0 0 1-1.5 1.5h-1v3L15 18h-4.5A1.5 1.5 0 0 1 9 16.5V14"/>',
+  send: '<path d="M20.5 3.5 10.5 13.5"/><path d="M20.5 3.5 14 20.5l-3.5-7-7-3.5z"/>'
 };
 function icon(name) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1292,6 +1329,7 @@ function toast(msg, isErr, undo) {
  *   opts.rebuild: () => draws it again (called after a sheet on top of it saved something, or when fresh data comes)
  *   opts.dirty:   () => true while it has changes that aren't saved
  *   opts.back:    the back button's word ("Tasks")   opts.menu: () => opens its ⋯ menu   opts.cls: extra class
+ *   opts.head:    a button next to the ✕ (a sheet, not a page)
  */
 S.sheets = [];
 function topSheet() { return S.sheets[S.sheets.length - 1] || null; }
@@ -1306,7 +1344,7 @@ function openSheet(title, body, footer, opts) {
       h('button', { type: 'button', class: 'back', onclick: () => requestClose() }, icon('back'), opts.back || 'Back'),
       h('div', { class: 'ttl' }, title),
       opts.menu ? h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'More', onclick: opts.menu }, icon('more')) : h('span', { style: 'width:40px' }))
-    : h('div', { class: 'sheet-head' }, h('h2', null, title),
+    : h('div', { class: 'sheet-head' }, h('h2', null, title), opts.head || null,
       h('button', { class: 'icon-btn', 'aria-label': 'Close', onclick: () => requestClose() }, '✕'));
   const sheet = h('div', { class: 'sheet' + (opts.page ? ' page' : '') + (opts.cls ? ' ' + opts.cls : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': title, tabindex: '-1' },
     head, h('div', { class: 'sheet-body' }, body), footer ? h('div', { class: 'sheet-foot' }, footer) : null);
@@ -1765,19 +1803,11 @@ function setPriority(t, pr) {
     (pr ? pr + ' priority' : 'Priority cleared') + ' · ' + p.main, null, { keepSheet: true });
 }
 
-/** Comments on it: new ones in red (with how many), read ones a quiet count. */
+/** New comments on it: a small red mark with how many. Nothing once they're read (the page has the thread). */
 function commentMark(id) {
-  const st = S.state;
-  if (!commentMark.cache || commentMark.cache.st !== st) {
-    const n = {};
-    (st.comments || []).forEach((c) => { n[c.id] = (n[c.id] || 0) + 1; });
-    commentMark.cache = { st, n };
-  }
   const u = unreadOf(id);
-  const n = commentMark.cache.n[id] || 0;
-  if (u) return h('span', { class: 'cmark', title: u + ' new comment' + (u === 1 ? '' : 's') }, icon('comment'), String(u));
-  if (n) return h('span', { class: 'cmark read', title: n + ' comment' + (n === 1 ? '' : 's') }, icon('comment'), String(n));
-  return null;
+  const say = u + ' new comment' + (u === 1 ? '' : 's');
+  return u ? h('span', { class: 'cmark', title: say, 'aria-label': say }, icon('comment'), String(u)) : null;
 }
 
 /** The deadline on a card: only the date turns red when it's late. */
@@ -1811,8 +1841,9 @@ function taskCard(t, o) {
         urgent ? h('span', { class: 'urgent-tag' }, 'URGENT') : null,
         // Lists that mix stages (Today, an idea's road) say where it stands, up here, so the name below keeps its room.
         o.state ? stageTag(st, w ? w.label : null) : null,
-        checkBadge(t), commentMark(t.id)),
-      h('div', { class: 'tc-title', dir: 'auto' }, p.main),
+        checkBadge(t)),
+      // New comments sit right after the name, in the room it leaves on its line, so nothing else moves.
+      h('div', { class: 'tc-name' }, h('div', { class: 'tc-title', dir: 'auto' }, p.main), commentMark(t.id)),
       h('div', { class: 'tc-foot' },
         o.who === false ? null : personTag(t.assignee || ''),
         w && !o.state ? h('span', { class: 'tc-due' }, w.label) : st === 'done' ? h('span', { class: 'tc-due' }, '✓ ' + (t.deadline ? dayShort(t.deadline) : 'Done')) : dueText(t))));
@@ -1922,6 +1953,7 @@ function markSeen(id) {
   if (!unreadOf(id) || S.seenBusy[id]) return;
   S.seenBusy[id] = true;
   delete S.state.unread[id];
+  S.needsRender = true; // its red mark on the card goes once the page is closed
   call('comment.seen', { id }).catch(() => {}).finally(() => { delete S.seenBusy[id]; });
 }
 
@@ -2779,6 +2811,7 @@ async function logout() {
   stopListening();
   try { await sb.auth.signOut(); } catch (e) { /* ignore */ }
   S.state = null; S.me = null; S.ui.tab = ''; S.drafts = {}; S.viewAs = null; S.game = null; S.gameQueue = [];
+  chatReset();
   closeAllSheets();
   S.screen = 'login';
   if (!S.status) { try { S.status = await call('status'); } catch (e) { /* ignore */ } }
@@ -2793,9 +2826,9 @@ function appShell() {
   const tabs = isStaff()
     ? [['today', 'Today', 0], ['tasks', 'Tasks', isAdmin() ? st.tasks.filter((t) => isOpen(t) && !t.cancelled && t.status === 'Pending Approval').length : 0],
       ['ideas', 'Ideas', isAdmin() ? st.ideas.filter((i) => i.execution === 'Later' && !i.hidden && i.source !== 'Quick').length : 0],
-      ['calendar', 'Calendar', isAdmin() ? readyPosts().filter(postNeedsYou).length + missedPosts().length : 0], ['play', 'Play', 0], ['more', 'More', 0]]
+      ['calendar', 'Calendar', isAdmin() ? readyPosts().filter(postNeedsYou).length + missedPosts().length : 0], ['play', 'Break', 0], ['more', 'More', 0]]
     : [['tasks', 'My tasks', st.tasks.filter((t) => isOpen(t) && (t.review === 'Edit' || !t.status)).length + unreadIn((id) => st.tasks.some((t) => t.id === id))],
-      ['ideas', 'Ideas', unreadIn((id) => !st.tasks.some((t) => t.id === id))], ['calendar', 'Calendar', 0], ['play', 'Play', 0]];
+      ['ideas', 'Ideas', unreadIn((id) => !st.tasks.some((t) => t.id === id))], ['calendar', 'Calendar', 0], ['play', 'Break', 0]];
   const views = { today: todayView, tasks: tasksView, ideas: ideasView, calendar: calendarView, play: playView, more: moreView };
   if (!tabs.some((x) => x[0] === S.ui.tab)) S.ui.tab = tabs[0][0];
   const wide = S.ui.tab === 'tasks' || S.ui.tab === 'ideas' || S.ui.tab === 'today';
@@ -2804,6 +2837,7 @@ function appShell() {
       h('div', { class: 'brandmark' }, h('img', { src: LOGO, alt: 'KATAL' }), h('span', { class: 'sep' }), h('span', { class: 'team' }, 'Team')),
       // Always in sight while inside someone's account (the bar stays on top when scrolling).
       S.viewAs ? h('button', { class: 'aspill', onclick: leaveAccount }, S.viewAs.name + '\'s account · Back') : null,
+      chatButton(),
       h('button', { class: 'me-btn', onclick: S.viewAs ? leaveAccount : accountSheet, 'aria-label': S.viewAs ? 'Back to your account' : 'Your account' },
         h('span', { class: 'nm' }, S.me.name), h('span', { class: 'avatar' }, (S.me.name || '?').charAt(0).toUpperCase()))),
     S.viewAs ? h('div', { class: 'asbar', role: 'status' }, h('span', { class: 'grow' }, 'You are in ', h('b', null, S.viewAs.name + '\'s account'), '. What you do here is saved as theirs.'),
@@ -2839,6 +2873,148 @@ async function leaveAccount() {
   S.ui.more = 'team';
   await loadState();
   window.scrollTo(0, 0);
+}
+
+/* ======================================================================
+   Team chat: one room for everyone. Each message comes under its writer's name, one after the other; a red count
+   on the button up top says something new came. Only the admin can clear it (for everyone).
+   ====================================================================== */
+function chatReset() {
+  S.chat = { messages: [], pulse: '', unread: 0, canClear: false, draft: '', loaded: false };
+}
+/** The newest message the server knows of (one being sent doesn't count yet). */
+function chatLast() {
+  const m = S.chat.messages.filter((x) => !x.pending);
+  return m.length ? m[m.length - 1].key : '';
+}
+/** Brings what came since the last message here (everything, after a Clear). One at a time. */
+async function chatFetch() {
+  if (S.screen !== 'app') return;
+  if (S.chatBusy) { S.chatAgain = true; return; }
+  S.chatBusy = true;
+  const room = S.chat; // an answer that comes after a log out is dropped
+  try { const d = await call('chat.list', { after: chatLast() }, { own: true }); if (S.chat === room) applyChat(d); }
+  catch (e) { if (e.code === 'AUTH') handleErr(e); }
+  finally {
+    S.chatBusy = false;
+    if (S.chatAgain) { S.chatAgain = false; chatFetch(); }
+  }
+}
+function applyChat(d) {
+  if (!d) return;
+  const c = S.chat;
+  // What's being sent stays at the end until the server has it.
+  const sending = c.messages.filter((m) => m.pending && !d.messages.some((x) => x.mine && x.text === m.text));
+  const kept = d.full ? [] : c.messages.filter((m) => !m.pending);
+  const have = new Set(kept.map((m) => m.key));
+  c.messages = kept.concat(d.messages.filter((m) => !have.has(m.key)), sending);
+  c.pulse = d.pulse; c.unread = d.unread; c.canClear = d.canClear; c.loaded = true;
+  paintChat();
+}
+/** The chat is open: what's in it counts as read (not while the phone is locked). */
+function chatOpen() { return !!(S.chat.list && S.chat.list.isConnected); }
+async function chatSeen() {
+  if (S.chatSeenBusy) return;
+  S.chatSeenBusy = true;
+  S.chat.unread = 0;
+  const room = S.chat;
+  try { const d = await call('chat.seen', { after: chatLast() }, { own: true }); if (S.chat === room) applyChat(d); }
+  catch (e) { /* stays new; it's marked read the next time */ }
+  finally { S.chatSeenBusy = false; }
+}
+function paintChat() {
+  const c = S.chat;
+  const open = chatOpen();
+  if (open && c.unread && !document.hidden) chatSeen();
+  const n = open ? 0 : c.unread;
+  document.querySelectorAll('.chat-btn').forEach((b) => {
+    let dot = b.querySelector('.dot');
+    b.setAttribute('aria-label', n ? 'Team chat · ' + n + ' new' : 'Team chat');
+    if (!n) { if (dot) dot.remove(); return; }
+    if (!dot) b.append(dot = h('span', { class: 'dot' }));
+    dot.textContent = n > 9 ? '9+' : String(n);
+  });
+  if (open) drawChat();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.screen === 'app') paintChat(); });
+
+function chatButton() {
+  const n = S.chat.unread;
+  return h('button', { type: 'button', class: 'chat-btn', 'aria-label': n ? 'Team chat · ' + n + ' new' : 'Team chat', onclick: chatSheet },
+    icon('chat'), n ? h('span', { class: 'dot' }, n > 9 ? '9+' : String(n)) : null);
+}
+/** "10:42" today, "Oct 14, 10:42" before. */
+function chatTime(at) {
+  if (!at) return 'sending…';
+  return at.slice(0, 10) === S.state.today ? at.slice(11, 16) : fmtDT(at);
+}
+const chatMin = (at) => Date.parse(at.replace(' ', 'T') + ':00Z') / 60000;
+function drawChat() {
+  const c = S.chat;
+  // Drawn again only when a message came, went or was sent (so text being selected stays selected).
+  const sig = c.messages.map((m) => m.key + (m.pending ? '…' : '')).join(',') + '|' + S.state.today;
+  if (c.drawnSig === sig) return;
+  c.drawnSig = sig;
+  const body = c.list.closest('.sheet-body');
+  const atEnd = !body || body.scrollHeight - body.scrollTop - body.clientHeight < 80;
+  const drawn = c.drawn || new Set();
+  // A name over each message, except one right after the same person's (within 10 minutes).
+  fill(c.list, c.messages.length ? c.messages.map((m, i) => {
+    const prev = c.messages[i - 1];
+    const same = prev && prev.mine === m.mine && prev.by === m.by && (!m.at || !prev.at || chatMin(m.at) - chatMin(prev.at) < 10);
+    return h('div', { class: 'cmsg' + (m.mine ? ' mine' : '') + (same ? ' cont' : '') + (m.pending ? ' pending' : '') + (c.drawn && !drawn.has(m.key) ? ' new' : '') },
+      same ? null : h('div', { class: 'cmsg-who' }, h('span', null, m.mine ? 'You' : m.by), h('span', { class: 'cmsg-at' }, chatTime(m.at))),
+      h('div', { class: 'cmsg-text', dir: 'auto' }, m.text));
+  }) : h('div', { class: 'chat-empty' }, 'Nothing here yet. What you write goes to the whole team.'));
+  c.drawn = new Set(c.messages.map((m) => m.key));
+  if (body && (atEnd || c.stick)) body.scrollTop = body.scrollHeight;
+  c.stick = false;
+}
+function chatSheet() {
+  const c = S.chat;
+  c.list = h('div', { class: 'chat-list', role: 'log', 'aria-label': 'Messages' });
+  c.drawn = null; c.drawnSig = null;
+  const box = h('textarea', { class: 'in chat-in', rows: 1, dir: 'auto', maxlength: 1000, placeholder: 'Write to the team…', enterkeyhint: 'send', 'aria-label': 'Message',
+    'data-nodirty': '1', oninput: () => { c.draft = box.value; grow(box); },
+    // Enter sends on a computer (Shift+Enter: a new line); on a phone Enter is a new line and the button sends.
+    onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !matchMedia('(pointer: coarse)').matches) { e.preventDefault(); send(); } } });
+  box.value = c.draft || '';
+  const send = async () => {
+    const text = box.value.trim();
+    if (!text) { box.focus(); return; }
+    const mine = { key: 'sending' + Date.now(), by: '', mine: true, text, at: '', pending: true };
+    c.messages.push(mine);
+    box.value = ''; c.draft = ''; grow(box);
+    c.stick = true; drawChat();
+    try {
+      const d = await call('chat.send', { text, after: chatLast() }, { own: true });
+      c.messages = c.messages.filter((m) => m !== mine);
+      c.stick = true;
+      applyChat(d);
+    } catch (e) {
+      // Not sent: it goes back in the box.
+      c.messages = c.messages.filter((m) => m !== mine);
+      if (!box.value) { box.value = text; c.draft = text; grow(box); }
+      if (chatOpen()) drawChat();
+      handleErr(e);
+    }
+  };
+  const canClear = c.loaded ? c.canClear : isAdmin() && !S.viewAs;
+  const clear = canClear ? h('button', { type: 'button', class: 'btn tiny', onclick: async () => {
+    if (!await ask('Clear the chat for everyone? The messages disappear from every screen.', 'Clear chat', true)) return;
+    try { applyChat(await call('chat.clear', {}, { own: true })); toast('Chat cleared'); } catch (e) { handleErr(e); }
+  } }, 'Clear chat') : null;
+  openSheet('Team chat', c.list, h('div', { class: 'chat-compose' }, box,
+    h('button', { type: 'button', class: 'btn primary chat-send', 'aria-label': 'Send', onclick: () => send() }, icon('send'))), { cls: 'chat', head: clear });
+  drawChat();
+  const body = c.list.closest('.sheet-body');
+  if (body) body.scrollTop = body.scrollHeight;
+  requestAnimationFrame(() => { grow(box); if (!matchMedia('(pointer: coarse)').matches) box.focus({ preventScroll: true }); });
+  paintChat();
+  chatFetch();
+  // If the live connection drops, it still catches up while open.
+  clearInterval(S.chatTimer);
+  S.chatTimer = setInterval(() => { if (!chatOpen()) { clearInterval(S.chatTimer); return; } if (!document.hidden) chatFetch(); }, 15000);
 }
 
 function accountSheet() {
@@ -3625,9 +3801,8 @@ function ideaCard(i) {
   const when = post && post.publishDate ? 'Post ' + dayShort(post.publishDate) : i.postDate ? 'Post ' + dayShort(i.postDate) : fmtShort((i.submittedAt || '').slice(0, 10));
   return h('div', { class: 'tcard', role: 'button', tabindex: 0, 'data-id': i.id, onclick: (e) => { if (!selecting(e)) go(); }, onkeydown: (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) go(); } },
     h('div', { class: 'tc-main', style: 'padding-left:14px' },
-      h('div', { class: 'tc-top' }, h('span', { class: 'k' }, icon('ideas'), dots(i.type, i.channel === 'Outside' ? 'General' : null)),
-        h('span', { class: 'sp' }), commentMark(i.id)),
-      h('div', { class: 'tc-title', dir: 'auto' }, firstLine(i.idea)),
+      h('div', { class: 'tc-top' }, h('span', { class: 'k' }, icon('ideas'), dots(i.type, i.channel === 'Outside' ? 'General' : null))),
+      h('div', { class: 'tc-name' }, h('div', { class: 'tc-title', dir: 'auto' }, firstLine(i.idea)), commentMark(i.id)),
       h('div', { class: 'tc-foot' },
         tasks.length ? h('span', { class: 'parts' }, tasks.map((t) => { const k = stageOf(t); return h('span', { class: 'part', title: (t.assignee || '') + ' · ' + t.task + ' · ' + stageLabel(k), style: '--sc:' + STAGE[k].c + ';--sbg:' + STAGE[k].bg }, (t.assignee || '?').charAt(0)); }),
           // One part: its person's name too (several: their initials, each in its stage's colour).
@@ -4685,10 +4860,10 @@ function gameScene(g, lostNow, fx) {
 function playView() {
   if (!S.game) {
     // It couldn't load (no internet): a button to try again, never a loop of tries.
-    if (S.gameFailed) return h('div', null, h('div', { class: 'ph' }, h('h1', null, 'Play')),
+    if (S.gameFailed) return h('div', null, h('div', { class: 'ph' }, h('h1', null, 'Break')),
       h('div', { class: 'empty' }, 'The game didn\'t load.', h('div', { style: 'margin-top:12px' }, h('button', { type: 'button', class: 'btn', onclick: () => { S.gameFailed = false; render(); } }, 'Try again'))));
     loadGame(true);
-    return h('div', null, h('div', { class: 'ph' }, h('h1', null, 'Play')), h('div', { class: 'loading', style: 'min-height:240px' }, h('div', { class: 'spinner' })));
+    return h('div', null, h('div', { class: 'ph' }, h('h1', null, 'Break')), h('div', { class: 'loading', style: 'min-height:240px' }, h('div', { class: 'spinner' })));
   }
   loadGame(false);
   const d = S.game;
@@ -4739,7 +4914,7 @@ function playView() {
   const top = board.filter((r) => r.place && r.place <= 3);
   const medal = ['1st', '2nd', '3rd'];
   return h('div', null,
-    h('div', { class: 'ph' }, h('h1', null, 'Play'), modeSwitch || h('span', { class: 'small muted' }, 'Real estate words')),
+    h('div', { class: 'ph' }, h('h1', null, 'Break'), modeSwitch || h('span', { class: 'small muted' }, 'Real estate words')),
     h('div', { class: 'game' },
       h('div', { class: 'gmain card' },
         gameScene(view, view && view.status === 'Lost' && !g, fx),
