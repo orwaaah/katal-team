@@ -1,8 +1,8 @@
 // KATAL Team service worker: makes the app installable and lets it open without a connection.
 // The page is always fetched fresh when online (so updates arrive at once); the saved copy is
-// only used offline. Data never goes through here (sign-in and the api go straight to Supabase),
+// only used offline. The app reloads itself when a new version of this file is installed. Data never goes through here (sign-in and the api go straight to Supabase),
 // except Drive videos for the app's own player, streamed from Drive (see driveVideo below).
-const VERSION = '7b9b7a71f60c';
+const VERSION = '6f308ea4f1c3';
 const CACHE = 'katal-' + VERSION;
 const FILES = ['./', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 
@@ -69,7 +69,8 @@ self.addEventListener('fetch', (e) => {
   }
   if (new URL(req.url).origin !== self.location.origin) return;
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then((res) => {
+    // Always asks the server whether the page changed (cheap: it answers "not changed"), so a new version shows at once.
+    e.respondWith(fetch(req, { cache: 'no-cache' }).then((res) => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put('./', copy)); }
       return res;
     }).catch(() => caches.match('./')));
