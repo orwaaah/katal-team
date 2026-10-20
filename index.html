@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = true; window.KATAL_VERSION = '8814cb7995ec';</script>
+<script>window.KATAL_PWA = true; window.KATAL_VERSION = 'b2a25047c491';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -806,8 +806,12 @@ button.cmt-tag { cursor: pointer; }
 .floor.base { border-bottom-width: 1.5px; height: 24px; }
 .floor i { width: 11px; height: 10px; border: 1.5px solid var(--gold-ink); border-radius: 2px; background: var(--gold-soft); }
 .floor i.door { height: 15px; align-self: flex-end; border-bottom: 0; border-radius: 3px 3px 0 0; background: var(--gold); border-color: var(--gold-ink); }
-.floor.fall { animation: floorfall 1s cubic-bezier(.5,0,.75,0) forwards; z-index: 2; }
-@keyframes floorfall { 0% { transform: none; } 25% { transform: translate(6px, -4px) rotate(5deg); } 100% { transform: translate(90px, 150px) rotate(40deg); opacity: 0; } }
+.tower > .fall { position: absolute; left: 0; right: 0; z-index: 2; pointer-events: none; animation: floorfall .75s cubic-bezier(.45,0,.8,.4) forwards; }
+.tower > .roof.fall { left: 6px; right: 6px; animation-delay: .06s; }
+@keyframes floorfall { 0% { transform: none; } 20% { transform: translate(5px, -3px) rotate(4deg); } 100% { transform: translate(80px, 130px) rotate(35deg); opacity: 0; } }
+/* The roof comes down onto the floors left (it was one floor higher). */
+.roof.drop { animation: roofdrop .35s .12s cubic-bezier(.5,0,.6,1.4) both; }
+@keyframes roofdrop { from { transform: translateY(-22px); } }
 .roof { height: 10px; margin: 0 6px; border: 1.5px solid var(--ink); border-bottom: 0; background: var(--gold-soft); position: relative; }
 .roof i { position: absolute; left: 50%; top: -14px; width: 1.5px; height: 14px; background: var(--ink); }
 .scene.lost .island::after { content: ""; position: absolute; left: 30px; bottom: 14px; width: 90px; height: 12px; border: 1.5px solid var(--ink); background: #fff; transform: rotate(-6deg); }
@@ -837,8 +841,10 @@ button.cmt-tag { cursor: pointer; }
 .gwrong { color: var(--red); font-weight: 650; letter-spacing: .08em; }
 .gkeys { display: flex; flex-direction: column; gap: 6px; }
 .grow-keys { display: flex; justify-content: center; gap: 5px; }
-.gkey { flex: 0 1 calc((100% - 45px) / 10); min-width: 0; min-height: 48px; padding: 0; border-radius: 9px; border: 1px solid var(--line); background: var(--card); font: inherit; font-size: 16px; font-weight: 650; color: var(--ink); cursor: pointer; touch-action: manipulation; transition: background .25s, color .25s, border-color .25s, transform .1s; }
+.gkey { flex: 0 1 calc((100% - 45px) / 10); min-width: 0; min-height: 48px; padding: 0; border-radius: 9px; border: 1px solid var(--line); background: var(--card); font: inherit; font-size: 16px; font-weight: 650; color: var(--ink); cursor: pointer; touch-action: manipulation; transition: background .15s, color .15s, border-color .15s, transform .1s; }
 .gkey:active { transform: scale(.95); }
+/* Pressed, the answer on its way. */
+.gkey.wait { background: #ebe6dc; border-color: #c8bfae; transform: scale(.95); }
 .gkey.hit { background: var(--st-done-bg); border-color: #bfdccb; color: var(--st-done); }
 .gkey.miss { background: var(--gray-bg); color: var(--faint); text-decoration: line-through; }
 .gkey:disabled { cursor: default; }
@@ -4812,6 +4818,8 @@ function guessLetter(ch) {
     return;
   }
   S.gameQueue.push(ch);
+  // The key looks pressed at once; it turns green or grey when the answer comes.
+  document.querySelectorAll('.gkey').forEach((k) => { if (k.textContent === ch) k.classList.add('wait'); });
   nextGuess();
 }
 async function nextGuess() {
@@ -4838,24 +4846,29 @@ document.addEventListener('keydown', (e) => {
     else if (isStaff() && S.ui.tab !== 'more') { e.preventDefault(); quickTaskSheet(); }
   }
 });
-/** The island, the sea, a palm, and the building: as many floors as are left; the one that just fell falls. */
+/** Where a floor sits, from the ground: the ground floor is 24 px, every one above it 22. */
+const floorAt = (i) => (i ? 24 + 22 * (i - 1) : 0);
+/**
+ * The island, the sea, a palm, and the building: as many floors as are left. The one that just fell slides off on its
+ * own (out of the building's height), and the roof comes down onto what's left; with the last floor the roof falls too.
+ */
 function gameScene(g, lostNow, fx) {
-  const floors = g ? g.floors : 6;
   const left = g ? Math.max(0, g.floors - g.wrong) : 6;
   fx = fx || {};
+  const falling = fx.fall !== undefined && fx.fall >= left ? fx.fall : -1;
+  const floor = (i, cls, style) => h('div', { class: 'floor' + (i === 0 ? ' base' : '') + cls, style }, i === 0 ? [h('i'), h('i', { class: 'door' }), h('i')] : [h('i'), h('i'), h('i')]);
   const stack = [];
-  for (let i = 0; i < floors; i++) {
-    const cls = i < left ? (fx.start ? ' rise' : '') : i === fx.fall ? ' fall' : ' gone';
-    if (cls === ' gone') continue;
-    stack.push(h('div', { class: 'floor' + (i === 0 ? ' base' : '') + cls, style: '--i:' + i }, i === 0 ? [h('i'), h('i', { class: 'door' }), h('i')] : [h('i'), h('i'), h('i')]));
-  }
+  for (let i = 0; i < left; i++) stack.push(floor(i, fx.start ? ' rise' : '', '--i:' + i));
+  const roofKids = [h('i'), fx.won ? h('b', { class: 'flag' }) : null];
   // A new game builds the tower floor by floor; a wrong letter shakes it as a floor falls; a win raises a flag.
   return h('div', { class: 'scene' + (lostNow ? ' lost' : '') + (fx.won ? ' won' : ''), 'aria-hidden': 'true' },
     h('div', { class: 'sea' }, h('i'), h('i'), h('i')),
     h('div', { class: 'island' }),
     h('div', { class: 'palm' }, h('i'), h('b')),
-    h('div', { class: 'tower' + (fx.fall !== undefined ? ' hurt' : '') + (fx.start ? ' building' : '') }, stack,
-      left ? h('div', { class: 'roof' + (fx.start ? ' rise' : ''), style: '--i:' + left }, h('i'), fx.won ? h('b', { class: 'flag' }) : null) : null));
+    h('div', { class: 'tower' + (falling >= 0 ? ' hurt' : '') }, stack,
+      left ? h('div', { class: 'roof' + (fx.start ? ' rise' : falling >= 0 ? ' drop' : ''), style: '--i:' + left }, roofKids) : null,
+      falling >= 0 ? floor(falling, ' fall', 'bottom:' + floorAt(falling) + 'px') : null,
+      falling >= 0 && !left ? h('div', { class: 'roof fall', style: 'bottom:' + floorAt(1) + 'px' }, h('i')) : null));
 }
 function playView() {
   if (!S.game) {
@@ -4880,7 +4893,8 @@ function playView() {
   const keys = h('div', { class: 'gkeys' }, GAME_ROWS.map((row) => h('div', { class: 'grow-keys' }, row.map((ch) => {
     const used = tried.indexOf(ch) >= 0;
     const hit = used && (word ? word.indexOf(ch) >= 0 : letters.indexOf(ch) >= 0);
-    return h('button', { type: 'button', class: 'gkey' + (used ? (hit ? ' hit' : ' miss') : '') + (fx.shake === ch ? ' shake' : ''), disabled: !g || S.gamePending ? true : null,
+    const waiting = !used && ((S.gameQueue || []).indexOf(ch) >= 0 || S.gameNow === ch);
+    return h('button', { type: 'button', class: 'gkey' + (used ? (hit ? ' hit' : ' miss') : '') + (waiting ? ' wait' : '') + (fx.shake === ch ? ' shake' : ''), disabled: !g ? true : null,
       'aria-label': ch + (used ? (hit ? ', in the word' : ', not in the word') : ''), onclick: () => guessLetter(ch) }, ch);
   }))));
   // Letters that just showed (a right guess, or the word shown at the end) turn over one after another.
