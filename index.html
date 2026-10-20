@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = true; window.KATAL_VERSION = 'b2a25047c491';</script>
+<script>window.KATAL_PWA = true; window.KATAL_VERSION = '9ed5359d94b7';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -701,6 +701,10 @@ button.cmt-tag { cursor: pointer; }
 .ptitle { font-size: 24px; font-weight: 650; letter-spacing: -.02em; line-height: 1.22; margin: 6px 0 0; overflow-wrap: anywhere; unicode-bidi: plaintext; text-align: left; }
 .ptags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .ptag { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 650; border-radius: 8px; padding: 4px 10px; background: var(--sbg, var(--gray-bg)); color: var(--sc, var(--muted)); }
+.ptag.unsaved { --sc: var(--gold-ink); --sbg: var(--gold-soft); }
+/* Save next to the other buttons takes only its room; alone, the whole bar. */
+.sheet-foot .btn.savebtn { flex: 0 0 auto; padding: 0 18px; }
+.sheet-foot .btn.savebtn:only-child { flex: 1; }
 .ptag.dark { background: var(--brand); color: #fff; }
 .pcard { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); padding: 14px; margin-top: 12px; }
 .pcard > .section:first-child { margin-top: 0; }
@@ -1023,6 +1027,8 @@ function applyState(st) {
   S.state = st;
   S.me = st.me;
   S.lastLoad = Date.now();
+  // New data under an open page: what's behind it is drawn again when it closes.
+  if (S.sheetOpen) S.needsRender = true;
   setTimeout(refreshLive, 0);
 }
 
@@ -1183,7 +1189,7 @@ function reopenPage() {
     const t = S.state.tasks.find((x) => x.key === k);
     if (!t) return;
     if (!it.typed) { it.typed = {}; ['fileLink', 'draftCaption', 'notes'].forEach((f) => { if ((it[f] || '') !== (t[f] || '')) it.typed[f] = true; }); }
-    if (Object.keys(it.typed).length) S.drafts[k] = it;
+    if (Object.keys(it.typed).length || (it.edits && Object.keys(it.edits).length)) S.drafts[k] = Object.assign({ edits: {} }, it, { edits: it.edits || {} });
   });
   const p = S.reopen;
   S.reopen = null;
@@ -1721,8 +1727,8 @@ function taskState(t) {
 }
 function statusBadge(t) { const x = taskState(t); return h('span', { class: 'st ' + x.cls }, x.text); }
 /**
- * A video's cover can't start before the video is delivered: the video it waits for, else null.
- * (Only videos: a blog's image and its upload are done side by side.)
+ * A step that waits for everything else on its idea (launching a campaign once its design is approved): what it
+ * waits for, else null. Everything else starts when it likes (a video's cover too, side by side with the video).
  */
 function waitingFor(t) {
   if (!isOpen(t) || t.status === 'Pending Approval' || t.review === 'Edit') return null;
@@ -1733,9 +1739,7 @@ function waitingFor(t) {
     const rest = others.filter((o) => o.after !== 'all' && o.review !== 'Approved' && o.status !== 'Done');
     return rest.length ? { all: true, label: 'After the rest', what: rest.map((o) => o.task).join(', '), name: rest[0].assignee || '', task: rest[0] } : null;
   }
-  if (t.linkRole !== 'Cover' || t.type !== 'Video') return null;
-  const v = others.find((o) => (o.linkRole || 'Media') === 'Media' && o.review !== 'Approved' && o.status !== 'Done' && o.status !== 'Pending Approval');
-  return v ? { label: 'After the video', what: 'the video', name: v.assignee || '', task: v } : null;
+  return null;
 }
 /** What kind of work: the icon at the start of its row. */
 function kindIcon(type, role) {
@@ -1910,18 +1914,21 @@ function tasksView() {
   // Not started: what can start first; what waits for another task after it.
   by.todo.sort((a, b) => ((waitingFor(a) ? 1 : 0) - (waitingFor(b) ? 1 : 0)) || byBoard(a, b));
   ['doing', 'approve', 'changes'].forEach((k) => by[k].sort(byBoard));
-  // Done: the last two weeks (the rest behind "Show older").
-  const since = addDays(st.today, -14);
+  // Done: today and yesterday, so the column stays short (all of it is in More → Archive for the admin; the team's
+  // own behind "Show older").
+  const since = addDays(st.today, -1);
   by.done.sort((a, b) => (b.updatedAt || b.delivered || b.deadline || '').localeCompare(a.updatedAt || a.delivered || a.deadline || ''));
   const recent = by.done.filter((t) => (t.updatedAt || t.delivered || t.deadline || '').slice(0, 10) >= since);
-  const doneShown = S.ui.doneAll ? by.done : recent;
+  const doneShown = S.ui.doneAll && !isAdmin() ? by.done : recent;
   const card = (t) => taskCard(t, { who: staff ? undefined : false });
   const cols = STAGE_ORDER.map((k) => ({
     id: k, label: stageLabel(k), short: stageLabel(k, true), c: STAGE[k].c,
     items: (k === 'done' ? doneShown : by[k]).map(card), count: (k === 'done' ? doneShown : by[k]).length,
-    empty: { todo: 'Nothing waiting to start.', doing: 'Nobody is on anything right now.', approve: isAdmin() ? 'Nothing waiting for you.' : 'Nothing waiting for approval.', changes: 'No changes asked.', done: 'Nothing done in the last two weeks.' }[k],
-    more: k === 'done' && by.done.length > recent.length ? h('button', { type: 'button', class: 'bcol-more', onclick: () => { S.ui.doneAll = !S.ui.doneAll; render(); } },
-      S.ui.doneAll ? 'Only the last two weeks' : 'Show older (' + (by.done.length - recent.length) + ')') : null
+    empty: { todo: 'Nothing waiting to start.', doing: 'Nobody is on anything right now.', approve: isAdmin() ? 'Nothing waiting for you.' : 'Nothing waiting for approval.', changes: 'No changes asked.', done: 'Nothing done today or yesterday.' }[k],
+    more: k !== 'done' || by.done.length <= recent.length ? null
+      : isAdmin() ? h('button', { type: 'button', class: 'bcol-more', onclick: () => goTab('more', { more: 'archive', archive: 'done' }) }, 'Older ones (' + (by.done.length - recent.length) + ') · Archive →')
+        : h('button', { type: 'button', class: 'bcol-more', onclick: () => { S.ui.doneAll = !S.ui.doneAll; render(); } },
+          S.ui.doneAll ? 'Only today and yesterday' : 'Show older (' + (by.done.length - recent.length) + ')')
   }));
   // It opens on the column that needs this person most.
   const start = staff ? (isAdmin() && by.approve.length ? 'approve' : by.doing.length ? 'doing' : 'todo')
@@ -2611,6 +2618,7 @@ function render() {
   if (!fn) return;
   const y = window.scrollY;
   keepScrolls();
+  if (S.screen === 'app') S.needsRender = false; // drawn from the newest data now
   app.replaceChildren(fn());
   if (S.screen === 'app') {
     if (S.enter) { const m = app.querySelector('.main'); if (m) m.classList.add('enter'); S.enter = false; }
@@ -2662,7 +2670,8 @@ function saveUi() {
         const t = S.state.tasks.find((x) => x.key === k);
         const d = S.drafts[k];
         const typed = Object.keys(d.typed || {}).filter((f) => (d[f] || '') !== (t ? t[f] || '' : ''));
-        if (t && typed.length) drafts[k] = { fileLink: d.fileLink, draftCaption: d.draftCaption, notes: d.notes, typed: Object.fromEntries(typed.map((f) => [f, true])) };
+        const edits = d.edits && Object.keys(d.edits).length ? d.edits : null; // the task's own changes, not saved yet
+        if (t && (typed.length || edits)) drafts[k] = { fileLink: d.fileLink, draftCaption: d.draftCaption, notes: d.notes, typed: Object.fromEntries(typed.map((f) => [f, true])), edits };
       });
     }
     sessionStorage.setItem(UI_KEY, JSON.stringify({ ui, y: window.scrollY, tabs: S.tabHist || [], page, drafts: { me: S.me && S.me.id, items: drafts } }));
@@ -2832,7 +2841,7 @@ function appShell() {
   const tabs = isStaff()
     ? [['today', 'Today', 0], ['tasks', 'Tasks', isAdmin() ? st.tasks.filter((t) => isOpen(t) && !t.cancelled && t.status === 'Pending Approval').length : 0],
       ['ideas', 'Ideas', isAdmin() ? st.ideas.filter((i) => i.execution === 'Later' && !i.hidden && i.source !== 'Quick').length : 0],
-      ['calendar', 'Calendar', isAdmin() ? readyPosts().filter(postNeedsYou).length + missedPosts().length : 0], ['play', 'Break', 0], ['more', 'More', 0]]
+      ['calendar', 'Calendar', isAdmin() ? draftPosts().length + missedPosts().length : 0], ['play', 'Break', 0], ['more', 'More', 0]]
     : [['tasks', 'My tasks', st.tasks.filter((t) => isOpen(t) && (t.review === 'Edit' || !t.status)).length + unreadIn((id) => st.tasks.some((t) => t.id === id))],
       ['ideas', 'Ideas', unreadIn((id) => !st.tasks.some((t) => t.id === id))], ['calendar', 'Calendar', 0], ['play', 'Break', 0]];
   const views = { today: todayView, tasks: tasksView, ideas: ideasView, calendar: calendarView, play: playView, more: moreView };
@@ -3227,8 +3236,8 @@ function todayView() {
   const dueToday = notUrgent.filter((t) => t.deadline === today && !t.overdue).sort(byBoard);
   const dueTomorrow = notUrgent.filter((t) => t.deadline === tomorrow).sort(byBoard);
   const later = st.ideas.filter((i) => i.execution === 'Later' && !i.hidden && i.source !== 'Quick');
-  const needPosts = isAdmin() ? readyPosts().filter(postNeedsYou) : []; // only Orwah gives a post its OK
-  const soon = st.calendar.filter((c) => (c.publishDate === today || c.publishDate === tomorrow) && c.status === 'Draft');
+  const needPosts = isAdmin() ? draftPosts() : []; // only Orwah gives a post its OK
+  const soon = draftPosts().filter((c) => c.publishDate === today || c.publishDate === tomorrow);
   const hour = Number((st.now || '').slice(11, 13));
   const hello = (hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening') + ', ' + S.me.name;
   // Ideas and posts open their tab.
@@ -3236,8 +3245,8 @@ function todayView() {
   // The tiles: ideas and posts (the tasks are the columns below).
   const stats = [
     stat(later.length, 'Ideas to decide', '', () => goTab('ideas')),
-    stat(needPosts.length, 'Posts need you', 'gold', () => goTab('calendar', { calSeg: 'ready' })),
-    stat(readyPosts().length - needPosts.length, 'Ready to schedule', '', () => goTab('calendar', { calSeg: 'ready' })),
+    stat(needPosts.length, 'Posts need your OK', 'gold', () => goTab('calendar', { calSeg: 'ready' })),
+    stat(readyPosts().length, 'Approved · no day', '', () => goTab('calendar', { calSeg: 'ready' })),
     isAdmin() ? stat(missedPosts().length, 'Didn\'t go out', 'red', () => goTab('calendar', { calSeg: 'missed' })) : null
   ].filter(Boolean);
   // What needs doing, as columns like the Tasks board (only the ones with something in them).
@@ -3337,32 +3346,45 @@ function taskPage(key, o) {
   const p = taskParts(t);
   const working = mine && open; // the person doing it (their files, caption, notes)
   const WORK = ['fileLink', 'draftCaption', 'notes'];
-  // What this person typed and hasn't saved yet (a link, a caption, notes) stays while they move around the app and
-  // across a refresh. Only what was typed is kept; everything else is read fresh from the saved task every time.
+  // What this person typed and hasn't saved yet (a link, a caption, notes), and the changes to the task itself (its
+  // name, person, status, day, brief: ed) stay while they move around the app and across a refresh, until Save. Only
+  // what was changed is kept; everything else is read fresh from the saved task every time.
   const prev = S.drafts[t.key];
-  const had = prev && prev.typed && Object.keys(prev.typed).length ? prev : null;
-  const d = had || (S.drafts[t.key] = { fileLink: t.fileLink, draftCaption: t.draftCaption, notes: t.notes, typed: {} });
+  const had = prev && ((prev.typed && Object.keys(prev.typed).length) || (prev.edits && Object.keys(prev.edits).length)) ? prev : null;
+  const d = had || (S.drafts[t.key] = { fileLink: t.fileLink, draftCaption: t.draftCaption, notes: t.notes, typed: {}, edits: {} });
+  if (!d.edits) d.edits = {};
+  const ed = d.edits;
   WORK.forEach((k) => { if (!d.typed[k]) d[k] = t[k]; }); // what wasn't typed shows as saved now
-  const f = { brief: t.brief, deadline: t.deadline }; // what the admin (or the manager who made it) changes here
-  const edited = {};
-  let dirty = !!had && (working || (admin && open)) && WORK.some((k) => d.typed[k] && (d[k] || '') !== (t[k] || ''));
-  const markDirty = () => { if (!dirty) { dirty = true; drawFoot(); } };
+  const editable = canEdit && (open || admin); // the admin changes done work too
+  if (!editable) Object.keys(ed).forEach((k) => { delete ed[k]; });
+  const now = (k) => (k in ed ? ed[k] : t[k]);
+  const isDirty = () => Object.keys(ed).length > 0 || ((working || admin) && WORK.some((k) => d.typed[k] && (d[k] || '') !== (t[k] || '')));
+  let dirty = isDirty();
+  const markDirty = () => { const was = dirty; dirty = isDirty(); if (was !== dirty || dirty) drawFoot(); };
   const typeWork = (k, v) => { d[k] = v; d.typed[k] = true; markDirty(); };
+  /** A change to the task itself: kept until Save (back to what's saved: nothing to save). */
+  const change = (k, v) => { if ((v || '') === (t[k] || '')) delete ed[k]; else ed[k] = v; markDirty(); };
   const reopen = () => taskPage(key, { replace: true });
   const fresh = () => S.state.tasks.find((x) => x.key === t.key) || t;
+  let page = null; // this page's sheet (set once it's open)
   /**
    * What a save sends: only what was changed on this page (the server keeps the rest), so work sent meanwhile (a file,
    * "sent for approval") is never written over by what this page showed when it opened.
    */
   const savePayload = (extra) => {
-    const out = { key: t.key };
-    if (edited.brief) out.brief = f.brief;
+    const out = Object.assign({ key: t.key }, ed);
     if (admin) WORK.forEach((k) => { if (d.typed[k]) out[k] = d[k]; }); // the admin may paste a link on anyone's task
     return Object.assign(out, extra || {});
   };
-  const saveEdits = (btn, extra, msg) => run(btn, 'task.save', savePayload(extra), msg || 'Saved', { keepSheet: true, refresh: true })
+  const saveEdits = (btn, extra, msg) => run(btn, 'task.save', savePayload(extra), msg || 'Saved ✓', { keepSheet: true })
     .then((r) => {
-      if (r) { edited.brief = false; if (admin) { dirty = false; delete S.drafts[t.key]; } else dirty = WORK.some((k) => d.typed[k]); }
+      if (r) {
+        Object.keys(ed).forEach((k) => { delete ed[k]; });
+        if (admin) delete S.drafts[t.key];
+        dirty = isDirty();
+        // Drawn again from what's saved now (unless the page was left meanwhile).
+        if (page && topSheet() && topSheet().id === page.id) reopen();
+      }
       return r;
     });
   /** The person doing it: what they typed (a link, a caption, notes), and maybe a new status. */
@@ -3374,8 +3396,8 @@ function taskPage(key, o) {
     if (sent.fileLink && !/^(https?:\/\/)?[^\s.]+\.[^\s]+$/i.test(sent.fileLink.trim())) { toast('The file link doesn\'t look like a link.', true); return; }
     if (status === 'Pending Approval' && !(link || '').trim() && !(c.files || []).length && t.linkRole !== 'Other') { toast('Add the file first.', true); return; }
     if (admin) { saveEdits(btn, status ? { status } : {}, status ? 'Sent' : 'Saved'); return; }
-    // A brief changed here (a manager's own task) goes first, through a save.
-    if (edited.brief && canEdit) {
+    // Changes to the task itself (a manager's own task: its brief, its day) go first, through a save.
+    if (Object.keys(ed).length && canEdit) {
       if (!await saveEdits(btn)) return;
       if (!status && !Object.keys(sent).length) return;
     }
@@ -3422,19 +3444,22 @@ function taskPage(key, o) {
   else if (st === 'done') next = '✓ Approved' + (t.delivered ? ' · sent ' + agoText(t.delivered) : '') + '.';
   else if (st === 'approve') next = admin && !mine ? who + ' sent it ' + agoText(t.delivered) + '. It\'s waiting for you.' : mine ? 'Sent ' + agoText(t.delivered) + '. Waiting for ' + boss + '\'s approval.' : 'Waiting for ' + boss + '\'s approval.';
   else if (st === 'changes') next = [h('span', { class: 'note-t' }, mine ? boss + ' asked for changes' : 'Sent back to ' + who), h('span', { class: 'pre', dir: 'auto' }, t.reviewNotes || '')];
-  else if (w) next = 'Starts after ' + (w.all ? 'the rest is approved (' + w.what + ')' : (w.name ? w.name + '\'s video' : 'the video')) + '.';
+  else if (w) next = 'Starts after the rest is approved (' + w.what + ').';
   else if (st === 'doing') next = mine ? (t.linkRole === 'Other' ? 'When it\'s done, ' + (admin ? 'mark it done.' : 'send it for approval.') : 'When it\'s ready, add the file and send it for approval.') : who + ' is working on it.';
   else next = mine ? (admin ? 'Yours to do.' : 'Tap Start when you begin.') : who + ' hasn\'t started yet.';
 
+  const part = 'task' in ed ? ed.task : p.part;
+  const title = 'name' in ed ? ed.name : p.main;
   const kindLine = h('div', { class: 'pk' }, icon(kindIcon(t.type, t.linkRole)),
-    dots(p.part || t.type || 'Task', t.part && t.type ? t.type : null, t.channel === 'Outside' ? 'General' : null),
+    dots(part || t.type || 'Task', t.part && t.type ? t.type : null, now('channel') === 'Outside' ? 'General' : null),
     personal ? h('span', { class: 'ptag', style: '--sc:var(--purple);--sbg:var(--purple-bg)' }, icon('lock'), t.createdBy === S.me.id ? 'Personal' : t.personal) : null);
   const prio = staff && open ? h('div', { class: 'prio', role: 'group', 'aria-label': 'Priority' },
     [['', 'None', '#d8d2c7'], ['High', 'High', 'var(--pr-high)'], ['Medium', 'Medium', 'var(--pr-med)'], ['Low', 'Low', 'var(--pr-low)']].map(([v, l, c]) =>
       h('button', { type: 'button', class: (t.priority || '') === v ? 'on' : '', style: '--pc:' + c, 'aria-pressed': (t.priority || '') === v ? 'true' : 'false',
         onclick: () => { if ((t.priority || '') !== v) setPriority(t, v); } }, h('i'), l))) : null;
-  const dueBox = canEdit && open
-    ? dateField(f.deadline, (v) => { f.deadline = v; saveEdits(null, { deadline: v }, 'Deadline: ' + dayShort(v)); }, { autosave: true, label: 'Deadline', short: true })
+  // The day: picked here, saved with the rest (Save).
+  const dueBox = editable
+    ? dateField(now('deadline'), (v) => change('deadline', v), { label: 'Deadline', short: true })
     : [t.deadline ? dayShort(t.deadline) : '—', open && t.overdue && st !== 'approve' ? h('span', { class: 'due red' }, 'late') : null];
   const idea = (S.state.ideas || []).find((i) => i.id === t.id);
   const ideaFact = idea && idea.source !== 'Quick'
@@ -3445,7 +3470,7 @@ function taskPage(key, o) {
   // The files: the person doing it (and the admin) adds, takes off and orders them; everyone else views them.
   const files = t.files && t.files.length ? t.files : (t.fileLink ? [t.fileLink] : []);
   let filesBox = null;
-  if (working || (admin && open)) {
+  if (working || (admin && !t.cancelled)) {
     const linkIn = input(d, 'fileLink', { type: 'url', dir: 'ltr', placeholder: S.state.media ? 'Or paste a link' : 'Paste the link', inputmode: 'url', oninput: (e) => typeWork('fileLink', e.target.value) });
     filesBox = h('div', null,
       filesEditor(files, { id: t.id, label: t.task, video: isVideoTask(t) }, (links) => {
@@ -3460,12 +3485,13 @@ function taskPage(key, o) {
 
   // The brief: the admin (and the manager who made it) change it here; Auto may be writing it.
   let briefBox = null;
-  if (canEdit && open) {
-    const briefIn = area(f, 'brief', { rows: 3, oninput: (e) => { f.brief = e.target.value; edited.brief = true; grow(e.target); markDirty(); } });
+  if (editable) {
+    const bf = { brief: now('brief') };
+    const briefIn = area(bf, 'brief', { rows: 3, oninput: (e) => { bf.brief = e.target.value; change('brief', bf.brief); grow(e.target); } });
     let lastBrief = t.brief;
     briefBox = [briefIn, liveBox(() => {
       const cur = S.state.tasks.find((x) => x.key === t.key) || t;
-      if (cur.brief !== lastBrief && f.brief === lastBrief) { f.brief = cur.brief; briefIn.value = f.brief; grow(briefIn); }
+      if (cur.brief !== lastBrief && bf.brief === lastBrief) { bf.brief = cur.brief; briefIn.value = bf.brief; grow(briefIn); }
       lastBrief = cur.brief;
       briefIn.classList.toggle('auto', cur.autoBrief === 'Waiting');
       const tag = autoTag(cur.autoBrief, 'scribble', 'the brief');
@@ -3481,15 +3507,18 @@ function taskPage(key, o) {
 
   const body = h('div', null,
     kindLine,
-    h('div', { class: 'ptitle-row' }, h('h1', { class: 'ptitle', dir: 'auto' }, p.main),
-      canEdit && (open || admin) ? h('button', { type: 'button', class: 'btn tiny pedit', 'aria-label': 'Edit name, person, status', onclick: () => (admin ? editTaskSheet(fresh()) : managerEditSheet(fresh())) }, icon('edit'), 'Edit') : null),
+    h('div', { class: 'ptitle-row' }, h('h1', { class: 'ptitle', dir: 'auto' }, title),
+      editable ? h('button', { type: 'button', class: 'btn tiny pedit', 'aria-label': 'Edit name, person, status', onclick: () => editTask() }, icon('edit'), 'Edit') : null),
     h('div', { class: 'ptags' },
       t.priority === 'High' && open ? h('span', { class: 'ptag', style: '--sc:#fff;--sbg:var(--pr-high)' }, 'URGENT') : null,
-      prio),
+      prio,
+      // Changed in Edit and not saved yet: it says so until Save.
+      ['name', 'task', 'assignedTo', 'status', 'channel'].some((k) => k in ed) ? h('span', { class: 'ptag unsaved' },
+        'Not saved yet' + ('status' in ed ? ' · ' + statusLabel(ed.status) : '')) : null),
     h('div', { class: 'pcard' }, stepsBar(st),
       h('div', { class: 'nextline', style: '--sc:' + (w ? 'var(--muted)' : STAGE[st].c) + ';--sbg:' + (w ? 'var(--gray-bg)' : STAGE[st].bg) }, next)),
     h('div', { class: 'fgrid' },
-      h('div', null, h('div', { class: 'fl' }, 'Who'), h('div', { class: 'fv' }, personTag(t.assignee || S.me.name))),
+      h('div', null, h('div', { class: 'fl' }, 'Who'), h('div', { class: 'fv' }, personTag('assignedTo' in ed ? personName(ed.assignedTo) : t.assignee || S.me.name))),
       h('div', null, h('div', { class: 'fl' }, 'Due'), h('div', { class: 'fv' }, dueBox)),
       h('div', null, h('div', { class: 'fl' }, 'Idea'), h('div', { class: 'fv' }, ideaFact)),
       h('div', null, h('div', { class: 'fl' }, 'Post'), h('div', { class: 'fv' }, postFact(t)))),
@@ -3510,34 +3539,41 @@ function taskPage(key, o) {
     history.length ? h('div', { class: 'small faint', style: 'margin:16px 2px 0' }, history.map(([k, v]) => k + ' ' + v).join(' · ')) : null,
     h('div', { class: 'pcard' }, commentsBox(t.id, { video: t.type === 'Video', title: false })));
 
-  // The buttons at the bottom: what this person can do with it now.
+  // The buttons at the bottom: what this person can do with it now. Save is always there for whoever can change the
+  // task; it wakes up with any change (the name, the person, the day, the brief, a link…).
   const foot = h('div', { style: 'display:contents' });
-  const btn = (label, onclick, cls) => { const b = h('button', { type: 'button', class: 'btn ' + (cls || '') }, label); b.onclick = () => onclick(b); return b; };
+  const btn = (label, onclick, cls, off) => { const b = h('button', { type: 'button', class: 'btn ' + (cls || ''), disabled: off ? true : null }, label); b.onclick = () => onclick(b); return b; };
+  const saveAll = (x) => (admin || !working ? saveEdits(x) : saveOwn(x));
+  const saveBtn = () => btn(dirty ? 'Save changes' : 'Save', saveAll, 'savebtn' + (dirty ? ' primary' : ''), !dirty);
   function drawFoot() {
     const b = [];
     if (t.cancelled) { if (canEdit) b.push(btn('Bring it back', () => setTaskCancelled(t, false), 'primary')); }
-    else if (st === 'done') { /* nothing left to do */ }
-    else if (admin && st === 'approve' && !mine) b.push(btn('Ask for changes', () => requestEditSheet(t), 'warn'), btn('✓ Approve', (x) => thenApprove(x), 'good'));
-    else if (working && (admin || (personal && mine))) b.push(dirty ? btn('Save', (x) => (admin ? saveEdits(x) : saveOwn(x))) : null, btn('✓ Mark done', markDone, 'good'));
+    else if (st === 'done') { if (admin) b.push(btn('↩ Ask for changes', () => requestEditSheet(t), 'warn'), saveBtn()); else if (editable) b.push(saveBtn()); }
+    else if (admin && st === 'approve' && !mine) b.push(btn('Ask for changes', () => requestEditSheet(t), 'warn'), btn('✓ Approve', (x) => thenApprove(x), 'good'), saveBtn());
+    else if (working && (admin || (personal && mine))) b.push(saveBtn(), btn('✓ Mark done', markDone, 'good'));
     else if (working) {
-      if (st === 'approve') b.push(btn(dirty ? 'Save' : 'Sent ✓', (x) => saveWork(x), dirty ? 'primary' : ''));
-      else if (st === 'todo') b.push(btn(w ? '▶ Start anyway' : '▶ Start', (x) => saveWork(x, 'Started')), btn('Send for approval', (x) => saveWork(x, 'Pending Approval'), 'primary'));
-      else b.push(btn('Save', (x) => saveWork(x)), btn(st === 'changes' ? 'Send again' : 'Send for approval', (x) => saveWork(x, 'Pending Approval'), 'primary'));
-    } else if (canEdit && dirty) b.push(btn('Save changes', (x) => saveEdits(x), 'primary'));
+      if (st === 'approve') b.push(btn(dirty ? 'Save' : 'Sent ✓', (x) => saveWork(x), dirty ? 'primary' : '', !dirty));
+      else if (st === 'todo') b.push(dirty ? btn('Save', (x) => saveWork(x)) : null, btn(w ? '▶ Start anyway' : '▶ Start', (x) => saveWork(x, 'Started')), btn('Send for approval', (x) => saveWork(x, 'Pending Approval'), 'primary'));
+      else b.push(btn('Save', (x) => saveWork(x), '', !dirty), btn(st === 'changes' ? 'Send again' : 'Send for approval', (x) => saveWork(x, 'Pending Approval'), 'primary'));
+    } else if (editable) b.push(saveBtn());
     fill(foot, b.filter(Boolean));
     const bar = foot.closest('.sheet-foot');
     if (bar) bar.style.display = b.filter(Boolean).length ? '' : 'none';
   }
   drawFoot();
+  /** Name, part, person, status, where: picked in a sheet, then they wait here for Save with the rest. */
+  const editTask = () => editTaskSheet(fresh(), { ed, admin, part: p.part, main: p.main, onApply: () => { markDirty(); reopen(); } });
   const menu = canEdit ? () => menuSheet(taskSheetTitle(t), [
-    open || admin ? { label: 'Edit name, person, status', icon: 'edit', onclick: () => (admin ? editTaskSheet(fresh()) : managerEditSheet(fresh())) } : null,
+    editable ? { label: 'Edit name, person, status', icon: 'edit', onclick: editTask } : null,
     idea && idea.source !== 'Quick' ? { label: 'Open the idea', icon: 'ideas', onclick: () => ideaPage(t.id) } : null,
     t.cancelled ? { label: 'Bring it back', icon: 'undo', onclick: () => setTaskCancelled(t, false) }
       : { label: 'Delete task', icon: 'trash', danger: true, onclick: () => ask('Delete "' + taskLabel(t) + '"? It leaves ' + who + '\'s list.', 'Delete', true).then((ok) => { if (ok) setTaskCancelled(t, true); }) }
   ]) : null;
-  openSheet(t.id + ' · ' + (p.part || t.type || 'Task'), body, foot, { page: true, back: o.back || 'Back', replace: o.replace, rebuild: reopen, dirty: () => dirty, menu, reopen: { k: 'task', key }, discard: () => { delete S.drafts[t.key]; } });
+  page = openSheet(t.id + ' · ' + (p.part || t.type || 'Task'), body, foot, { page: true, back: o.back || 'Back', replace: o.replace, rebuild: reopen, dirty: () => dirty, menu, reopen: { k: 'task', key }, discard: () => { delete S.drafts[t.key]; } });
   drawFoot();
 }
+function personName(id) { const u = (S.state.users || S.state.people || []).find((x) => x.id === id); return u ? u.name : ''; }
+function statusLabel(v) { return (STATUS_OPTIONS.find((x) => x.value === (v || '')) || {}).label || v; }
 
 
 function approve(btn, t) {
@@ -3564,7 +3600,7 @@ function requestEditSheet(t) {
     field('What to change', area(f, 'note', { rows: 4 }))), btn);
 }
 
-const STATUS_OPTIONS = [{ value: '', label: 'Not started' }, { value: 'Started', label: 'Started' }, { value: 'Pending Approval', label: 'Pending approval' }, { value: 'Done', label: 'Done' }];
+const STATUS_OPTIONS = [{ value: '', label: 'Not started' }, { value: 'Started', label: 'Started' }, { value: 'Pending Approval', label: 'Pending approval' }, { value: 'Done', label: 'Done · approved' }];
 
 /** A task's files as pictures to tap (images, or a video's frame with ▶); a link elsewhere is a View chip. */
 function fileTiles(files, ctx) {
@@ -3633,42 +3669,41 @@ function setTaskCancelled(t, cancelled) {
     cancelled ? () => setTaskCancelled(t, false) : null);
 }
 
-/** The rarely changed parts of a task. */
-function editTaskSheet(t) {
-  const f = { key: t.key, task: t.task, brief: t.brief, assignedTo: t.assignedTo, deadline: t.deadline, status: t.status,
-    fileLink: t.fileLink, draftCaption: t.draftCaption, notes: t.notes, reviewNotes: t.reviewNotes, channel: t.channel || 'Social' };
-  openSheet('Edit ' + t.id, h('div', null,
-    field(h('span', null, 'Task', h('i', null, 'short name')), nameInput(f, 'task')),
-    h('div', { class: 'two' },
-      field('Assigned to', personSelect(f, 'assignedTo', { id: t.assignedTo, name: t.assignee })),
-      field('Status', selectBox(STATUS_OPTIONS, f.status, (v) => { f.status = v; }, { full: true }))),
-    // A task made on its own decides where it goes (an idea's tasks follow their idea: change it there).
-    t.source === 'Quick' && !t.personal ? channelField(f) : null),
-  editFoot((btn) => {
-    if (!f.task.trim()) { toast('Write a title.', true); return; }
-    // Only what was changed here (the rest may have moved on since this opened).
-    const ch = { key: t.key };
-    ['task', 'assignedTo', 'status', 'channel'].forEach((k) => { if (f[k] !== (k === 'channel' ? t.channel || 'Social' : t[k])) ch[k] = f[k]; });
-    run(btn, 'task.save', ch, 'Saved');
-  }));
-}
-
-/** Manager: the rarely changed parts of a task they made. */
-function managerEditSheet(t) {
+/**
+ * The rarely changed parts of a task: its name (its idea's, shown on every part and on the post), the part it is
+ * (Design, Video Cover), the person, the status, where it goes. OK puts them on the task's page, which saves them with
+ * everything else (Save). o: { ed (the page's changes), admin, main, part, onApply }
+ */
+function editTaskSheet(t, o) {
+  const ed = o.ed;
+  const was = { name: o.main, task: t.task, assignedTo: t.assignedTo, status: t.status || '', channel: t.channel || 'Social' };
+  const f = {};
+  Object.keys(was).forEach((k) => { f[k] = k in ed ? ed[k] : was[k]; });
+  const idea = (S.state.ideas || []).find((i) => i.id === t.id);
+  const shared = !!o.part || (idea && idea.source !== 'Quick');
   const personal = !!t.personal;
-  const f = { key: t.key, task: t.task, brief: t.brief, assignedTo: t.assignedTo, deadline: t.deadline, status: t.status };
+  const statuses = o.admin ? STATUS_OPTIONS : personal ? STATUS_OPTIONS.filter((x) => x.value !== 'Pending Approval') : null;
+  if (statuses && !statuses.some((x) => x.value === f.status)) f.status = 'Started';
   openSheet('Edit ' + t.id, h('div', null,
-    field(h('span', null, 'Task', h('i', null, 'short name')), nameInput(f, 'task')),
+    field(h('span', null, 'Name', h('i', null, 'short')), nameInput(f, 'name'), shared ? 'The idea\'s name: its other parts and its post show it too.' : null),
+    o.part ? field(h('span', null, 'Part', h('i', null, 'what this task is')), nameInput(f, 'task')) : null,
     h('div', { class: 'two' },
       field('Assigned to', personSelect(f, 'assignedTo', { id: t.assignedTo, name: t.assignee })),
-      personal ? field('Status', selectBox([{ value: '', label: 'Not started' }, { value: 'Started', label: 'Started' }, { value: 'Done', label: 'Done' }],
-        f.status === 'Pending Approval' ? 'Started' : f.status, (v) => { f.status = v; }, { full: true })) : h('div'))),
-  editFoot((btn) => {
-    if (!f.task.trim()) { toast('Write a title.', true); return; }
-    const ch = { key: t.key };
-    (personal ? ['task', 'assignedTo', 'status'] : ['task', 'assignedTo']).forEach((k) => { if (f[k] !== t[k]) ch[k] = f[k]; });
-    run(btn, 'task.save', ch, 'Saved');
-  }));
+      statuses ? field('Status', selectBox(statuses, f.status, (v) => { f.status = v; }, { full: true })) : h('div')),
+    // A task made on its own decides where it goes (an idea's tasks follow their idea: change it there).
+    o.admin && t.source === 'Quick' && !personal ? channelField(f) : null),
+  editFoot(() => {
+    if (!String(f.name || '').trim() || (o.part && !String(f.task || '').trim())) { toast('Write a name.', true); return; }
+    if (f.name.trim().length > NAME_MAX) { toast('Keep the name to ' + NAME_MAX + ' characters.', true); return; }
+    const keys = ['name', 'assignedTo'].concat(o.part ? ['task'] : [], statuses ? ['status'] : [], o.admin && t.source === 'Quick' && !personal ? ['channel'] : []);
+    keys.forEach((k) => {
+      const v = typeof f[k] === 'string' && (k === 'name' || k === 'task') ? f[k].replace(/\s+/g, ' ').trim() : f[k];
+      if ((v || '') === (was[k] || '')) delete ed[k]; else ed[k] = v;
+    });
+    closeSheet(false, { noRebuild: true });
+    o.onApply();
+    if (Object.keys(ed).length) toast('Tap Save to keep the changes');
+  }, null, { saveLabel: 'OK' }));
 }
 
 /* ----- Creating tasks ----- */
@@ -4101,10 +4136,19 @@ function linkRoleOptions(type) {
   return [{ value: 'Media', label: l.media }, { value: 'Cover', label: l.cover }, { value: 'Other', label: 'Not on the post (no file needed)' }];
 }
 
-/** Posts that are put together but have no publish date yet. */
-function readyPosts() {
-  return (S.state.calendar || []).filter((c) => !c.publishDate && c.status !== 'Published' && c.status !== 'Cancelled');
-}
+/*
+ * Where a post is: waiting for Orwah's OK (a Draft, with a day or not) and approved without a day are both in Ready;
+ * the calendar has only approved posts with their day. A post whose work went back to the team (a task of its idea is
+ * open again) waits with the team, in neither, until it's approved again.
+ */
+function postInWork(c) { return (S.state.tasks || []).some((t) => t.id === c.id && isOpen(t)); }
+function livePost(c) { return c.status !== 'Published' && c.status !== 'Cancelled' && !postInWork(c); }
+/** Waiting for Orwah's OK. */
+function draftPosts() { return (S.state.calendar || []).filter((c) => c.status === 'Draft' && livePost(c)); }
+/** Approved, no day yet. */
+function readyPosts() { return (S.state.calendar || []).filter((c) => c.status === 'Final' && !c.publishDate && livePost(c)); }
+/** On the calendar: approved, with a day (and what went out). */
+function onCalendar(c) { return (c.status === 'Final' || c.status === 'Published') && !!c.publishDate && !postInWork(c); }
 
 /**
  * What a post still needs before it can go out: its media, its platforms, a caption for each (being written counts as
@@ -4131,9 +4175,9 @@ function postedPosts() {
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
 }
 
-/** Dated posts before today that never went out: the app asks about them. */
+/** Approved posts whose day passed and that never went out: the app asks about them. */
 function missedPosts() {
-  return (S.state.calendar || []).filter((c) => c.publishDate && c.publishDate < S.state.today && c.status !== 'Published' && c.status !== 'Cancelled')
+  return (S.state.calendar || []).filter((c) => c.status === 'Final' && c.publishDate && c.publishDate < S.state.today && !postInWork(c))
     .sort((a, b) => a.publishDate.localeCompare(b.publishDate));
 }
 
@@ -4142,8 +4186,7 @@ function weekEntry(c) {
   const on = Object.keys(c.platforms || {}).filter((p) => c.platforms[p]);
   const missed = c.status !== 'Published' && c.publishDate < S.state.today;
   const mark = c.status === 'Published' ? h('span', { class: 'wmark ok' }, '✓ Posted')
-    : missed ? h('span', { class: 'wmark miss' }, 'Didn\'t go out')
-      : c.status === 'Draft' ? h('span', { class: 'wmark draft' }, 'Draft') : null;
+    : missed ? h('span', { class: 'wmark miss' }, 'Didn\'t go out') : null;
   return h('div', { class: 'wentry', onclick: () => (isAdmin() ? calSheet(c.key) : postViewSheet(c)) },
     h('div', { class: 'wt', dir: 'auto' }, firstLine(c.idea) || c.id),
     on.length || mark ? h('div', { class: 'wsub' }, on.length ? h('span', { class: 'pfs' }, on.map((p) => pfIcon(p, 11))) : null, mark) : null);
@@ -4153,10 +4196,11 @@ function weekEntry(c) {
 function postState(c) {
   if (c.status === 'Published') return { text: '✓ Posted', cls: 'green' };
   if (c.status === 'Cancelled') return { text: 'Cancelled', cls: 'faint' };
+  if (postInWork(c)) return { text: 'Back with the team', cls: 'faint' };
+  if (c.status === 'Draft') return isAdmin() ? { text: 'Needs your OK', cls: 'gold' } : { text: 'Draft', cls: 'faint' };
   if (c.publishDate && c.publishDate < S.state.today) return { text: 'Didn\'t go out', cls: 'red' };
-  if (isAdmin() && postNeedsYou(c)) return { text: 'Needs you', cls: 'gold' };
-  if (c.status === 'Draft') return { text: 'Draft', cls: 'faint' };
-  return { text: '✓ Ready', cls: 'green' };
+  if (isAdmin() && postNeedsYou(c)) return { text: 'Needs ' + postMissing(c).join(', ').toLowerCase(), cls: 'gold' };
+  return { text: c.publishDate ? '✓ Approved' : '✓ Approved · no day', cls: 'green' };
 }
 function postStateTag(c) { const x = postState(c); return h('span', { class: 'st ' + x.cls }, x.text); }
 /** A post in a list: the one row (name, where it stands; ID, platforms, day under it). Tapping opens it. */
@@ -4209,6 +4253,26 @@ function calMove(c, action) {
   }, 'cal.status', { key: c.key, action }, msg);
 }
 
+/**
+ * A post's work goes back to the team: pick which parts (the video, the cover…) and say what to change. They get it
+ * back as "changes asked"; the post waits with them and comes back to Ready for the OK once they're approved again.
+ */
+function reworkSheet(c, tasks) {
+  const f = { picked: {}, note: '' };
+  tasks.forEach((t) => { f.picked[t.key] = t.linkRole !== 'Other'; });
+  const send = h('button', { class: 'btn primary' }, 'Send back');
+  send.onclick = () => {
+    const keys = tasks.filter((t) => f.picked[t.key]).map((t) => t.key);
+    if (!keys.length) { toast('Pick what goes back.', true); return; }
+    run(send, 'cal.rework', { key: c.key, tasks: keys, note: f.note.trim() }, 'Back with the team · it comes back for your OK');
+  };
+  openSheet('Back to tasks · ' + c.id, h('div', null,
+    h('p', { class: 'muted small', style: 'margin-top:0' }, 'They get it back with your note. The post leaves Ready and the calendar until it\'s approved again.'),
+    tasks.map((t) => h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: f.picked[t.key], onchange: (e) => { f.picked[t.key] = e.target.checked; } }),
+      h('span', null, h('b', null, taskParts(t).part || t.task), ' · ' + (t.assignee || '')))),
+    field('What to change', area(f, 'note', { rows: 3, placeholder: 'e.g. a new cover with the price on it' }))), send);
+}
+
 /** Read-only view of a post (team and manager). */
 function postViewSheet(c) {
   const l = linkLabels(c.type);
@@ -4227,16 +4291,20 @@ function postViewSheet(c) {
     commentsBox(c.id, { video: c.type === 'Video' })), editFoot(null));
 }
 
-/** Ready: posts without a day yet. Those that still need something from Orwah first; then those that only need their day. */
+/** Ready: posts waiting for Orwah's OK first (with the day they're planned for, if any); then approved ones without a day. */
 function readyList() {
-  const items = readyPosts().filter(calMatch).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-  if (!items.length) return h('div', { class: 'empty' }, 'Nothing waiting. A post lands here when every task of its idea is approved.');
-  const need = isAdmin() ? items.filter(postNeedsYou) : [];
-  const ok = items.filter((c) => need.indexOf(c) < 0);
+  const newest = (a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '');
+  const need = draftPosts().filter(calMatch).sort(newest);
+  const ok = readyPosts().filter(calMatch).sort(newest);
+  const back = (S.state.calendar || []).filter((c) => c.status !== 'Published' && c.status !== 'Cancelled' && postInWork(c) && calMatch(c));
+  if (!need.length && !ok.length && !back.length) return h('div', { class: 'empty' }, 'Nothing waiting. A post lands here when every task of its idea is approved.');
   return h('div', null,
-    need.length ? [listSection('rd-need', 'Needs you', need.length), h('div', { class: 'small muted', style: 'margin:-4px 2px 8px' }, 'Look at it, fix what\'s missing, then tap "It\'s ready".'),
+    need.length ? [listSection('rd-need', isAdmin() ? 'Needs your OK' : 'Waiting for ' + adminName(), need.length),
+      isAdmin() ? h('div', { class: 'small muted', style: 'margin:-4px 2px 8px' }, 'Look at it, then Approve: with a day it goes on the calendar, without one it waits below.') : null,
       list(need.map((c) => postRow(c, { needs: true })))] : null,
-    ok.length ? [listSection('rd-ok', isAdmin() ? 'Ready · only needs its day' : 'Ready', ok.length), list(ok.map((c) => postRow(c)))] : null);
+    ok.length ? [listSection('rd-ok', 'Approved · no day yet', ok.length), list(ok.map((c) => postRow(c)))] : null,
+    back.length ? [listSection('rd-back', 'Back with the team', back.length), h('div', { class: 'small muted', style: 'margin:-4px 2px 8px' }, 'Being changed. Each comes back here for your OK once its work is approved again.'),
+      list(back.map((c) => postRow(c)))] : null);
 }
 
 function postedList() {
@@ -4274,7 +4342,7 @@ function calendarView() {
   return h('div', null,
     h('div', { class: 'page-head' }, h('h1', null, 'Calendar'),
       admin ? h('button', { class: 'btn primary quick', onclick: () => calSheet(null) }, '+ Post') : null),
-    staff ? seg([{ value: 'calendar', label: 'Calendar' }, { value: 'ready', label: 'Ready', n: readyPosts().length }, { value: 'rhythm', label: 'Rhythm' }], segVal, go) : null,
+    staff ? seg([{ value: 'calendar', label: 'Calendar' }, { value: 'ready', label: 'Ready', n: draftPosts().length + readyPosts().length }, { value: 'rhythm', label: 'Rhythm' }], segVal, go) : null,
     h('div', { class: 'subnav' },
       staff ? null : h('button', { class: segVal === 'calendar' ? 'on' : '', onclick: () => go('calendar') }, 'Upcoming'),
       h('button', { class: segVal === 'posted' ? 'on' : '', onclick: () => go('posted') }, 'Posted'),
@@ -4302,9 +4370,9 @@ function calendarList() {
         h('span', { class: 'small muted' }, fmtShort(days[0]) + ' – ' + fmtShort(days[6]))),
       h('div', { class: 'week' }, days.map((d) => h('div', { class: 'wday' + (d === today ? ' today' : '') },
         h('div', { class: 'd' }, wd(d) + ' ' + fmtShort(d)),
-        st.calendar.filter((c) => c.publishDate === d && c.status !== 'Cancelled' && calMatch(c)).map((c) => weekEntry(c))))));
+        st.calendar.filter((c) => c.publishDate === d && onCalendar(c) && calMatch(c)).map((c) => weekEntry(c))))));
   }
-  const upcoming = st.calendar.filter((c) => c.publishDate && c.publishDate >= today && live(c) && calMatch(c))
+  const upcoming = st.calendar.filter((c) => c.publishDate && c.publishDate >= today && live(c) && onCalendar(c) && calMatch(c))
     .sort((a, b) => a.publishDate.localeCompare(b.publishDate));
   const groups = [];
   upcoming.forEach((c) => {
@@ -4434,10 +4502,11 @@ const DAYS_MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'Jul
 function rhythmCellSheet(d, p, o) {
   o = o || {};
   const x = rhythmCell(d, p);
-  const ready = readyPosts();
+  // Without a day yet: approved ones, and ones still waiting for the OK (they stay in Ready until it).
+  const ready = readyPosts().concat(draftPosts().filter((c) => !c.publishDate));
   const can = isAdmin() && d >= S.state.today;
   const pick = () => openSheet('Ready posts · ' + p + ', ' + dayShort(d), ready.length ? h('div', { class: 'list' }, ready.map((c) => h('div', { class: 'lrow', style: 'cursor:default' },
-    h('div', { class: 'main-col' }, h('div', { class: 't', dir: 'auto' }, firstLine(c.idea) || c.id), h('div', { class: 's' }, dots(c.type, postNeedsYou(c) ? 'needs: ' + postMissing(c).join(', ').toLowerCase().replace('your ok', 'your OK') : '✓ ready'))),
+    h('div', { class: 'main-col' }, h('div', { class: 't', dir: 'auto' }, firstLine(c.idea) || c.id), h('div', { class: 's' }, dots(c.type, c.status === 'Draft' ? 'needs your OK' : postNeedsYou(c) ? 'needs: ' + postMissing(c).join(', ').toLowerCase() : '✓ approved'))),
     h('button', { class: 'btn small primary', onclick: (e) => schedulePostTo(c, d, p, e.currentTarget) }, 'Put it here'))))
     : h('div', { class: 'empty' }, 'No ready posts right now.'));
   openSheet(p + ' · ' + dayLong(d), h('div', null,
@@ -4728,22 +4797,33 @@ function calSheet(key, ideaId, o) {
       h('button', { class: 'btn tiny', style: 'margin-top:6px', onclick: () => calMove(c, 'ready') }, '↩ Back to Ready'))
     : null;
 
-  // What it still needs, ticked off; "It's ready" is Orwah's OK (Draft → Final).
+  // What it still needs, ticked off; Approve is Orwah's OK (Draft → Final). The day is up to him: with one it goes on the
+  // calendar, without one it waits in Ready. Its work can go back to the team (a new cover, other media…).
   const missing = c ? postMissing(c) : [];
+  const inWork = c && postInWork(c);
+  const ideaTasks = c ? S.state.tasks.filter((t) => t.id === c.id && !t.cancelled) : [];
+  const approveLabel = () => (f.publishDate ? '✓ Approve · on the calendar ' + dayShort(f.publishDate) : '✓ Approve · it waits in Ready (no day yet)');
+  const approveBtn = c && c.status === 'Draft' && !inWork ? h('button', { type: 'button', class: 'btn good block', style: 'margin-top:12px;min-height:46px',
+    onclick: (e) => run(e.currentTarget, 'cal.save', Object.assign({}, f, { status: 'Final', capEdits: undefined, captions: f.capEdits && Object.keys(f.capEdits).length ? f.capEdits : undefined }),
+      c.id + (f.publishDate ? ' approved · on the calendar ' + dayShort(f.publishDate) : ' approved · in Ready'), { keepSheet: true })
+      // Everything on the page went with it: drawn again from what's saved (nothing left unsaved).
+      .then((r) => { if (r && topSheet() && topSheet().opts.reopen && topSheet().opts.reopen.key === c.key) calSheet(c.key, null, { replace: true, back: o.back }); }) }, approveLabel()) : null;
+  const dayBox = c ? dateField(f.publishDate, (v) => { f.publishDate = v; if (approveBtn) approveBtn.textContent = approveLabel(); }, { anyDay: true, clearable: true, placeholder: 'No day yet (it waits in Ready)' }) : null;
   const ready = c && c.status !== 'Published' && c.status !== 'Cancelled' ? h('div', { class: 'pcard', style: 'margin-top:0;margin-bottom:12px' },
+    inWork ? h('div', { class: 'note', style: 'margin-bottom:10px' }, h('div', { class: 't' }, 'Back with the team'),
+      h('div', { class: 'small' }, ideaTasks.filter(isOpen).map((t) => (taskParts(t).part || t.task) + ' · ' + t.assignee).join(', ') + '. It comes back for your OK once that\'s approved.')) : null,
     h('div', { class: 'checks' }, [
       ['Media', (c.mediaFiles || []).length > 1 ? c.mediaFiles.length + ' files' : c.mediaLink ? '1 file' : 'missing'],
       ['Platforms', Object.keys(c.platforms).filter((x) => c.platforms[x]).join(', ') || 'none picked'],
       ['Captions', missing.indexOf('Captions') >= 0 ? 'not written yet' : 'written'],
-      ['Day', c.publishDate ? dayLong(c.publishDate) : 'not picked (it waits in Ready)'],
-      ['Your OK', c.status === 'Draft' ? 'not yet' : '✓ ready']
+      ['Your OK', c.status === 'Draft' ? 'not yet' : '✓ approved']
     ].map(([k, v]) => {
-      const okk = k === 'Day' ? !!c.publishDate : missing.indexOf(k) < 0;
-      return h('div', { class: 'chk ' + (okk ? 'ok' : k === 'Day' ? '' : 'todo') }, h('span', { class: 'cb' }, okk ? '✓' : k === 'Day' ? '–' : '!'), h('b', { style: 'font-weight:600' }, k), h('span', { class: 'cv', dir: 'auto' }, v));
+      const okk = missing.indexOf(k) < 0;
+      return h('div', { class: 'chk ' + (okk ? 'ok' : 'todo') }, h('span', { class: 'cb' }, okk ? '✓' : '!'), h('b', { style: 'font-weight:600' }, k), h('span', { class: 'cv', dir: 'auto' }, v));
     })),
-    c.status === 'Draft' ? h('button', { type: 'button', class: 'btn good block', style: 'margin-top:12px;min-height:46px',
-      onclick: (e) => run(e.currentTarget, 'cal.save', Object.assign({}, f, { status: 'Final', capEdits: undefined, captions: f.capEdits && Object.keys(f.capEdits).length ? f.capEdits : undefined }), c.id + ' is ready ✓', { keepSheet: true, refresh: true }) },
-      missing.length > 1 ? '✓ It\'s ready (the rest is fine as it is)' : '✓ It\'s ready') : null) : null;
+    field('Day', dayBox, 'Optional. With a day it goes on the calendar (once approved); without one it waits in Ready.'),
+    approveBtn,
+    ideaTasks.length && !inWork ? h('button', { type: 'button', class: 'btn block', style: 'margin-top:8px', onclick: () => reworkSheet(c, ideaTasks) }, '↩ Back to tasks (change the media, the cover…)') : null) : null;
   const body = h('div', null,
     c ? [h('div', { class: 'pk' }, icon(kindIcon(c.type)), dots(c.type, c.id)), h('h1', { class: 'ptitle', dir: 'auto', style: 'margin-bottom:12px' }, firstLine(c.idea) || c.id),
       h('div', { class: 'ptags', style: 'margin:-2px 0 12px' }, postStateTag(c))] : ideaSel,
@@ -4751,8 +4831,8 @@ function calSheet(key, ideaId, o) {
     state,
     slotsBox,
     h('div', { class: 'two' },
-      field('Publish date', dateField(f.publishDate, (v) => { f.publishDate = v; }, { anyDay: true, clearable: true })),
-      field('Status', selectBox([{ value: 'Draft', label: 'Draft' }, { value: 'Final', label: 'Final · ready' }, { value: 'Published', label: 'Published' }, { value: 'Cancelled', label: 'Cancelled' }],
+      ready ? h('div') : field('Publish date', dateField(f.publishDate, (v) => { f.publishDate = v; }, { anyDay: true, clearable: true, placeholder: 'No day yet' })),
+      field('Status', selectBox([{ value: 'Draft', label: 'Draft · needs your OK' }, { value: 'Final', label: 'Approved' }, { value: 'Published', label: 'Published' }, { value: 'Cancelled', label: 'Cancelled' }],
         f.status, (v) => { f.status = v; }, { full: true }))),
     field('Platforms', platformsBox),
     captionsBox(c, f),
@@ -4951,14 +5031,43 @@ function playView() {
    ====================================================================== */
 function moreView() {
   if (!isAdmin()) return h('div', null, h('div', { class: 'page-head' }, h('h1', null, 'Activity')), activityView());
-  const secs = [['team', 'Team'], ['auto', 'Flows'], ['captions', 'Captions'], ['app', 'App'], ['activity', 'Activity']];
+  const secs = [['team', 'Team'], ['auto', 'Flows'], ['captions', 'Captions'], ['app', 'App'], ['archive', 'Archive'], ['activity', 'Activity']];
   if (S.ui.more === 'settings') S.ui.more = 'captions';
   const cur = secs.some((x) => x[0] === S.ui.more) ? S.ui.more : 'team';
-  const views = { team: teamView, auto: autoTasksView, captions: captionsView, app: appSettingsView, activity: activityView };
+  const views = { team: teamView, auto: autoTasksView, captions: captionsView, app: appSettingsView, archive: archiveView, activity: activityView };
   return h('div', null,
     h('div', { class: 'page-head' }, h('h1', null, 'More')),
     h('div', { class: 'chips-row', style: 'margin-bottom:10px' }, secs.map(([v, l]) => h('button', { class: 'chip' + (cur === v ? ' on' : ''), onclick: () => { S.ui.more = v; S.ui.log = null; S.enter = true; render(); } }, l))),
     views[cur]());
+}
+
+/**
+ * The archive: all the work that's done (newest first), and every deleted task (like a bin: bring one back). Nothing
+ * here is ever removed for good. Tap one to open it.
+ */
+function archiveView() {
+  const st = S.state;
+  const segv = S.ui.archive === 'deleted' ? 'deleted' : 'done';
+  const q = (S.ui.archiveQ || '').trim().toLowerCase();
+  const match = (t) => !q || (t.id + ' ' + t.task + ' ' + t.idea + ' ' + (t.assignee || '') + ' ' + (t.type || '')).toLowerCase().indexOf(q) >= 0;
+  const when = (t) => (t.updatedAt || t.delivered || t.deadline || '');
+  const newest = (a, b) => when(b).localeCompare(when(a));
+  const done = st.tasks.filter((t) => !t.cancelled && stageOf(t) === 'done');
+  const gone = st.tasks.filter((t) => t.cancelled);
+  const items = (segv === 'done' ? done : gone).filter(match).sort(newest);
+  const row = (t) => {
+    const p = taskParts(t);
+    return itemRow({ key: t.key, onclick: () => openTask(t.key, { back: 'Archive' }), icon: kindIcon(t.type, t.linkRole), title: rowTitle(p.main, p.part),
+      state: segv === 'deleted' ? h('button', { type: 'button', class: 'btn tiny', onclick: (e) => { e.stopPropagation(); setTaskCancelled(t, false); } }, '↩ Bring back')
+        : h('span', { class: 'st green' }, '✓ Done'),
+      id: t.id, who: t.assignee || '', when: when(t) ? fmtShort(when(t).slice(0, 10)) : '' });
+  };
+  return h('div', null,
+    seg([{ value: 'done', label: 'Done', n: done.length }, { value: 'deleted', label: 'Deleted', n: gone.length }], segv, (v) => { S.ui.archive = v; render(); }),
+    h('input', { class: 'in', type: 'search', enterkeyhint: 'search', placeholder: 'Search names, people, IDs…', value: S.ui.archiveQ || '', dir: 'auto', style: 'margin:10px 0',
+      oninput: (e) => { S.ui.archiveQ = e.target.value; clearTimeout(S.archT); S.archT = setTimeout(() => { render(); const el = document.querySelector('.main input[type=search]'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 250); } }),
+    h('div', { class: 'small muted', style: 'margin:0 2px 8px' }, segv === 'done' ? 'Every approved task, newest first. The Tasks board shows only today and yesterday.' : 'Deleted tasks wait here. Bring one back and it\'s on its board again.'),
+    list(items.map(row), q ? 'Nothing matches.' : segv === 'done' ? 'Nothing done yet.' : 'Nothing deleted.'));
 }
 
 function teamView() {
