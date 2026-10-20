@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = true; window.KATAL_VERSION = '3c1823d9bc32';</script>
+<script>window.KATAL_PWA = true; window.KATAL_VERSION = '88540b38c1c7';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -170,6 +170,7 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 .seg.cap-tabs { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
 .seg.cap-tabs::-webkit-scrollbar { display: none; }
 .seg.cap-tabs button { flex: 1 0 auto; }
+.seg.cap-tabs .miss-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); flex: none; }
 .seg button .n { font-size: 11px; background: var(--gold); color: #fff; border-radius: 999px; min-width: 17px; height: 17px; padding: 0 5px; display: inline-grid; place-items: center; }
 .subnav { display: flex; gap: 14px; align-items: center; margin: -6px 0 12px; font-size: 13px; }
 .subnav button { border: 0; background: none; padding: 4px 0; color: var(--muted); cursor: pointer; font-weight: 500; display: inline-flex; gap: 5px; align-items: center; }
@@ -4290,13 +4291,36 @@ function postMissing(c) {
   const on = Object.keys(c.platforms || {}).filter((p) => c.platforms[p]);
   if (!c.mediaLink && !(c.mediaFiles || []).length) out.push('Media');
   if (!on.length) out.push('Platforms');
-  const caps = c.captions || {};
-  const written = (x) => x && (x.status === 'Waiting' || ['text', 'story', 'title', 'spotlight', 'description'].some((k) => String(x[k] || '').trim()));
-  if (on.length && on.some((p) => !written(caps[p])) && !String(c.caption || '').trim()) out.push('Captions');
+  if (on.length && captionsMissing(c).length) out.push('Captions');
   if (c.status === 'Draft') out.push('Your OK');
   return out;
 }
 function postNeedsYou(c) { return c.status !== 'Published' && c.status !== 'Cancelled' && postMissing(c).length > 0; }
+/** The field that is the caption, by the platform's skill (TikTok's title or YouTube's tags alone aren't a caption). */
+const CAP_MAIN = { youtube: ['title', 'description'], snapchat: ['spotlight', 'story', 'text'] };
+/** A platform's caption is there (or being written). */
+function capWritten(x, platform) {
+  if (!x) return false;
+  if (x.status === 'Waiting') return true;
+  const styles = (S.state.settings && S.state.settings.captionStyles) || {};
+  const fmt = (styles[platform] || {}).format || String(platform || '').toLowerCase();
+  return (CAP_MAIN[fmt] || ['text']).some((k) => String(x[k] || '').trim());
+}
+/** The post's platforms still without a caption (none once a caption is typed on the post itself). */
+function captionsMissing(c) {
+  if (String(c.caption || '').trim()) return [];
+  const caps = c.captions || {};
+  return Object.keys(c.platforms || {}).filter((p) => c.platforms[p] && !capWritten(caps[p], p));
+}
+/** What a post still needs, in words, naming the platforms: "media, TikTok caption, approval". */
+function missingText(c) {
+  return postMissing(c).map((k) => {
+    if (k === 'Your OK') return 'approval';
+    if (k !== 'Captions') return k.toLowerCase();
+    const ps = captionsMissing(c);
+    return ps.length > 2 ? ps.length + ' captions' : ps.join(' & ') + ' caption';
+  }).join(', ');
+}
 
 /** Posts marked posted in the last two weeks, newest first. */
 function postedPosts() {
@@ -4330,7 +4354,7 @@ function postState(c) {
   if (postInWork(c)) return { text: 'Draft · back in the tasks', cls: 'faint' };
   if (c.status === 'Draft') return isAdmin() ? { text: 'Needs approval', cls: 'gold' } : { text: 'Waiting for approval', cls: 'faint' };
   if (c.publishDate && c.publishDate < S.state.today) return { text: 'Did it go out?', cls: 'red' };
-  if (isAdmin() && postNeedsYou(c)) return { text: 'Needs ' + postMissing(c).join(', ').toLowerCase(), cls: 'gold' };
+  if (isAdmin() && postNeedsYou(c)) return { text: 'Needs ' + missingText(c), cls: 'gold' };
   return { text: c.publishDate ? '✓ Scheduled' : '✓ Ready', cls: 'green' };
 }
 function postStateTag(c) { const x = postState(c); return h('span', { class: 'st ' + x.cls }, x.text); }
@@ -4348,7 +4372,7 @@ function postRow(c, opts) {
     act('Delete', 'tiny ghost danger-text', () => ask('Delete ' + (firstLine(c.idea) || c.id) + '? It goes to Ready → Deleted (you can bring it back).', 'Delete', true).then((ok) => { if (ok) calMove(c, 'cancel'); }))] : null;
   return itemRow({ acts,
     onclick: open, icon: kindIcon(c.type), title: rowTitle(firstLine(c.idea) || c.id),
-    state: needs ? h('span', { class: 'st gold' }, 'Needs ' + postMissing(c).join(', ').toLowerCase().replace('your ok', 'approval')) : postStateTag(c),
+    state: needs ? h('span', { class: 'st gold' }, 'Needs ' + missingText(c)) : postStateTag(c),
     who: on.length ? h('span', { class: 'pfs' }, on.map((p) => pfIcon(p, 12))) : h('span', { class: 'faint' }, 'No platform'),
     when: c.publishDate ? dayShort(c.publishDate) : opts.needs ? '' : 'No date',
     marks: [commentMark(c.id), opts.postedAt && c.publishedAt ? h('span', { class: 'small faint' }, 'marked ' + fmtDT(c.publishedAt)) : null,
@@ -4698,7 +4722,7 @@ function rhythmCellSheet(d, p, o) {
   const ready = readyPosts().concat(draftPosts().filter((c) => !c.publishDate));
   const can = isAdmin() && d >= S.state.today;
   const pick = () => openSheet('Ready posts · ' + p + ', ' + dayShort(d), ready.length ? h('div', { class: 'list' }, ready.map((c) => h('div', { class: 'lrow', style: 'cursor:default' },
-    h('div', { class: 'main-col' }, h('div', { class: 't', dir: 'auto' }, firstLine(c.idea) || c.id), h('div', { class: 's' }, dots(c.type, c.status === 'Draft' ? 'needs approval' : postNeedsYou(c) ? 'needs: ' + postMissing(c).join(', ').toLowerCase() : '✓ ready'))),
+    h('div', { class: 'main-col' }, h('div', { class: 't', dir: 'auto' }, firstLine(c.idea) || c.id), h('div', { class: 's' }, dots(c.type, c.status === 'Draft' ? 'needs approval' : postNeedsYou(c) ? 'needs ' + missingText(c) : '✓ ready'))),
     h('button', { class: 'btn small primary', onclick: (e) => schedulePostTo(c, d, p, e.currentTarget) }, 'Put it here'))))
     : h('div', { class: 'empty' }, 'No ready posts right now.'));
   openSheet(p + ' · ' + dayLong(d), h('div', null,
@@ -4821,7 +4845,17 @@ function captionsBox(c, f) {
       const fields = CAP_FIELDS[fmt].filter((d) => !d.only || src[d.k] !== undefined || (mine && mine[d.k] !== undefined));
       const editable = fields.filter((d) => !d.options);
       const val = (k) => (mine && mine[k] !== undefined ? mine[k] : k === 'tags' ? (src.tags || []).join(', ') : String(src[k] || ''));
-      const set = (k, v) => { f.capEdits[tab] = Object.assign(Object.fromEntries(editable.map((d) => [d.k, val(d.k)])), f.capEdits[tab] || {}, { [k]: v }); };
+      // A platform still without its caption has a red dot on its tab (it goes as soon as one is typed).
+      const empty = (p) => !String(cur.caption || '').trim() && !capWritten(caps[p], p) && !(f && f.capEdits[p] && capWritten(Object.assign({}, caps[p], f.capEdits[p]), p));
+      const missDot = () => h('span', { class: 'miss-dot', title: 'No caption yet', 'aria-label': 'no caption yet' });
+      let tabsEl = null;
+      const markTab = () => {
+        const b = tabsEl && tabsEl.querySelector('button.on');
+        const dot = b && b.querySelector('.miss-dot');
+        if (b && empty(tab) && !dot) b.append(missDot());
+        if (dot && !empty(tab)) dot.remove();
+      };
+      const set = (k, v) => { f.capEdits[tab] = Object.assign(Object.fromEntries(editable.map((d) => [d.k, val(d.k)])), f.capEdits[tab] || {}, { [k]: v }); markTab(); };
       const ask2 = (e) => {
         const btn = e.currentTarget;
         const go = () => { delete f.capEdits[tab]; run(btn, 'agent.ask', { entity: 'cal', key: c.key, platform: tab }, 'Writing another ' + tab + ' caption…', { keepSheet: true }); };
@@ -4864,7 +4898,9 @@ function captionsBox(c, f) {
           : val(d.k) ? [h('div', { class: 'cap-k' }, d.label, copyBtn(() => val(d.k))), h('div', { class: 'pre', dir: 'auto' }, val(d.k))] : null)];
       } else content = h('div', { class: 'small faint' }, 'Not written yet.');
       const tabs = on.length > 1 ? h('div', { class: 'seg cap-tabs', style: 'margin-bottom:6px' }, on.map((p) => h('button', { type: 'button', class: p === tab ? 'on' : '',
-        onclick: () => { S.ui.capTab = Object.assign({}, S.ui.capTab, { [id]: p }); refreshLive(); } }, pfIcon(p, 13), p))) : null;
+        onclick: () => { S.ui.capTab = Object.assign({}, S.ui.capTab, { [id]: p }); refreshLive(); } }, pfIcon(p, 13), p,
+        empty(p) ? missDot() : null))) : null;
+      tabsEl = tabs;
       // The chosen tab stays in view when the row is wider than the phone.
       if (tabs) requestAnimationFrame(() => { const b = tabs.querySelector('.on'); if (b) tabs.scrollLeft = Math.max(0, b.offsetLeft - (tabs.clientWidth - b.offsetWidth) / 2); });
       perPlatform = [
@@ -5007,7 +5043,7 @@ function calSheet(key, ideaId, o) {
     h('div', { class: 'checks' }, [
       ['Media', (c.mediaFiles || []).length > 1 ? c.mediaFiles.length + ' files' : c.mediaLink ? '1 file' : 'missing'],
       ['Platforms', Object.keys(c.platforms).filter((x) => c.platforms[x]).join(', ') || 'none picked'],
-      ['Captions', missing.indexOf('Captions') >= 0 ? 'not written yet' : 'written'],
+      ['Captions', missing.indexOf('Captions') >= 0 ? captionsMissing(c).join(', ') + ' not written yet' : 'written'],
       ['Your OK', c.status === 'Draft' ? 'not yet' : '✓ approved']
     ].map(([k, v]) => {
       const okk = missing.indexOf(k) < 0;
