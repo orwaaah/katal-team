@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-817c55053ae5';</script>
+<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-487db971b3b5';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -969,6 +969,27 @@ const sb = window.supabase.createClient(CFG.url, CFG.key, {
   auth: Object.assign({ storage: authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }, CFG.storageKey ? { storageKey: CFG.storageKey } : {})
 });
 const emailOf = (username) => String(username || '').trim().toLowerCase() + '@' + CFG.emailDomain;
+/*
+ * The test version signs in with its own server (any test person, one shared password), so nobody's real password
+ * is used there. Its token is kept apart from the team's app.
+ */
+if (CFG.test) {
+  const TK = 'katal.test.token';
+  const store = () => { try { return localStorage.getItem('katal.remember') !== '0' ? localStorage : sessionStorage; } catch (e) { return null; } };
+  const read = () => { try { return localStorage.getItem(TK) || sessionStorage.getItem(TK); } catch (e) { return null; } };
+  sb.auth.getSession = async () => { const t = read(); return { data: { session: t ? { access_token: t } : null } }; };
+  sb.auth.signInWithPassword = async ({ email, password }) => {
+    try {
+      const r = await fetch(CFG.url + '/functions/v1/' + CFG.fn, { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'test.login', payload: { username: email.split('@')[0], password } }) }).then((x) => x.json());
+      if (!r.ok) return { error: { message: r.error } };
+      const st = store(); if (st) st.setItem(TK, r.data.token);
+      return { error: null };
+    } catch (e) { return { error: { message: 'Connection problem. Check your internet and try again.' } }; }
+  };
+  sb.auth.signOut = async () => { try { localStorage.removeItem(TK); sessionStorage.removeItem(TK); } catch (e) { /* ignore */ } return { error: null }; };
+  sb.auth.updateUser = async () => ({ error: { message: 'Passwords don\'t change in the test version (it\'s ' + 12 + ' for everyone).' } });
+}
 
 /* ======================================================================
    Server calls
@@ -2887,8 +2908,8 @@ function loginScreen() {
   field('Password', password(f, 'password', { autocomplete: 'current-password', required: true })),
   h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: true, onchange: (e) => { f.remember = e.target.checked; } }), 'Stay logged in'),
   h('div', { style: 'height:10px' }), btn);
-  const box = authBox('Welcome back', null, form);
-  box.append(h('div', { class: 'foot' }, h('button', { type: 'button', class: 'btn ghost small', onclick: () => { S.screen = 'recover'; render(); } }, 'Admin: forgot password?')));
+  const box = authBox('Welcome back', CFG.test ? 'Test version: orwah, nisreen, mohammed, ibrahim or m.khatib · password 12 for everyone.' : null, form);
+  if (!CFG.test) box.append(h('div', { class: 'foot' }, h('button', { type: 'button', class: 'btn ghost small', onclick: () => { S.screen = 'recover'; render(); } }, 'Admin: forgot password?')));
   return box;
 }
 
@@ -3182,7 +3203,7 @@ function accountSheet() {
     h('p', { class: 'muted small', style: 'margin-top:0' }, [S.me.title, '@' + S.me.username, S.me.role].filter(Boolean).join(' · ')),
     telegramBox(),
     installBox(),
-    h('details', { class: 'more' }, h('summary', null, 'Change password'),
+    CFG.test ? null : h('details', { class: 'more' }, h('summary', null, 'Change password'),
       field('Current password', password(f, 'current', { autocomplete: 'current-password' })),
       field('New password', password(f, 'next', { autocomplete: 'new-password', placeholder: '8+ characters' })),
       field('New password again', password(f, 'again', { autocomplete: 'new-password' })),
