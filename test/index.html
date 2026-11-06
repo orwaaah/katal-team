@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-f650fb53f217';</script>
+<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-703abc10fe0e';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -956,7 +956,7 @@ body.dragging-now, body.dragging-now * { cursor: grabbing !important; user-selec
 .fc-top .kind svg { width: 16px; height: 16px; color: var(--muted); }
 .fc-top .sp { flex: 1; }
 .fc-t { font-size: 15px; font-weight: 650; margin-bottom: 8px; }
-.fc-t[role=button] { cursor: pointer; }
+.fcard[role=button] { cursor: pointer; }
 /* Stories: just the media and its sign. */
 .scards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 .scard { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; display: flex; flex-direction: column; gap: 6px; }
@@ -2998,7 +2998,9 @@ function leaveApp() {
   try { if (n) history.go(-n); else history.back(); } catch (e) { /* ignore */ }
 }
 /** Where the app is: the tab, and inside the Calendar tab its tab and Ready's small tab ("calendar:ready:need"). */
-function viewKey() { return S.ui.tab === 'calendar' ? ['calendar', S.ui.calSeg || 'calendar', S.ui.readySeg || 'ready'].join(':') : S.ui.tab; }
+function viewKey() {
+  return S.ui.tab === 'calendar' ? ['calendar', S.ui.calSeg || 'calendar', S.ui.readySeg || 'ready', (S.ui.finSeg || '').replace(':', '~'), S.ui.storySeg || ''].join(':') : S.ui.tab;
+}
 /** A tab inside a tab (Ready, Needs approval…): Back comes back to the one before, like a tab. */
 function subGo(set) {
   const before = viewKey();
@@ -3019,8 +3021,8 @@ window.addEventListener('popstate', () => {
   let prev = (S.tabHist || []).pop();
   while (prev && prev === viewKey()) prev = S.tabHist.pop();
   if (prev) {
-    const [tab, calSeg, readySeg] = prev.split(':');
-    goTab(tab, calSeg ? { calSeg, readySeg } : null, true);
+    const [tab, calSeg, readySeg, finSeg, storySeg] = prev.split(':');
+    goTab(tab, calSeg ? { calSeg, readySeg, finSeg: (finSeg || '').replace('~', ':'), storySeg: storySeg || '' } : null, true);
     return;
   }
   const home = isStaff() ? 'today' : 'tasks';
@@ -4474,7 +4476,7 @@ function ideaRoad(i) {
           : i.postDate ? 'Planned for ' + dayLong(i.postDate) + (i.postPlatform ? ' · ' + i.postPlatform : '') + ' · made by itself when the work is approved' : 'Made by itself when the work is approved (a cover can follow)')] }));
   } else {
     const w = (S.state.finished || []).find((x) => x.id === i.id);
-    rows.push(li({ ok: !!(w && w.out), rc: w && w.out ? 'var(--st-done)' : 'var(--card)', rr: w ? 'transparent' : '#d8d2c7', flat: !w,
+    rows.push(li({ ok: !!(w && w.out), rc: w && w.out ? 'var(--st-done)' : 'var(--card)', rr: w ? 'transparent' : '#d8d2c7', flat: !w, onclick: w ? () => workPage(i.id, { back: i.id }) : null,
       inner: [h('div', { class: 'rt' }, destLabel(dest)), h('div', { class: 'rs' }, w ? (w.out ? w.out + ' ' + fmtShort((w.outAt || '').slice(0, 10)) : 'In Calendar → ' + (dest === 'Campaign' ? 'Campaigns' : destLabel(dest)))
         : 'Goes to Calendar → ' + (dest === 'Campaign' ? 'Campaigns' : destLabel(dest)) + ' when the work is approved')] }));
   }
@@ -4805,11 +4807,12 @@ function coverMissing(c) {
 }
 function livePost(c) { return c.status !== 'Published' && c.status !== 'Cancelled' && !postInWork(c); }
 /** Waiting for Orwah's OK. */
-function draftPosts() { return (S.state.calendar || []).filter((c) => c.status === 'Draft' && livePost(c)); }
+function socialPost(c) { return destOf(c) === 'Social'; }
+function draftPosts() { return (S.state.calendar || []).filter((c) => c.status === 'Draft' && livePost(c) && socialPost(c)); }
 /** Approved, no day yet. */
-function readyPosts() { return (S.state.calendar || []).filter((c) => c.status === 'Final' && !c.publishDate && livePost(c)); }
+function readyPosts() { return (S.state.calendar || []).filter((c) => c.status === 'Final' && !c.publishDate && livePost(c) && socialPost(c)); }
 /** On the calendar: approved, with a day (and what went out). */
-function onCalendar(c) { return (c.status === 'Final' || c.status === 'Published') && !!c.publishDate && !postInWork(c); }
+function onCalendar(c) { return (c.status === 'Final' || c.status === 'Published') && !!c.publishDate && !postInWork(c) && socialPost(c); }
 /**
  * Posts in the making: an approved idea for social media whose work isn't all approved yet (or went back to the
  * team). Not personal work, not general work, not a type that never becomes a post.
@@ -4867,15 +4870,20 @@ function missingText(c) {
 
 /** Posts marked posted in the last two weeks, newest first. */
 function postedPosts() {
-  const st = S.state;
-  const since = addDays(st.now.slice(0, 10), -14) + st.now.slice(10);
-  return (st.calendar || []).filter((c) => c.status === 'Published' && c.publishedAt >= since)
-    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  return (S.state.calendar || []).filter((c) => c.status === 'Published' && socialPost(c))
+    .sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || ''));
 }
+/** A search over a long list (posted, deleted, archived): name, ID, who. Kept while the list is open. */
+function listSearch(key, placeholder) {
+  return h('input', { class: 'in', type: 'search', enterkeyhint: 'search', placeholder: placeholder || 'Search…', value: (S.ui.listQ || {})[key] || '', dir: 'auto', style: 'margin:0 0 10px',
+    'data-key': key, oninput: (e) => { S.ui.listQ = Object.assign({}, S.ui.listQ, { [key]: e.target.value }); clearTimeout(S.searchT);
+      S.searchT = setTimeout(() => { render(); const el = document.querySelector('.main input[data-key="' + key + '"]'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 250); } });
+}
+function listMatch(key, text) { const q = ((S.ui.listQ || {})[key] || '').trim().toLowerCase(); return !q || String(text || '').toLowerCase().indexOf(q) >= 0; }
 
 /** Approved posts whose day passed and that never went out: the app asks about them. */
 function missedPosts() {
-  return (S.state.calendar || []).filter((c) => c.status === 'Final' && c.publishDate && c.publishDate < S.state.today && !postInWork(c))
+  return (S.state.calendar || []).filter((c) => c.status === 'Final' && c.publishDate && c.publishDate < S.state.today && !postInWork(c) && socialPost(c))
     .sort((a, b) => a.publishDate.localeCompare(b.publishDate));
 }
 
@@ -4978,6 +4986,12 @@ function reworkSheet(c, tasks) {
     field('What to change', area(f, 'note', { rows: 3, placeholder: 'e.g. a new cover with the price on it' }))), send);
 }
 
+/** From a post that went out or was deleted: its work back to the team, with what to change. */
+function backToTasks(c) {
+  const tasks = (S.state.tasks || []).filter((t) => t.id === c.id && !t.cancelled);
+  return tasks.length ? h('button', { class: 'btn tiny', onclick: () => reworkSheet(c, tasks) }, '↩ Back to tasks (a change)') : null;
+}
+
 /** Read-only view of a post (team and manager). */
 function postViewSheet(c) {
   const l = linkLabels(c.type);
@@ -4997,7 +5011,8 @@ function postViewSheet(c) {
 }
 
 function postedList() {
-  return list(postedPosts().filter(calMatch).map((c) => postRow(c, { postedAt: true })), 'Nothing marked posted in the last two weeks.');
+  const items = postedPosts().filter(calMatch).filter((c) => listMatch('posted', c.id + ' ' + c.idea));
+  return h('div', null, listSearch('posted', 'Search posted posts…'), list(items.map((c) => postRow(c, { postedAt: true })), 'Nothing posted yet.'));
 }
 
 /** The platform and type filters of the Calendar tab (they apply to every list in it). */
@@ -5058,8 +5073,8 @@ function readyView() {
   const lists = {
     ready: () => readyPosts().filter(calMatch).sort(newest),
     need: () => draftPosts().filter(calMatch).sort(newest),
-    posted: () => postedPosts().filter(calMatch),
-    deleted: () => st.calendar.filter((c) => c.status === 'Cancelled' && calMatch(c)).sort(newest)
+    posted: () => postedPosts().filter(calMatch).filter((c) => listMatch('posted', c.id + ' ' + c.idea)),
+    deleted: () => st.calendar.filter((c) => c.status === 'Cancelled' && socialPost(c) && calMatch(c) && listMatch('deleted', c.id + ' ' + c.idea)).sort(newest)
   };
   // A post still in the tasks: its own platforms, or the ones its idea will go on.
   const making = postsInMaking().filter((x) => calMatch(x.post || { type: x.idea.type, platforms: Object.fromEntries(plannedPlatforms(x.idea).map((p) => [p, true])) }));
@@ -5074,16 +5089,17 @@ function readyView() {
       list(making.map(makingRow), 'Nothing in the making right now.')];
   } else {
     const items = lists[sub]();
-    const empty = { ready: 'Nothing ready to post. Approved posts without a day wait here.', need: 'Nothing waiting for your approval.', posted: 'Nothing marked posted in the last two weeks.', deleted: 'No deleted posts.' }[sub];
+    const empty = { ready: 'Nothing ready to post. Approved posts without a day wait here.', need: 'Nothing waiting for your approval.', posted: 'Nothing posted yet.', deleted: 'No deleted posts.' }[sub];
     content = [
+      sub === 'posted' || sub === 'deleted' ? listSearch(sub, sub === 'posted' ? 'Search posted posts…' : 'Search deleted posts…') : null,
+      sub === 'posted' || sub === 'deleted' ? hint('Open one to see it all, or send it back to the team for a change.') : null,
       sub === 'ready' && items.length ? hint('Approved. Open one and give it a day: it goes on the calendar.') : null,
       sub === 'need' && items.length ? hint('Its work is approved: look at the captions and the platforms, then Approve.') : null,
       list(items.map((c) => postRow(c, sub === 'need' ? { needs: true } : sub === 'posted' ? { postedAt: true } : {})), empty)];
   }
   return h('div', null,
     h('div', { class: 'subtabs', role: 'group', 'aria-label': 'Ready' },
-      tab('ready', 'Ready'), tab('need', 'Needs approval', n.need ? 'gold' : ''), tab('draft', 'Draft'),
-      h('span', { class: 'minors' }, minor('posted', 'Posted'), minor('deleted', 'Deleted'))),
+      tab('ready', 'Ready'), tab('need', 'Needs approval', n.need ? 'gold' : ''), tab('draft', 'Draft'), tab('posted', 'Posted'), tab('deleted', 'Deleted')),
     content);
 }
 
@@ -5212,7 +5228,7 @@ function finishedView(dest) {
   const items = (st.finished || []).filter((w) => w.dest === dest);
   const outName = dest === 'Blog' ? 'Posted' : 'Archived';
   const sub = S.ui.finSeg === dest + ':out' ? 'out' : 'in';
-  const shown = items.filter((w) => (sub === 'out' ? !!w.out : !w.out));
+  const shown = items.filter((w) => (sub === 'out' ? !!w.out : !w.out)).filter((w) => sub === 'in' || listMatch('fin:' + dest, w.id + ' ' + w.name + ' ' + w.by.join(' ')));
   const can = admin || (dest === 'Blog' && S.me.blog);
   const nOut = items.filter((w) => w.out).length;
   const label = { Blog: 'Blog', External: 'External', Campaign: 'Campaigns' }[dest];
@@ -5221,7 +5237,8 @@ function finishedView(dest) {
   return h('div', null,
     h('div', { class: 'subtabs', role: 'group' },
       h('button', { type: 'button', class: 'chip' + (sub === 'in' ? ' on' : ''), onclick: () => subGo({ finSeg: '' }) }, label, items.length - nOut ? h('span', { class: 'n' }, String(items.length - nOut)) : null),
-      h('span', { class: 'minors' }, h('button', { type: 'button', class: 'minor' + (sub === 'out' ? ' on' : ''), onclick: () => subGo({ finSeg: dest + ':out' }) }, outName + (nOut ? ' · ' + nOut : '')))),
+      h('button', { type: 'button', class: 'chip' + (sub === 'out' ? ' on' : ''), onclick: () => subGo({ finSeg: dest + ':out' }) }, outName, nOut ? h('span', { class: 'n' }, String(nOut)) : null)),
+    sub === 'out' ? [listSearch('fin:' + dest, 'Search ' + outName.toLowerCase() + '…'), h('div', { class: 'small muted', style: 'margin:0 2px 8px' }, 'Open one to see it all, or send it back to the team for a change.')] : null,
     shown.length ? h('div', { class: 'fcards' }, shown.map((w) => finishedCard(w, can))) : h('div', { class: 'empty' }, empty));
 }
 function finishedCard(w, can) {
@@ -5231,12 +5248,13 @@ function finishedCard(w, can) {
     instant((st) => { const x = (st.finished || []).find((k) => k.id === w.id); if (x) { x.out = out ? word : ''; x.outAt = out ? st.now : ''; } },
       'work.out', { id: w.id, out }, out ? w.id + (w.dest === 'Blog' ? ' · in Posted' : ' · archived') : w.id + ' · back', null, { keepSheet: true });
   };
-  const open = isStaff() ? () => ideaPage(w.id) : null;
-  return h('div', { class: 'fcard' },
+  const open = () => workPage(w.id);
+  return h('div', { class: 'fcard', role: 'button', tabindex: 0, onclick: (e) => { if (!selecting(e) && !e.target.closest('button, a')) open(); },
+    onkeydown: (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); } },
     h('div', { class: 'fc-top' }, h('span', { class: 'kind', 'aria-hidden': 'true' }, icon(kindIcon(w.type))), h('span', { class: 'm-id' }, w.id),
       h('span', { class: 'small muted' }, dots(w.by.join(', '), w.approvedAt ? fmtShort(w.approvedAt.slice(0, 10)) : null)), h('span', { class: 'sp' }),
       w.dest === 'Blog' && !w.cover ? h('span', { class: 'st orange' }, 'Missing image') : null),
-    h('div', Object.assign({ class: 'fc-t', dir: 'auto' }, open ? { role: 'button', tabindex: 0, onclick: open } : {}), firstLine(w.name)),
+    h('div', { class: 'fc-t', dir: 'auto' }, firstLine(w.name)),
     w.files.length ? fileTiles(w.files, { id: w.id, video: w.type === 'Video' }) : null,
     w.dest === 'Blog' && w.cover ? h('div', { class: 'files' }, fileLink(w.cover, { id: w.id }, 'Image')) : null,
     w.dest === 'Campaign' && w.captions.length ? w.captions.map((c) => h('div', { class: 'capbox' }, h('div', { class: 'cap-k' }, h('span', null, 'Caption · ' + c.by)),
@@ -5245,6 +5263,62 @@ function finishedCard(w, can) {
       w.out ? h('span', { class: 'small faint grow' }, word + ' ' + fmtShort((w.outAt || '').slice(0, 10))) : h('span', { class: 'grow' }),
       can ? (w.out ? h('button', { type: 'button', class: 'btn tiny', onclick: (e) => toggle(e, false) }, '↩ Back')
         : h('button', { type: 'button', class: 'btn good small', onclick: (e) => toggle(e, true) }, '✓ ' + word)) : null));
+}
+
+/**
+ * One piece of finished work (a blog, external work, a campaign), whole: its files, captions, its tasks, comments. It
+ * can be marked Done / Posted (or taken back), and its work sent back to the team for a change: after the print, after
+ * it's online. Nothing finished is ever lost.
+ */
+function workPage(id, o) {
+  o = o || {};
+  const w = (S.state.finished || []).find((x) => x.id === id);
+  if (!w) { if (o.replace) closeSheet(false, { noRebuild: true }); else toast('It\'s back with the team now.'); return; }
+  const admin = isAdmin();
+  const word = w.dest === 'Blog' ? 'Posted' : 'Done';
+  const can = admin || (w.dest === 'Blog' && S.me.blog);
+  const tasks = (S.state.tasks || []).filter((t) => t.id === w.id && !t.cancelled);
+  const toggle = (out) => instant((st) => { const x = (st.finished || []).find((k) => k.id === w.id); if (x) { x.out = out ? word : ''; x.outAt = out ? st.now : ''; } },
+    'work.out', { id: w.id, out }, out ? w.id + (w.dest === 'Blog' ? ' · in Posted' : ' · archived') : w.id + ' · back in ' + destLabel(w.dest), null, { keepSheet: true });
+  const body = h('div', null,
+    h('div', { class: 'pk' }, icon(kindIcon(w.type)), dots(destLabel(w.dest), w.type !== w.dest ? w.type : null, w.by.join(', '))),
+    h('h1', { class: 'ptitle', dir: 'auto' }, firstLine(w.name)),
+    h('div', { class: 'ptags' }, h('span', { class: 'st ' + (w.out ? 'green' : 'gold') }, w.out ? '✓ ' + w.out + (w.outAt ? ' · ' + fmtShort(w.outAt.slice(0, 10)) : '') : 'Approved · waiting'),
+      w.dest === 'Blog' && !w.cover ? h('span', { class: 'st orange' }, 'Missing image') : null),
+    can || (admin && tasks.length) ? h('div', { class: 'pcard decide' },
+      can ? (w.out ? h('button', { type: 'button', class: 'btn block', onclick: () => toggle(false) }, '↩ Not ' + word.toLowerCase() + ': back to ' + destLabel(w.dest))
+        : h('button', { type: 'button', class: 'btn good block', style: 'min-height:46px', onclick: () => toggle(true) }, '✓ ' + word)) : null,
+      admin && tasks.length ? h('button', { type: 'button', class: 'btn warn block', style: 'margin-top:8px', onclick: () => workReworkSheet(w, tasks) }, '↩ Back to tasks (a change)') : null) : null,
+    h('div', { class: 'fgrid' },
+      h('div', null, h('div', { class: 'fl' }, 'Code'), h('div', { class: 'fv' }, w.id)),
+      h('div', null, h('div', { class: 'fl' }, 'Approved'), h('div', { class: 'fv' }, w.approvedAt ? fmtDT(w.approvedAt) : '—'))),
+    w.files.length || w.cover ? [h('div', { class: 'psec' }, h('h2', null, 'Files'), w.files.length ? h('span', { class: 'n' }, String(w.files.length)) : null),
+      h('div', { class: 'pcard', style: 'margin-top:0' }, w.files.length ? fileTiles(w.files, { id: w.id, video: w.type === 'Video' }) : null,
+        w.cover ? h('div', { class: 'files' }, fileLink(w.cover, { id: w.id }, w.dest === 'Blog' ? 'Image' : 'Cover')) : null)] : null,
+    w.captions.length ? [h('div', { class: 'psec' }, h('h2', null, 'Caption')), w.captions.map((c) => h('div', { class: 'capbox' },
+      h('div', { class: 'cap-k' }, h('span', null, 'Original · ' + c.by), h('button', { type: 'button', class: 'btn tiny', onclick: () => copyText(c.text) }, 'Copy')),
+      h('div', { class: 'pre', dir: 'auto' }, c.text)))] : null,
+    isStaff() && tasks.length ? [h('div', { class: 'psec' }, h('h2', null, 'The work')), list(tasks.map((t) => itemRow({ onclick: () => taskPage(t.key, { back: w.id }),
+      icon: kindIcon(t.type, t.linkRole), title: rowTitle(taskParts(t).part || t.task), state: statusBadge(t), who: t.assignee || '', when: t.deadline ? fmtShort(t.deadline) : '' })))] : null,
+    h('div', { class: 'pcard' }, commentsBox(w.id, { video: w.type === 'Video', title: false })));
+  openSheet(w.id + ' · ' + destLabel(w.dest), body, null, { page: true, back: o.back || 'Back', replace: o.replace, rebuild: () => workPage(id, { replace: true, back: o.back }) });
+}
+/** Finished work back to the team: pick what goes back (the design, the image…) and say what to change. */
+function workReworkSheet(w, tasks) {
+  const f = { picked: {}, note: '' };
+  tasks.forEach((t) => { f.picked[t.key] = t.linkRole !== 'Other'; });
+  const send = h('button', { class: 'btn primary' }, 'Send back');
+  send.onclick = () => {
+    const keys = tasks.filter((t) => f.picked[t.key]).map((t) => t.key);
+    if (!keys.length) { toast('Pick what goes back.', true); return; }
+    if (!f.note.trim()) { toast('Write what should change.', true); return; }
+    run(send, 'work.rework', { id: w.id, tasks: keys, note: f.note.trim() }, 'Back with the team · it comes back here once approved');
+  };
+  openSheet('Back to tasks · ' + w.id, h('div', null,
+    h('p', { class: 'muted small', style: 'margin-top:0' }, 'They get it back with your note (red at the top of their task, and in the comments). It returns to ' + destLabel(w.dest) + ' once it\'s approved again.'),
+    tasks.map((t) => h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: f.picked[t.key], onchange: (e) => { f.picked[t.key] = e.target.checked; } }),
+      h('span', null, h('b', null, taskParts(t).part || t.task), ' · ' + (t.assignee || '')))),
+    field('What to change', area(f, 'note', { rows: 3, placeholder: 'e.g. the phone number changed' }))), send);
 }
 
 /*
@@ -5285,6 +5359,7 @@ function storyCard(s) {
     acts.push(act('↩ Needs edits', 'warn', () => storyNoteSheet(s)));
   }
   if (s.status === 'Approved' && (admin || s.mine)) acts.push(act('✓ Posted', 'good', () => set('Posted', 'story.posted', {}, s.code + ' · archived')));
+  if (admin && (s.status === 'Approved' || s.status === 'Posted')) acts.push(act('↩ Needs edits', 'warn', () => storyNoteSheet(s)));
   if (s.status === 'Posted' && (admin || s.mine)) acts.push(act('↩', '', () => set('Approved', 'story.posted', { posted: false }, s.code + ' · back')));
   if (s.mine && s.status === 'Sent') acts.push(act('↩ Recall', '', () => ask('Recall ' + s.code + '? ' + adminName() + ' won\'t see it until you send it again.', 'Recall').then((ok) => { if (ok) set('Draft', 'story.recall', {}, 'Recalled'); })));
   if (s.mine && (s.status === 'Draft' || s.status === 'Edit')) acts.push(act(s.status === 'Edit' ? 'Change & send' : 'Send', 'primary', () => addStorySheet(s)));
@@ -5752,9 +5827,9 @@ function calSheet(key, ideaId, o) {
         h('button', { class: 'btn good small', onclick: () => calMove(c, 'published') }, '✓ Posted'),
         h('button', { class: 'btn small', onclick: () => calMove(c, 'ready') }, '↩ Back to Ready')))
     : c.status === 'Published' ? h('div', { class: 'note green' }, h('div', { class: 't' }, '✓ Posted' + (c.publishedAt ? ' · ' + fmtDT(c.publishedAt) : '')),
-      h('button', { class: 'btn tiny', style: 'margin-top:6px', onclick: () => calMove(c, 'unpublish') }, '↩ It didn\'t go out'))
+      h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap' }, h('button', { class: 'btn tiny', onclick: () => calMove(c, 'unpublish') }, '↩ It didn\'t go out'), backToTasks(c)))
     : c.status === 'Cancelled' ? h('div', { class: 'note' }, h('div', { class: 't' }, 'Deleted'),
-      h('button', { class: 'btn tiny', style: 'margin-top:6px', onclick: () => calMove(c, 'ready') }, '↩ Back to Ready'))
+      h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap' }, h('button', { class: 'btn tiny', onclick: () => calMove(c, 'ready') }, '↩ Back to Ready'), backToTasks(c)))
     : null;
 
   // What it still needs, ticked off; Approve is Orwah's OK (Draft → Final). The day is up to him: with one it goes on the
