@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = true; window.KATAL_VERSION = '7b12f107deac';</script>
+<script>window.KATAL_PWA = true; window.KATAL_VERSION = 'c7a9da5562b2';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1062,7 +1062,7 @@ if (CFG.test) {
     } catch (e) { return { error: { message: 'Connection problem. Check your internet and try again.' } }; }
   };
   sb.auth.signOut = async () => { try { localStorage.removeItem(TK); sessionStorage.removeItem(TK); } catch (e) { /* ignore */ } return { error: null }; };
-  sb.auth.updateUser = async () => ({ error: { message: 'Passwords don\'t change in the test version (it\'s ' + 12 + ' for everyone).' } });
+  sb.auth.updateUser = async () => ({ error: { message: 'Passwords don\'t change in the test version (everyone uses the test password).' } });
 }
 
 /* ======================================================================
@@ -3084,7 +3084,7 @@ function loginScreen() {
   field('Password', password(f, 'password', { autocomplete: 'current-password', required: true })),
   h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: true, onchange: (e) => { f.remember = e.target.checked; } }), 'Stay logged in'),
   h('div', { style: 'height:10px' }), btn);
-  const box = authBox('Welcome back', CFG.test ? 'Test version: orwah, nisreen, mohammed, ibrahim or m.khatib · password 12 for everyone.' : null, form);
+  const box = authBox('Welcome back', CFG.test ? 'Test version: your usual username and the test password (ask Orwah).' : null, form);
   if (!CFG.test) box.append(h('div', { class: 'foot' }, h('button', { type: 'button', class: 'btn ghost small', onclick: () => { S.screen = 'recover'; render(); } }, 'Admin: forgot password?')));
   return box;
 }
