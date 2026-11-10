@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-04e435fc139d';</script>
+<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-0f769279032a';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -93,6 +93,10 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 .chat-btn { position: relative; flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.08); color: inherit; display: grid; place-items: center; cursor: pointer; padding: 0; transition: background .2s; }
 .chat-btn:hover { background: rgba(255,255,255,.16); }
 .chat-btn svg { width: 19px; height: 19px; }
+/* Find (a code or a name): the same round button, next to the chat's. */
+.find-btn { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.08); color: inherit; display: grid; place-items: center; cursor: pointer; padding: 0; transition: background .2s; }
+.find-btn:hover { background: rgba(255,255,255,.16); }
+.find-btn svg { width: 19px; height: 19px; }
 .chat-btn .dot { position: absolute; top: -3px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; line-height: 1; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--brand); }
 .topbar.as .chat-btn .dot { box-shadow: 0 0 0 2px #3a2f1c; }
 .asbar { display: flex; align-items: center; gap: 10px; padding: 8px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left)); background: var(--gold-soft); color: var(--gold-ink); font-size: 13px; }
@@ -925,6 +929,11 @@ button.cmt-tag { cursor: pointer; }
 .dayrow.past { opacity: .85; }
 .dayrow.off .dr-day { color: var(--faint); }
 .dayrow.dropon { background: var(--gold-soft); border-color: var(--gold); }
+.dayrow.empty { padding: 9px 0; }
+.dayrow.empty .dr-head { padding-bottom: 0; }
+.dayrow.empty .dr-none { margin-left: auto; font-size: 12px; color: var(--faint); }
+.dayrow.wait { border-style: dashed; }
+.dayrow.wait .dr-strip { min-height: 0; }
 .dr-head { display: flex; align-items: baseline; gap: 8px; padding: 0 12px 6px; }
 .dr-day { font-size: 12px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .dayrow.today .dr-day { color: var(--gold-ink); }
@@ -1446,11 +1455,13 @@ function icon(name) {
 }
 let toastTimer = null;
 /** A short message at the bottom; `undo` adds an Undo button for a few seconds. */
-function toast(msg, isErr, undo) {
+function toast(msg, isErr, undo, go) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   // Undo puts the data back; it never closes the page open now (that may be another one by then).
   if (undo) t.append(h('button', { type: 'button', onclick: () => { t.className = ''; S.undoing = true; try { undo(); } finally { S.undoing = false; } } }, 'Undo'));
+  // go: { label, fn } — a way to what the message is about ("Open the post").
+  if (go) { undo = undo || true; t.append(h('button', { type: 'button', onclick: () => { t.className = ''; go.fn(); } }, go.label)); }
   t.className = 'show' + (isErr ? ' err' : '') + (undo ? ' act' : '');
   clearTimeout(toastTimer);
   const ms = undo ? 6000 : isErr ? 3200 : 2400;
@@ -1958,11 +1969,16 @@ function destOf(i) {
 function destLabel(d) { return (DESTS.find((x) => x[0] === d) || [d, d])[1]; }
 /** The kinds of work (a video, a design…): the idea types that aren't a destination of their own. */
 function kindsList() { return (S.state.types || []).filter((x) => x !== 'Blog' && x !== 'Campaign'); }
+/** The ways a campaign is made (a design, a video): from its flow in More → Flows. */
+function campaignWays() { return ((S.state.flows || {}).Campaign || {}).variants || []; }
+/** The kinds to pick from for a destination: a blog has none; a campaign has its ways. */
+function destKinds(dest) { return dest === 'Social' || dest === 'External' ? kindsList() : dest === 'Campaign' ? campaignWays() : []; }
 function destToFields(dest, kind) {
-  if (dest === 'Blog' || dest === 'Campaign') return { type: dest, channel: 'Social' };
-  return { type: kind || '', channel: dest === 'External' ? 'Outside' : 'Social' };
+  if (dest === 'Campaign') return { type: dest, channel: 'Social', variant: campaignWays().indexOf(kind) >= 0 ? kind : '' };
+  if (dest === 'Blog') return { type: dest, channel: 'Social', variant: '' };
+  return { type: kind || '', channel: dest === 'External' ? 'Outside' : 'Social', variant: '' };
 }
-function destFromFields(f) { const d = destOf(f); return { dest: f.type ? d : '', kind: d === 'Social' || d === 'External' ? f.type : '' }; }
+function destFromFields(f) { const d = destOf(f); return { dest: f.type ? d : '', kind: d === 'Social' || d === 'External' ? f.type : d === 'Campaign' ? f.variant || '' : '' }; }
 /** Where the work goes, then (social media, external) what kind it is. f: { dest, kind }; onChange after each tap. */
 function destPicker(f, onChange, opts) {
   opts = opts || {};
@@ -1971,8 +1987,8 @@ function destPicker(f, onChange, opts) {
   const dests = DESTS.filter(([d]) => d === 'Social' || d === 'External' || (S.state.types || []).indexOf(d) >= 0);
   const draw = () => fill(box,
     opts.fixed ? null : field('Destination', h('div', { class: 'chips destpick' }, dests.map(([d, l]) =>
-      h('button', { type: 'button', class: 'chip' + (f.dest === d ? ' on' : ''), 'aria-pressed': f.dest === d ? 'true' : 'false', onclick: tap(() => { f.dest = d; }) }, l)))),
-    f.dest === 'Social' || f.dest === 'External' ? field('Kind', h('div', { class: 'chips' }, kindsList().map((k) =>
+      h('button', { type: 'button', class: 'chip' + (f.dest === d ? ' on' : ''), 'aria-pressed': f.dest === d ? 'true' : 'false', onclick: tap(() => { f.dest = d; if (destKinds(d).indexOf(f.kind) < 0) f.kind = ''; }) }, l)))),
+    destKinds(f.dest).length ? field('Kind', h('div', { class: 'chips' }, destKinds(f.dest).map((k) =>
       h('button', { type: 'button', class: 'chip' + (f.kind === k ? ' on' : ''), 'aria-pressed': f.kind === k ? 'true' : 'false', onclick: tap(() => { f.kind = k; }) }, k)))) : null);
   draw();
   return box;
@@ -1980,7 +1996,7 @@ function destPicker(f, onChange, opts) {
 /** "Pick the destination" / "Pick the kind", or '' when both are there. */
 function destMissing(f) {
   if (!f.dest) return 'Pick where it goes (Destination).';
-  if ((f.dest === 'Social' || f.dest === 'External') && !f.kind) return 'Pick the kind (Video, Design…).';
+  if (destKinds(f.dest).length && !f.kind) return 'Pick the kind (Video, Design…).';
   return '';
 }
 
@@ -2436,7 +2452,6 @@ function previewSheet(url, ctx) {
   const fid0 = driveIdOf(url);
   if (!fid0) { window.open(url, '_blank', 'noopener'); return; }
   const id = ctx.id;
-  const video = !!ctx.video;
   const files = ctx.files && ctx.files.length > 1 ? ctx.files : null;
   let at = files ? Math.max(0, ctx.index || 0) : 0;
   const box = h('div');
@@ -2447,6 +2462,15 @@ function previewSheet(url, ctx) {
     const fid = driveIdOf(cur);
     const pin = { x: null, y: null };
     const stage = h('div', { class: 'pv' }); // holds the image and its pins
+    // A video by what the work is, or by the file itself (Drive says what it is): a video under any kind of work plays.
+    const video = !!ctx.video || fileKinds.get(fid) === 'video';
+    if (!video && !fileKinds.has(fid)) {
+      fileKinds.set(fid, '');
+      mediaToken().then((m) => gapi('/drive/v3/files/' + encodeURIComponent(fid) + '?fields=mimeType', {}, m.token)).then((meta) => {
+        fileKinds.set(fid, /^video\//.test(meta.mimeType || '') ? 'video' : 'other');
+        if (fileKinds.get(fid) === 'video' && box.isConnected && driveIdOf(files ? files[at] : url) === fid) draw();
+      }).catch(() => { fileKinds.delete(fid); });
+    }
     let view, fit;
     const drawPins = () => {
       stage.querySelectorAll('.pin').forEach((p) => p.remove());
@@ -2525,7 +2549,7 @@ function previewSheet(url, ctx) {
       files ? h('div', { class: 'gal-dots', 'aria-label': (at + 1) + ' of ' + files.length }, files.map((_, i) => h('i', { class: i === at ? 'on' : '' }))) : null,
       h('div', { class: 'files', style: 'margin-bottom:6px' },
         files ? h('span', { class: 'small muted', style: 'margin-right:auto' }, (at + 1) + ' / ' + files.length) : null,
-        h('a', { class: 'fchip', href: CFG.driveWeb + '/uc?export=download&id=' + fid, target: '_blank', rel: 'noopener noreferrer' }, 'Download'),
+        h('button', { type: 'button', class: 'fchip', onclick: (e) => downloadOne(fid, e.currentTarget) }, 'Download'),
         h('a', { class: 'fchip', href: cur, target: '_blank', rel: 'noopener noreferrer' }, 'Open in Drive ↗')),
       id ? commentsBox(id, { title: false, video, file: cur, pin: video ? null : pin, onDraw: drawPins }) : null);
     drawPins();
@@ -2546,13 +2570,14 @@ function previewSheet(url, ctx) {
     if (e.key === 'ArrowLeft') { e.preventDefault(); go(at - 1); } else if (e.key === 'ArrowRight') { e.preventDefault(); go(at + 1); }
   };
   draw(ctx.focus || null);
-  const entry = openSheet((id ? id + ' · ' : '') + (video ? 'Video' : files ? 'Images' : 'File'), box, null, { cls: 'preview' });
+  const entry = openSheet((id ? id + ' · ' : '') + (ctx.video ? 'Video' : files ? 'Images' : 'File'), box, null, { cls: 'preview' });
   if (files) document.addEventListener('keydown', keys);
   requestAnimationFrame(() => { const v = box.querySelector('.pv-frame'); if (v) { const img = v.querySelector('img'); if (img && img.complete) fitPreviewImg(v, img); } });
 }
 /* ----- The app's own video player. Drive's player puts big buttons over the video; this one has a slim bar under it. ----- */
 const VIDEO_MAX_LOAD = 150 * 1024 * 1024; // bigger files play in Drive's player
 const videoUrls = new Map(); // file id → loaded video (this session; the last two are kept)
+const fileKinds = new Map(); // file id → 'video' | 'other', as Drive says (asked once per file, for files not known to be videos)
 function fmtClock(sec) {
   const s = Math.max(0, Math.floor(sec || 0));
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
@@ -3178,11 +3203,16 @@ function appShell() {
       h('div', { class: 'brandmark' }, h('img', { src: LOGO, alt: 'KATAL' }), h('span', { class: 'sep' }), h('span', { class: 'team' }, 'Team'), CFG.test ? h('span', { class: 'testtag' }, 'Test') : null),
       // Always in sight while inside someone's account (the bar stays on top when scrolling).
       S.viewAs ? h('button', { class: 'aspill', onclick: leaveAccount }, S.viewAs.name + '\'s account · Back') : null,
+      searchButton(),
       chatButton(),
       h('button', { class: 'me-btn', onclick: S.viewAs ? leaveAccount : accountSheet, 'aria-label': S.viewAs ? 'Back to your account' : 'Your account' },
         h('span', { class: 'nm' }, S.me.name), h('span', { class: 'avatar' }, (S.me.name || '?').charAt(0).toUpperCase()))),
     S.viewAs ? h('div', { class: 'asbar', role: 'status' }, h('span', { class: 'grow' }, 'You are in ', h('b', null, S.viewAs.name + '\'s account'), '. What you do here is saved as theirs.'),
       h('button', { class: 'btn tiny', onclick: leaveAccount }, 'Back to mine')) : null,
+    st.telegram && !S.me.telegram && !S.viewAs && !S.tgLater ? h('div', { class: 'asbar', role: 'status' },
+      h('span', { class: 'grow' }, 'Telegram isn\'t connected: new tasks, approvals and reminders won\'t reach you.'),
+      h('button', { class: 'btn tiny', onclick: accountSheet }, 'Connect'),
+      h('button', { class: 'btn tiny ghost', 'aria-label': 'Not now', onclick: () => { S.tgLater = true; render(); } }, 'Later')) : null,
     h('nav', { class: 'tabs' }, tabs.map(([key, label, n]) => h('button', {
       class: S.ui.tab === key ? 'on' : '', 'aria-current': S.ui.tab === key ? 'page' : null,
       onclick: () => { if (S.ui.tab === key) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; } goTab(key); }
@@ -3290,6 +3320,52 @@ function paintChat() {
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.screen === 'app') paintChat(); });
 
+/**
+ * Find: anything by its code or part of its name (PM005, "Riviera"): tasks, posts, finished work, ideas, stories.
+ * Each line says where it is now and opens it right there (Back returns to the list).
+ */
+function searchSheet() {
+  const st = S.state;
+  const box = h('div');
+  const inp = h('input', { class: 'in', type: 'search', enterkeyhint: 'search', placeholder: 'A code or a name: PM005, Riviera…', dir: 'auto', style: 'margin:0 0 10px', 'data-nodirty': '1' });
+  const where = (text, cls) => h('span', { class: 'st ' + (cls || 'faint') }, text);
+  const draw = () => {
+    const q = inp.value.trim().toLowerCase();
+    if (q.length < 2) { fill(box, h('div', { class: 'empty' }, 'Type a code or part of a name.')); return; }
+    const hit = (...parts) => parts.filter(Boolean).join(' ').toLowerCase().indexOf(q) >= 0;
+    const rows = [];
+    (st.calendar || []).filter((c) => socialPost(c) && hit(c.id, c.idea)).forEach((c) => rows.push(itemRow({
+      onclick: () => (isAdmin() ? calSheet(c.key, null, { back: 'Back' }) : postViewSheet(c)), icon: kindIcon(c.type), title: rowTitle(firstLine(c.idea) || c.id),
+      state: where('Post · ' + (c.status === 'Cancelled' ? 'Ready → Deleted' : c.status === 'Published' ? 'Ready → Posted' : postInWork(c) ? 'back in the tasks' : c.status === 'Draft' ? 'Ready → Needs approval' : c.publishDate ? 'on the calendar' : 'Ready'),
+        c.status === 'Draft' && !postInWork(c) ? 'gold' : ''),
+      id: c.id, who: false, when: c.publishDate ? dayShort(c.publishDate) : '' })));
+    (st.finished || []).filter((w) => hit(w.id, w.name)).forEach((w) => rows.push(itemRow({
+      onclick: () => workPage(w.id, { back: 'Back' }), icon: kindIcon(w.type), title: rowTitle(firstLine(w.name) || w.id),
+      state: where('Calendar → ' + (w.dest === 'Campaign' ? 'Campaigns' : destLabel(w.dest)) + (w.out ? ' → ' + (w.dest === 'Blog' ? 'Posted' : 'Archived') : '')),
+      id: w.id, who: (w.by || []).join(', '), when: w.approvedAt ? fmtShort(w.approvedAt.slice(0, 10)) : '' })));
+    (st.tasks || []).filter((t) => !t.cancelled && t.source !== 'Post' && hit(t.id, t.task, t.idea)).forEach((t) => rows.push(itemRow({
+      onclick: () => taskPage(t.key, { back: 'Back' }), icon: kindIcon(t.type, t.linkRole), title: rowTitle(firstLine(t.idea) || t.task, t.idea && t.task !== t.idea ? t.task : ''),
+      state: where('Task · ' + stageLabel(stageOf(t))), id: t.id, who: t.assignee || '', when: t.deadline ? dayShort(t.deadline) : '' })));
+    (st.ideas || []).filter((i) => !i.hidden && i.source !== 'Quick' && hit(i.id, i.idea)).forEach((i) => rows.push(itemRow({
+      onclick: () => ideaPage(i.id, { back: 'Back' }), icon: i.source === 'Post' ? kindIcon(i.type) : 'ideas', title: rowTitle(firstLine(i.idea) || i.id),
+      state: where(i.source === 'Post' ? (i.execution === 'Later' ? 'Ideas → Posts from the team' : 'Post from the team · ' + (i.execution === 'Approved' ? 'approved' : 'not taken'))
+        : i.execution === 'Later' ? 'Ideas → New' : i.execution === 'Approved' ? 'Idea · approved' : 'Ideas → Archive', i.execution === 'Later' ? 'gold' : ''),
+      id: i.id, who: i.mine ? 'You' : i.by || '', when: i.submittedAt ? fmtShort(i.submittedAt.slice(0, 10)) : '' })));
+    (st.stories || []).filter((x) => hit(x.code, 'story')).forEach((x) => rows.push(itemRow({
+      onclick: () => goTab('calendar', { calSeg: 'stories' }), icon: 'image', title: rowTitle('Story ' + x.code),
+      state: where('Calendar → Stories · ' + x.status), id: x.code, who: x.mine ? 'You' : x.by || '', when: (x.sentAt || x.createdAt) ? fmtShort((x.sentAt || x.createdAt).slice(0, 10)) : '' })));
+    fill(box, rows.length ? [h('div', { class: 'small muted', style: 'margin:0 2px 8px' }, rows.length > 40 ? 'The first 40 of ' + rows.length + '. Type more to narrow it.' : rows.length + ' found'), h('div', { class: 'list' }, rows.slice(0, 40))]
+      : h('div', { class: 'empty' }, 'Nothing with "' + inp.value.trim() + '".'));
+  };
+  let timer = null;
+  inp.oninput = () => { clearTimeout(timer); timer = setTimeout(draw, 150); };
+  draw();
+  openSheet('Find', h('div', null, inp, box), null, { rebuild: null });
+  setTimeout(() => inp.focus(), 60);
+}
+function searchButton() {
+  return h('button', { type: 'button', class: 'find-btn', 'aria-label': 'Find by code or name', onclick: searchSheet }, icon('search'));
+}
 function chatButton() {
   const n = S.chat.unread;
   return h('button', { type: 'button', class: 'chat-btn', 'aria-label': n ? 'Team chat · ' + n + ' new' : 'Team chat', onclick: chatSheet },
@@ -3517,13 +3593,15 @@ function postStrip(t) {
       h('span', { class: 'who' }, o.name),
       statusBadge(o),
       // A part that opens on tap shows its files there; otherwise (the team's view) a View button here.
-      o.here || go(o).onclick ? null : filesLink(o.files, { id: t.id, video: t.type === 'Video' && o.linkRole !== 'Cover' }))),
+      o.here || go(o).onclick ? null : filesLink(o.files, { id: t.id, video: isVideoKind(t) && o.linkRole !== 'Cover' }))),
     post ? h('div', { class: 'r' }, h('span', { class: 'kind', 'aria-hidden': 'true' }, icon('calendar')), h('span', { class: 'nm' }, 'Post'),
       h('span', { class: 'who' }, post.publishDate ? dayShort(post.publishDate) : 'No date'), postStateTag(post)) : null);
 }
 /** The same in plain text, for messages: "Ali video 1 (Video Cover)". */
 function taskLabel(t) { const p = taskParts(t); return p.part ? p.main + ' (' + p.part + ')' : p.main; }
-function isVideoTask(t) { return t.type === 'Video' && (t.linkRole ? t.linkRole === 'Media' : !/cover/i.test(t.task)); }
+/** A video: its kind is Video, or it is made the video way (a campaign's video). */
+function isVideoKind(x) { return !!x && (x.type === 'Video' || x.variant === 'Video'); }
+function isVideoTask(t) { return isVideoKind(t) && (t.linkRole ? t.linkRole === 'Media' : !/cover/i.test(t.task)); }
 
 /* ======================================================================
    Ideas (member view)
@@ -3575,6 +3653,7 @@ function todayView() {
   const later = st.ideas.filter((i) => i.execution === 'Later' && !i.hidden && i.source !== 'Quick');
   const needPosts = isAdmin() ? draftPosts() : []; // only Orwah gives a post its OK
   const soon = draftPosts().filter((c) => c.publishDate === today || c.publishDate === tomorrow);
+  const sentStories = isAdmin() ? (st.stories || []).filter((x) => x.status === 'Sent') : [];
   const hour = Number((st.now || '').slice(11, 13));
   const hello = (hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening') + ', ' + S.me.name;
   // Ideas and posts open their tab.
@@ -3594,7 +3673,11 @@ function todayView() {
     { id: 'late', label: 'Late', short: 'Late', c: 'var(--red)', items: overdue.map(card) },
     { id: 'today', label: 'Due today', short: 'Today', c: STAGE.doing.c, items: dueToday.map(card) },
     { id: 'tomorrow', label: 'Due tomorrow', short: 'Tmrw', c: STAGE.todo.c, items: dueTomorrow.map(card) },
-    { id: 'drafts', label: 'To approve soon', short: 'Posts', c: 'var(--gold)', items: soon.length ? [list(soon.map((c) => postRow(c, { date: true })))] : [], count: soon.length }
+    // The admin: every post that waits for the OK, and the team's stories. The manager: the posts going out soon.
+    isAdmin()
+      ? { id: 'posts', label: 'Posts to approve', short: 'Posts', c: 'var(--gold)', items: needPosts.length ? [list(needPosts.map((c) => postRow(c, { needs: true })))] : [], count: needPosts.length }
+      : { id: 'drafts', label: 'To approve soon', short: 'Posts', c: 'var(--gold)', items: soon.length ? [list(soon.map((c) => postRow(c, { date: true })))] : [], count: soon.length },
+    { id: 'stories', label: 'Stories to approve', short: 'Stories', c: 'var(--gold)', items: sentStories.map(storyCard) }
   ].filter((c) => c.items.length).map((c) => Object.assign({ count: c.items.length }, c));
   const people = st.people.map((p) => {
     const mine = open.filter((t) => t.assignedTo === p.id);
@@ -3626,7 +3709,13 @@ function listSection(id, title, n) {
 }
 
 /** Every task opens as its page, for everyone; what can be done there depends on who is looking. */
-function openTask(key, o) { taskPage(key, o); }
+function openTask(key, o) {
+  // A post from the team that still waits for the admin's decision opens as that: approve, return, not taken, edit.
+  const t = isAdmin() ? S.state.tasks.find((x) => x.key === key) : null;
+  const i = t && t.source === 'Post' ? S.state.ideas.find((x) => x.id === t.id) : null;
+  if (i && i.execution === 'Later' && t.status === 'Pending Approval') { ideaPage(i.id, o); return; }
+  taskPage(key, o);
+}
 
 /** "2 hours ago", "yesterday 15:40", "Tue 13 Oct" (Dubai time). */
 function agoText(dt) {
@@ -3883,7 +3972,7 @@ function taskPage(key, o) {
       !mine && (t.draftCaption || t.notes) ? [h('div', { class: 'psec' }, h('h2', null, t.draftCaption ? 'Original caption · ' + who : 'From ' + who)),
         h('div', { class: 'pcard pre', dir: 'auto', style: 'margin-top:0;font-size:14px' }, [t.draftCaption, t.notes].filter(Boolean).join('\n\n'))] : null,
     history.length ? h('div', { class: 'small faint', style: 'margin:16px 2px 0' }, history.map(([k, v]) => k + ' ' + v).join(' · ')) : null,
-    h('div', { class: 'pcard' }, commentsBox(t.id, { video: t.type === 'Video', title: false })));
+    h('div', { class: 'pcard' }, commentsBox(t.id, { video: isVideoKind(t), title: false })));
 
   // The buttons at the bottom: what this person can do with it now. Save is always there for whoever can change the
   // task; it wakes up with any change (the name, the person, the day, the brief, a link…).
@@ -3931,7 +4020,15 @@ function approve(btn, t) {
   return instant((st) => {
     const x = st.tasks.find((k) => k.key === t.key);
     if (x) Object.assign(x, { review: 'Approved', status: 'Done', color: 'none', overdue: false });
-  }, 'task.approve', { key: t.key }, last ? (posts ? 'Approved · its post is in Ready → Needs approval' : 'Approved · ' + t.id + ' is done') : 'Approved');
+  }, 'task.approve', { key: t.key }, last ? (posts ? 'Approved · its post is in Ready → Needs approval' : 'Approved · ' + t.id + ' is done') : 'Approved')
+    .then((d) => {
+      // The post is made by now: one tap to it (its OK, its day), or to where other work went.
+      const c = d && (S.state.calendar || []).find((x) => x.id === t.id && x.status === 'Draft' && livePost(x));
+      const w = d && !c && last && (S.state.finished || []).find((x) => x.id === t.id);
+      if (c && isAdmin()) toast('Approved · its post needs your OK', false, null, { label: 'Open the post', fn: () => calSheet(c.key) });
+      else if (w) toast('Approved · it\'s in Calendar → ' + (w.dest === 'Campaign' ? 'Campaigns' : destLabel(w.dest)), false, null, { label: 'Open', fn: () => workPage(w.id) });
+      return d;
+    });
 }
 
 function requestEditSheet(t) {
@@ -4106,6 +4203,53 @@ function sortable(grid, onDone) {
 }
 
 /* ----- Download all: every file of a post or a carousel, in its order ----- */
+/**
+ * One file as it is on Drive (the original), under its own name. It is fetched with the app's own Drive access, the
+ * way the player and "Download all" get files, and saved from here; a phone gets its share sheet (Save Video, Save to
+ * Files). If that can't be done here, the file opens in Drive, where it can be downloaded.
+ */
+async function downloadOne(fid, btn) {
+  if (btn.disabled) return;
+  btn.disabled = true;
+  const label = btn.textContent;
+  const inDrive = () => window.open(CFG.driveWeb + '/file/d/' + fid + '/view', '_blank', 'noopener');
+  try {
+    const tok = (await mediaToken()).token;
+    const meta = await gapi('/drive/v3/files/' + encodeURIComponent(fid) + '?fields=name,mimeType,size', {}, tok);
+    const size = Number(meta.size) || 0;
+    if (size > 1500e6) { inDrive(); return; } // too big to hold here: Drive downloads it
+    const r = await fetch(CFG.driveApi + '/drive/v3/files/' + encodeURIComponent(fid) + '?alt=media', { headers: { authorization: 'Bearer ' + tok } });
+    if (!r.ok || !r.body) throw new Error('Drive answered ' + r.status);
+    const reader = r.body.getReader();
+    const parts = [];
+    let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      parts.push(value);
+      got += value.length;
+      if (size) btn.textContent = Math.min(99, Math.floor(got / size * 100)) + '%';
+    }
+    if (size && got !== size) throw new Error('The file came incomplete');
+    const name = String(meta.name || 'file').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'file';
+    const file = new File(parts, name, { type: meta.mimeType || 'application/octet-stream' });
+    if (matchMedia('(pointer: coarse)').matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+      // Sharing needs a fresh tap: one more button, now that the file is here.
+      const save = h('button', { type: 'button', class: 'btn primary block' }, 'Save the file');
+      save.onclick = () => navigator.share({ files: [file] }).then(() => closeSheet(true), () => {});
+      openSheet('Ready to save', h('div', null, h('p', { class: 'muted small', style: 'margin-top:0' }, 'Tap Save, then "' + (/^video\//.test(file.type) ? 'Save Video' : /^image\//.test(file.type) ? 'Save Image' : 'Save to Files') + '".'), save));
+    } else {
+      saveBlob(file, name);
+      toast('Downloaded · ' + name);
+    }
+  } catch (err) {
+    toast('Couldn\'t download it here. It opens in Drive: download it from there.', true);
+    inDrive();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
 function downloadAllButton(files, name) {
   const btn = h('button', { type: 'button', class: 'fchip dl' }, icon('download'), 'Download all');
   btn.onclick = (e) => { e.stopPropagation(); downloadAll(files, name, btn); };
@@ -4547,14 +4691,16 @@ function ideaPage(id, o) {
   }
   // A post from the team: its files and its caption.
   const postBox = isPost && pt ? h('div', { class: 'pcard', style: 'margin-top:0' },
-    pt.files && pt.files.length ? fileTiles(pt.files, { id: i.id, video: i.type === 'Video' }) : h('div', { class: 'muted small' }, 'No files.'),
+    pt.files && pt.files.length ? fileTiles(pt.files, { id: i.id, video: isVideoKind(i) }) : h('div', { class: 'muted small' }, 'No files.'),
     pt.draftCaption ? field('Caption', h('div', { class: 'brief pre', dir: 'auto' }, pt.draftCaption)) : null) : null;
   // What can be done now.
   let acts = null;
   if (admin && pending && isPost) {
     acts = h('div', { class: 'pcard decide' },
       h('button', { type: 'button', class: 'btn good block', style: 'min-height:48px;font-size:15px', onclick: (e) => run(e.currentTarget, 'post.decide', { id: i.id, decision: 'approve' },
-        dest === 'Social' ? 'Approved · its post is in Ready → Needs approval' : 'Approved · it\'s in Calendar → ' + destLabel(dest) + (dest === 'External' ? '' : '')) }, '✓ Approve'),
+        dest === 'Social' ? 'Approved · here is its post: give it your OK and a day' : 'Approved · it\'s in Calendar → ' + (dest === 'Campaign' ? 'Campaigns' : destLabel(dest)))
+        .then((d) => { if (d) openWhereItWent(i.id); }) }, '✓ Approve'),
+      h('div', { class: 'small muted', style: 'margin-top:8px;text-align:center' }, 'Something to change first (the destination, the kind, the caption, a file)? Tap Edit, next to the name.'),
       h('div', { class: 'row', style: 'margin-top:8px' },
         h('button', { type: 'button', class: 'btn warn grow', onclick: () => returnPostSheet(i) }, '↩ Return for edits'),
         h('button', { type: 'button', class: 'btn grow', onclick: () => ask('Not take ' + i.id + ' "' + firstLine(i.idea) + '"? It goes to the archive.', 'Not take it', true).then((ok) => { if (ok) run(null, 'post.decide', { id: i.id, decision: 'reject' }, i.id + ' · in the archive'); }) }, 'Not taken')));
@@ -4581,7 +4727,7 @@ function ideaPage(id, o) {
   const content = h('div', null,
     h('div', { class: 'pk' }, icon(isPost ? kindIcon(i.type) : 'ideas'), dots(isPost ? 'Post from the team' : 'Idea', (i.mine ? 'You' : i.by) + ' · ' + fmtShort(((pt && pt.sentAt) || i.submittedAt || '').slice(0, 10)))),
     h('div', { class: 'ptitle-row' }, h('h1', { class: 'ptitle', dir: 'auto' }, firstLine(i.idea)),
-      admin && !isPost ? h('button', { type: 'button', class: 'btn tiny pedit', 'aria-label': 'Edit name and destination', onclick: () => editIdeaSheet(i) }, icon('edit'), 'Edit') : null),
+      admin ? h('button', { type: 'button', class: 'btn tiny pedit', 'aria-label': 'Edit name and destination', onclick: () => editIdeaSheet(i) }, icon('edit'), 'Edit') : null),
     h('div', { class: 'ptags' }, h('span', { class: 'ptag', style: '--sc:' + IDEA_STAGE[k].c + ';--sbg:' + IDEA_STAGE[k].bg },
       k === 'decide' ? (isPost ? 'Waiting' : 'New') : IDEA_STAGE[k].label)),
     acts,
@@ -4594,7 +4740,7 @@ function ideaPage(id, o) {
     approved && isStaff() ? [h('div', { class: 'psec' }, h('h2', null, 'The road'),
       admin ? h('button', { class: 'btn ghost tiny', onclick: () => createTasksSheet(i, S.state.tasks.some((t) => t.id === i.id && !t.cancelled) ? [blankRow(i)] : null) }, '+ Task') : null), ideaRoad(i)] : null,
     body ? [h('div', { class: 'psec' }, h('h2', null, 'About it')), h('div', { class: 'pcard', style: 'margin-top:0' }, body)] : null,
-    h('div', { class: 'pcard' }, commentsBox(i.id, { video: i.type === 'Video', title: false })));
+    h('div', { class: 'pcard' }, commentsBox(i.id, { video: isVideoKind(i), title: false })));
   const del = () => {
     if (i.hidden) { instant((st) => { const x = st.ideas.find((q) => q.id === i.id); if (x) x.hidden = false; }, 'idea.restore', { id: i.id }, i.id + ' restored'); return; }
     const hard = deletable(i);
@@ -4608,12 +4754,20 @@ function ideaPage(id, o) {
     });
   };
   const menu = admin ? () => menuSheet(i.id + (isPost ? ' · Post' : ' · Idea'), [
-    isPost ? null : { label: 'Edit name and destination', icon: 'edit', onclick: () => editIdeaSheet(i) },
+    { label: isPost && pending ? 'Edit the post (name, destination, files, caption)' : 'Edit name and destination', icon: 'edit', onclick: () => editIdeaSheet(i) },
     approved && !isPost ? { label: 'Add a task', icon: 'plus', onclick: () => createTasksSheet(i, S.state.tasks.some((t) => t.id === i.id && !t.cancelled) ? [blankRow(i)] : null) } : null,
     { label: i.hidden ? 'Bring it back' : 'Delete idea', icon: i.hidden ? 'undo' : 'trash', danger: !i.hidden, onclick: del }
   ]) : i.mine && pending && !isPost ? () => menuSheet(i.id + ' · Idea', [{ label: 'Edit my idea', icon: 'edit', onclick: () => editOwnIdea(i) }]) : null;
   openSheet(i.id + (isPost ? ' · Post' : ' · Idea'), content, foot, { page: true, back: o.back || 'Back', replace: o.replace, rebuild: () => ideaPage(id, { replace: true, back: o.back }), dirty: () => dirty, menu, reopen: { k: 'idea', id } });
   drawFoot();
+}
+
+/** Approved work opens where it went: a social post as its post (the OK, the day), other work on its own page. */
+function openWhereItWent(id) {
+  const c = (S.state.calendar || []).find((x) => x.id === id && x.status !== 'Cancelled' && x.status !== 'Published');
+  if (c && isAdmin()) { calSheet(c.key, null, { back: 'Back' }); return true; }
+  if ((S.state.finished || []).some((w) => w.id === id)) { workPage(id, { back: 'Back' }); return true; }
+  return false;
 }
 
 /** The admin returns a post from the team: a deadline and what to change; it's in their tasks as "changes asked". */
@@ -4679,20 +4833,36 @@ function newIdeaAdminSheet() {
 
 /** The rarely changed parts of an idea: its name and where it goes. Only what changed is sent. */
 function editIdeaSheet(i) {
-  const f = { idea: i.idea };
+  // A post from the team that still waits for the OK: its caption and its files can be put right here too.
+  const pt = i.source === 'Post' && i.execution === 'Later' ? postTask(i) : null;
+  const f = { idea: i.idea, caption: pt ? pt.draftCaption || '' : '', files: pt ? (pt.files || []).slice() : [] };
   const fd = destFromFields(i);
+  const filesBox = h('div');
+  const drawFiles = (touched) => {
+    fill(filesBox, filesEditor(f.files, { id: i.id, label: f.idea || 'post', video: fd.kind === 'Video' }, (links) => { f.files = links; drawFiles(true); }));
+    if (touched) filesBox.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  if (pt) drawFiles();
   openSheet('Edit ' + i.id, h('div', null,
     field(h('span', null, 'Name', h('i', null, 'short')), nameInput(f, 'idea')),
-    destPicker(fd)),
-  editFoot((btn) => {
-    if (!f.idea.trim()) { toast('Give the idea a name.', true); return; }
+    destPicker(fd, pt ? () => drawFiles() : null),
+    pt ? field('Media', filesBox, 'Images or a video. Drag to change the order.') : null,
+    pt ? field(h('span', null, 'Caption', h('i', null, 'optional')), area(f, 'caption', { rows: 3 })) : null),
+  editFoot(async (btn) => {
+    if (!f.idea.trim()) { toast('Give ' + (i.source === 'Post' ? 'the post' : 'the idea') + ' a name.', true); return; }
     if (f.idea.trim().length > NAME_MAX) { toast('Keep the name to ' + NAME_MAX + ' characters. The rest goes in Details.', true); return; }
     if (destMissing(fd)) { toast(destMissing(fd), true); return; }
+    if (pt && !f.files.length) { toast('Keep at least one file.', true); return; }
     const d = destToFields(fd.dest, fd.kind);
     const out = { id: i.id };
     if (f.idea !== i.idea) out.idea = f.idea;
     if (d.type !== i.type) out.type = d.type;
     if (d.channel !== (i.channel || 'Social')) out.channel = d.channel;
+    if ((d.variant || '') !== (i.variant || '')) { out.type = d.type; out.variant = d.variant; }
+    const work = {};
+    if (pt && f.caption !== (pt.draftCaption || '')) work.draftCaption = f.caption;
+    if (pt && f.files.join('\n') !== (pt.files || []).join('\n')) work.files = f.files;
+    if (Object.keys(work).length && !(await run(btn, 'task.update', Object.assign({ key: pt.key }, work), null, { keepSheet: true }))) return;
     run(btn, 'idea.save', out, 'Saved');
   }));
 }
@@ -5039,7 +5209,7 @@ function calendarView() {
   const storyN = admin ? stories.filter((x) => x.status === 'Sent').length : stories.filter((x) => x.mine && x.status === 'Edit').length;
   // Ready is social media only; the other work has its own tab next to it; stories have theirs.
   const segs = staff
-    ? [['calendar', 'Calendar'], ['ready', 'Ready', readyPosts().length + draftPosts().length], ['blog', 'Blog', waiting('Blog')], ['external', 'External', waiting('External')],
+    ? [['calendar', 'Calendar'], ['ready', 'Ready', draftPosts().length], ['blog', 'Blog', waiting('Blog')], ['external', 'External', waiting('External')],
       ['campaigns', 'Campaigns', waiting('Campaign')], ['stories', 'Stories', storyN], ['rhythm', 'Rhythm']]
     : S.me.blog ? [['blog', 'Blog', waiting('Blog')]]
       : [['calendar', 'Upcoming'], ['posted', 'Posted'], ['stories', 'Stories', storyN]];
@@ -5154,7 +5324,13 @@ function calendarList() {
   for (let i = 0; i < ahead; i++) days.push(addDays(today, i));
   const waitingPast = posts.filter((c) => c.publishDate < today && live(c)).length;
   const rows = days.map((d) => dayRow(d, posts.filter((c) => c.publishDate === d)));
+  // Approved, no day yet: they wait here, in sight; held and dragged onto a day (or opened to pick one).
+  const waitingDay = admin ? readyPosts().filter(calMatch) : [];
   return h('div', null,
+    waitingDay.length ? h('section', { class: 'dayrow wait', style: 'margin-bottom:8px' },
+      h('div', { class: 'dr-head' }, h('span', { class: 'dr-day' }, 'Ready · no day yet'), h('span', { class: 'dr-n' }, waitingDay.length + (waitingDay.length === 1 ? ' post' : ' posts'))),
+      h('div', { class: 'dr-strip', 'data-scroll': 'day:wait' }, waitingDay.map(postSquare)),
+      h('div', { class: 'small faint', style: 'margin:6px 12px 0' }, 'Hold one and drag it onto its day.')) : null,
     h('button', { type: 'button', class: 'pastbtn' + (showPast ? ' hide' : ''), onclick: () => { S.ui.calPast = showPast ? 0 : 1; render(); } },
       showPast ? 'Hide last week' : '‹ Last week', !showPast && waitingPast ? h('span', { class: 'n' }, String(waitingPast)) : null),
     h('div', { class: 'days' }, rows),
@@ -5164,6 +5340,11 @@ function calendarList() {
 /** One day: its name, how many posts, and the posts side by side. */
 function dayRow(d, items) {
   const today = S.state.today;
+  // A day with nothing on it is one line (a post can still be dropped on it); today always shows its place.
+  if (!items.length && d !== today) {
+    return h('section', { class: 'dayrow empty' + (d < today ? ' past' : '') + (isWorkday(d) ? '' : ' off'), 'data-day': d },
+      h('div', { class: 'dr-head' }, h('span', { class: 'dr-day' }, dayLong(d)), h('span', { class: 'dr-none' }, isWorkday(d) ? 'Nothing yet' : 'Day off')));
+  }
   return h('section', { class: 'dayrow' + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (isWorkday(d) ? '' : ' off'), 'data-day': d },
     h('div', { class: 'dr-head' }, h('span', { class: 'dr-day' }, dayLong(d)), items.length ? h('span', { class: 'dr-n' }, items.length + (items.length === 1 ? ' post' : ' posts')) : null),
     h('div', { class: 'dr-strip', 'data-scroll': 'day:' + d }, items.length ? items.map(postSquare) : h('div', { class: 'dr-empty' }, '—')));
@@ -5175,8 +5356,8 @@ function postSquare(c) {
   const on = Object.keys(c.platforms || {}).filter((p) => c.platforms[p]);
   const miss = coverMissing(c);
   const open = () => (admin ? calSheet(c.key) : postViewSheet(c));
-  const quick = admin && c.status === 'Final' && c.publishDate <= today; // today's (and a missed one's) "it went out", one tap
-  const sq = h('div', { class: 'psq' + (c.status === 'Published' ? ' done' : '') + (c.publishDate < today && c.status !== 'Published' ? ' missed' : ''),
+  const quick = admin && c.status === 'Final' && !!c.publishDate && c.publishDate <= today; // today's (and a missed one's) "it went out", one tap
+  const sq = h('div', { class: 'psq' + (c.status === 'Published' ? ' done' : '') + (c.publishDate && c.publishDate < today && c.status !== 'Published' ? ' missed' : ''),
     role: 'button', tabindex: 0, 'data-key': c.key, onclick: (e) => { if (!selecting(e)) open(); }, onkeydown: (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); } },
     h('div', { class: 'psq-top' }, h('span', { class: 'kind', 'aria-hidden': 'true' }, icon(kindIcon(c.type))), h('span', { class: 'm-id' }, c.id), commentMark(c.id), h('span', { class: 'sp' }),
       quick ? h('button', { type: 'button', class: 'btn good tiny psq-go', onclick: (e) => { e.stopPropagation(); calMove(c, 'published'); } }, '✓ Posted') : null),
@@ -5195,7 +5376,7 @@ function dragToDay(sq, c) {
     onMove: (d) => {
       moveGhost(d);
       const el = document.elementFromPoint(d.x, d.y);
-      const row = el && el.closest('.dayrow');
+      const row = el && el.closest('.dayrow[data-day]');
       mark(row && row.dataset.day !== c.publishDate ? row : null);
     },
     onEnd: (d, x, y, dropped) => {
@@ -5215,7 +5396,7 @@ function movePost(c, day) {
     x.publishDate = day;
     if (x.status === 'Published') { x.status = 'Final'; x.publishedAt = ''; x.postLinks = (x.postLinks || []).map(() => ''); }
   }, 'cal.move', { key: c.key, date: day }, (c.id + ' → ' + dayShort(day)) + (wasPosted ? ' · not posted any more' : ''),
-  wasPosted ? null : () => movePost(Object.assign({}, c, { publishDate: day }), from));
+  wasPosted ? null : from ? () => movePost(Object.assign({}, c, { publishDate: day }), from) : () => calMove(Object.assign({}, c, { publishDate: day }), 'ready'));
 }
 
 /**
@@ -5255,7 +5436,7 @@ function finishedCard(w, can) {
       h('span', { class: 'small muted' }, dots(w.by.join(', '), w.approvedAt ? fmtShort(w.approvedAt.slice(0, 10)) : null)), h('span', { class: 'sp' }),
       w.dest === 'Blog' && !w.cover ? h('span', { class: 'st orange' }, 'Missing image') : null),
     h('div', { class: 'fc-t', dir: 'auto' }, firstLine(w.name)),
-    w.files.length ? fileTiles(w.files, { id: w.id, video: w.type === 'Video' }) : null,
+    w.files.length ? fileTiles(w.files, { id: w.id, video: isVideoKind(w) }) : null,
     w.dest === 'Blog' && w.cover ? h('div', { class: 'files' }, fileLink(w.cover, { id: w.id }, 'Image')) : null,
     w.dest === 'Campaign' && w.captions.length ? w.captions.map((c) => h('div', { class: 'capbox' }, h('div', { class: 'cap-k' }, h('span', null, 'Caption · ' + c.by)),
       h('div', { class: 'pre', dir: 'auto' }, c.text))) : null,
@@ -5293,14 +5474,14 @@ function workPage(id, o) {
       h('div', null, h('div', { class: 'fl' }, 'Code'), h('div', { class: 'fv' }, w.id)),
       h('div', null, h('div', { class: 'fl' }, 'Approved'), h('div', { class: 'fv' }, w.approvedAt ? fmtDT(w.approvedAt) : '—'))),
     w.files.length || w.cover ? [h('div', { class: 'psec' }, h('h2', null, 'Files'), w.files.length ? h('span', { class: 'n' }, String(w.files.length)) : null),
-      h('div', { class: 'pcard', style: 'margin-top:0' }, w.files.length ? fileTiles(w.files, { id: w.id, video: w.type === 'Video' }) : null,
+      h('div', { class: 'pcard', style: 'margin-top:0' }, w.files.length ? fileTiles(w.files, { id: w.id, video: isVideoKind(w) }) : null,
         w.cover ? h('div', { class: 'files' }, fileLink(w.cover, { id: w.id }, w.dest === 'Blog' ? 'Image' : 'Cover')) : null)] : null,
     w.captions.length ? [h('div', { class: 'psec' }, h('h2', null, 'Caption')), w.captions.map((c) => h('div', { class: 'capbox' },
       h('div', { class: 'cap-k' }, h('span', null, 'Original · ' + c.by), h('button', { type: 'button', class: 'btn tiny', onclick: () => copyText(c.text) }, 'Copy')),
       h('div', { class: 'pre', dir: 'auto' }, c.text)))] : null,
     isStaff() && tasks.length ? [h('div', { class: 'psec' }, h('h2', null, 'The work')), list(tasks.map((t) => itemRow({ onclick: () => taskPage(t.key, { back: w.id }),
       icon: kindIcon(t.type, t.linkRole), title: rowTitle(taskParts(t).part || t.task), state: statusBadge(t), who: t.assignee || '', when: t.deadline ? fmtShort(t.deadline) : '' })))] : null,
-    h('div', { class: 'pcard' }, commentsBox(w.id, { video: w.type === 'Video', title: false })));
+    h('div', { class: 'pcard' }, commentsBox(w.id, { video: isVideoKind(w), title: false })));
   openSheet(w.id + ' · ' + destLabel(w.dest), body, null, { page: true, back: o.back || 'Back', replace: o.replace, rebuild: () => workPage(id, { replace: true, back: o.back }) });
 }
 /** Finished work back to the team: pick what goes back (the design, the image…) and say what to change. */
