@@ -15,12 +15,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-c29dbe998244';</script>
+<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-693889d47463';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap" rel="stylesheet">
 <style>
+/* An icon's own size, wherever it is put (":where" gives it no weight: any rule for a place wins over it). */
+:where(svg.ic) { width: 18px; height: 18px; flex: none; }
 /* ===== KATAL: black, warm white and champagne gold. Calm, compact, made for the company. ===== */
 :root {
   --brand: #141311;          /* top bar, main buttons */
@@ -1461,6 +1463,8 @@ function icon(name) {
   s.setAttribute('stroke-linecap', 'round');
   s.setAttribute('stroke-linejoin', 'round');
   s.innerHTML = ICONS[name]; // static markup, never user data
+  // Every icon has a size of its own (the rule ":where(svg.ic)"), so one put somewhere new can never grow to fill it.
+  s.setAttribute('class', 'ic');
   return s;
 }
 let toastTimer = null;
@@ -3731,69 +3735,6 @@ function editOwnIdea(i) {
   editFoot((btn) => run(btn, 'idea.editOwn', f, 'Idea updated')));
 }
 
-/* ======================================================================
-   Admin: Today
-   ====================================================================== */
-function todayView() {
-  const st = S.state;
-  const today = st.today;
-  const tomorrow = addDays(today, 1);
-  const open = st.tasks.filter((t) => isOpen(t) && !t.cancelled);
-  const pending = open.filter((t) => t.status === 'Pending Approval').sort(byBoard);
-  const working = open.filter((t) => t.status !== 'Pending Approval' && !(stageOf(t) === 'todo' && waitingFor(t)));
-  const urgent = working.filter((t) => t.priority === 'High').sort(byBoard);
-  const notUrgent = working.filter((t) => t.priority !== 'High');
-  const overdue = notUrgent.filter((t) => t.overdue).sort(byBoard);
-  const dueToday = notUrgent.filter((t) => t.deadline === today && !t.overdue).sort(byBoard);
-  const dueTomorrow = notUrgent.filter((t) => t.deadline === tomorrow).sort(byBoard);
-  const later = st.ideas.filter((i) => i.execution === 'Later' && !i.hidden && i.source !== 'Quick');
-  const needPosts = isAdmin() ? draftPosts() : []; // only Orwah gives a post its OK
-  const soon = draftPosts().filter((c) => c.publishDate === today || c.publishDate === tomorrow);
-  const sentStories = isAdmin() ? (st.stories || []).filter((x) => x.status === 'Sent') : [];
-  const hour = Number((st.now || '').slice(11, 13));
-  const hello = (hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening') + ', ' + S.me.name;
-  // Ideas and posts open their tab.
-  const stat = (n, label, cls, go) => n ? h('button', { class: 'stat ' + (cls || ''), onclick: go }, h('div', { class: 'v' }, n), h('div', { class: 'l' }, label)) : null;
-  // The tiles: ideas and posts (the tasks are the columns below).
-  const stats = [
-    stat(later.length, 'Ideas to decide', '', () => goTab('ideas')),
-    stat(needPosts.length, 'Posts need approval', 'gold', () => goTab('calendar', { calSeg: 'ready', readySeg: 'need' })),
-    stat(readyPosts().length, 'Ready to post', '', () => goTab('calendar', { calSeg: 'ready', readySeg: 'ready' })),
-    isAdmin() ? stat(missedPosts().length, 'Did it go out?', 'red', () => goTab('calendar', { calSeg: 'calendar', calPast: 2 })) : null
-  ].filter(Boolean);
-  // What needs doing, as columns like the Tasks board (only the ones with something in them).
-  const card = (t) => taskCard(t, { state: true });
-  const cols = [
-    { id: 'urgent', label: 'Urgent', short: 'Urgent', c: 'var(--pr-high)', items: urgent.map(card) },
-    { id: 'approve', label: isAdmin() ? 'To approve' : 'Waiting approval', short: isAdmin() ? 'Approve' : 'Waiting', c: STAGE.approve.c, items: pending.map(card) },
-    { id: 'late', label: 'Late', short: 'Late', c: 'var(--red)', items: overdue.map(card) },
-    { id: 'today', label: 'Due today', short: 'Today', c: STAGE.doing.c, items: dueToday.map(card) },
-    { id: 'tomorrow', label: 'Due tomorrow', short: 'Tmrw', c: STAGE.todo.c, items: dueTomorrow.map(card) },
-    // The admin: every post that waits for the OK, and the team's stories. The manager: the posts going out soon.
-    isAdmin()
-      ? { id: 'posts', label: 'Posts to approve', short: 'Posts', c: 'var(--gold)', items: needPosts.length ? [list(needPosts.map((c) => postRow(c, { needs: true })))] : [], count: needPosts.length }
-      : { id: 'drafts', label: 'To approve soon', short: 'Posts', c: 'var(--gold)', items: soon.length ? [list(soon.map((c) => postRow(c, { date: true })))] : [], count: soon.length },
-    { id: 'stories', label: 'Stories to approve', short: 'Stories', c: 'var(--gold)', items: sentStories.map(storyCard) }
-  ].filter((c) => c.items.length).map((c) => Object.assign({ count: c.items.length }, c));
-  const people = st.people.map((p) => {
-    const mine = open.filter((t) => t.assignedTo === p.id);
-    return { p, open: mine.length, overdue: mine.filter((t) => t.overdue && t.status !== 'Pending Approval').length, waiting: mine.filter((t) => t.status === 'Pending Approval').length };
-  }).filter((x) => x.open || x.p.id !== S.me.id);
-  return h('div', null,
-    h('div', { class: 'page-head' },
-      h('div', null, h('div', { class: 'eyebrow' }, wd(today) + ' ' + fmtShort(today)), h('h1', null, hello)),
-      h('button', { class: 'btn primary newbtn', onclick: () => quickTaskSheet() }, icon('plus'), 'Task')),
-    stats.length ? h('div', { class: 'stats' }, stats) : null,
-    cols.length ? boardView('today', cols, { start: cols[0].id }) : h('div', { class: 'allclear' }, h('b', null, '✓ '), 'All clear. Nothing waiting.'),
-    h('div', { class: 'narrow' }, h('div', { class: 'section' }, h('h2', null, 'Team')),
-    list(people.map((x) => lrow({
-      onclick: () => goTab('tasks', { person: x.p.id }),
-      left: h('span', { class: 'avatar' }, x.p.name.charAt(0)),
-      title: x.p.name,
-      sub: dots(x.open ? x.open + ' open' : 'Nothing open', x.waiting ? x.waiting + (isAdmin() ? ' to approve' : ' waiting approval') : null),
-      end: [x.overdue ? h('span', { class: 'due red' }, x.overdue + ' late') : null]
-    })))));
-}
 
 /* ======================================================================
    Admin: Tasks
@@ -5417,43 +5358,6 @@ function postsBoardView() {
   ], { start: 'need' }));
 }
 
-/** Ready: the approved posts that only need their day; small tabs inside for the rest of a post's way. */
-function readyView() {
-  const st = S.state;
-  const sub = ['ready', 'need', 'draft', 'posted', 'deleted'].indexOf(S.ui.readySeg) >= 0 ? S.ui.readySeg : 'ready';
-  const newest = (a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '');
-  const lists = {
-    ready: () => readyPosts().filter(calMatch).sort(newest),
-    need: () => draftPosts().filter(calMatch).sort(newest),
-    posted: () => postedPosts().filter(calMatch).filter((c) => listMatch('posted', c.id + ' ' + c.idea)),
-    deleted: () => st.calendar.filter((c) => c.status === 'Cancelled' && socialPost(c) && calMatch(c) && listMatch('deleted', c.id + ' ' + c.idea)).sort(newest)
-  };
-  // A post still in the tasks: its own platforms, or the ones its idea will go on.
-  const making = postsInMaking().filter((x) => calMatch(x.post || { type: x.idea.type, platforms: Object.fromEntries(plannedPlatforms(x.idea).map((p) => [p, true])) }));
-  const n = { ready: lists.ready().length, need: lists.need().length, draft: making.length };
-  const tab = (v, label, cls) => h('button', { type: 'button', class: 'chip' + (sub === v ? ' on' : ''), 'aria-pressed': sub === v ? 'true' : 'false', onclick: () => subGo({ readySeg: v }) },
-    label, n[v] ? h('span', { class: 'n' + (cls ? ' ' + cls : '') }, String(n[v])) : null);
-  const minor = (v, label) => h('button', { type: 'button', class: 'minor' + (sub === v ? ' on' : ''), onclick: () => subGo({ readySeg: v }) }, label);
-  const hint = (t) => h('div', { class: 'small muted', style: 'margin:0 2px 8px' }, t);
-  let content;
-  if (sub === 'draft') {
-    content = [hint('Posts still in the tasks: they come to Needs approval once all their work is approved.'),
-      list(making.map(makingRow), 'Nothing in the making right now.')];
-  } else {
-    const items = lists[sub]();
-    const empty = { ready: 'Nothing ready to post. Approved posts without a day wait here.', need: 'Nothing waiting for your approval.', posted: 'Nothing posted yet.', deleted: 'No deleted posts.' }[sub];
-    content = [
-      sub === 'posted' || sub === 'deleted' ? listSearch(sub, sub === 'posted' ? 'Search posted posts…' : 'Search deleted posts…') : null,
-      sub === 'posted' || sub === 'deleted' ? hint('Open one to see it all, or send it back to the team for a change.') : null,
-      sub === 'ready' && items.length ? hint('Approved. Open one and give it a day: it goes on the calendar.') : null,
-      sub === 'need' && items.length ? hint('Its work is approved: look at the captions and the platforms, then Approve.') : null,
-      list(items.map((c) => postRow(c, sub === 'need' ? { needs: true } : sub === 'posted' ? { postedAt: true } : {})), empty)];
-  }
-  return h('div', null,
-    h('div', { class: 'subtabs', role: 'group', 'aria-label': 'Ready' },
-      tab('ready', 'Ready'), tab('need', 'Needs approval', n.need ? 'gold' : ''), tab('draft', 'Draft'), tab('posted', 'Posted'), tab('deleted', 'Deleted')),
-    content);
-}
 
 /** A post still in its tasks (or back in them): its name, how far its work is, its planned day; it opens its work. */
 function makingRow(x) {
