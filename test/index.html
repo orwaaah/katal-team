@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-0f769279032a';</script>
+<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-c29dbe998244';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -174,6 +174,7 @@ h1, h2, h3 { margin: 0; line-height: 1.25; font-weight: 650; letter-spacing: -.0
 .seg.cap-tabs { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
 .seg.cap-tabs::-webkit-scrollbar { display: none; }
 .seg.cap-tabs button { flex: 1 0 auto; }
+.seg.cap-tabs button svg { width: 13px; height: 13px; flex: none; }
 .seg.cap-tabs .miss-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); flex: none; }
 .seg button .n { font-size: 11px; background: var(--gold); color: #fff; border-radius: 999px; min-width: 17px; height: 17px; padding: 0 5px; display: inline-grid; place-items: center; }
 .subnav { display: flex; gap: 14px; align-items: center; margin: -6px 0 12px; font-size: 13px; }
@@ -934,6 +935,15 @@ button.cmt-tag { cursor: pointer; }
 .dayrow.empty .dr-none { margin-left: auto; font-size: 12px; color: var(--faint); }
 .dayrow.wait { border-style: dashed; }
 .dayrow.wait .dr-strip { min-height: 0; }
+/* The plan: the calendar's days, with the admin's cards (ideas ready to be made). */
+.dr-add { margin-left: auto; border: 1px solid var(--line); background: var(--card); border-radius: 999px; min-height: 26px; padding: 0 10px; font: inherit; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.dr-add:hover { color: var(--ink); border-color: var(--ink); }
+.psq.plan { height: 124px; }
+.psq.plan.made { background: var(--green-bg); border-color: #cfe5d8; }
+.psq.plan .psq-x { font-size: 12px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Three ways in, side by side (the team's Tasks page). */
+.newrow { display: flex; gap: 8px; margin: 0 0 12px; }
+.newrow .btn { flex: 1; min-width: 0; padding: 0 8px; }
 .dr-head { display: flex; align-items: baseline; gap: 8px; padding: 0 12px 6px; }
 .dr-day { font-size: 12px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .dayrow.today .dr-day { color: var(--gold-ink); }
@@ -1946,7 +1956,7 @@ function waitingFor(t) {
 }
 /** What kind of work: the icon at the start of its row. */
 function kindIcon(type, role) {
-  return role === 'Cover' || type === 'Design' ? 'image' : type === 'Video' ? 'video' : type === 'Blog' ? 'doc' : 'tasks';
+  return role === 'Cover' || type === 'Design' || type === 'Story' ? 'image' : type === 'Video' ? 'video' : type === 'Blog' ? 'doc' : 'tasks';
 }
 
 function calBadge(s) {
@@ -1961,6 +1971,7 @@ function calBadge(s) {
 const DESTS = [['Social', 'Social media'], ['External', 'External'], ['Blog', 'Blog'], ['Campaign', 'Campaign']];
 function destOf(i) {
   if (!i) return 'Social';
+  if (i.channel === 'Story') return 'Story'; // a story task: its media becomes a story
   if (i.type === 'Blog') return 'Blog';
   if (i.type === 'Campaign') return 'Campaign';
   if (i.channel === 'Outside') return 'External';
@@ -1974,6 +1985,7 @@ function campaignWays() { return ((S.state.flows || {}).Campaign || {}).variants
 /** The kinds to pick from for a destination: a blog has none; a campaign has its ways. */
 function destKinds(dest) { return dest === 'Social' || dest === 'External' ? kindsList() : dest === 'Campaign' ? campaignWays() : []; }
 function destToFields(dest, kind) {
+  if (dest === 'Story') return { type: 'Story', channel: 'Story', variant: '' };
   if (dest === 'Campaign') return { type: dest, channel: 'Social', variant: campaignWays().indexOf(kind) >= 0 ? kind : '' };
   if (dest === 'Blog') return { type: dest, channel: 'Social', variant: '' };
   return { type: kind || '', channel: dest === 'External' ? 'Outside' : 'Social', variant: '' };
@@ -1984,7 +1996,8 @@ function destPicker(f, onChange, opts) {
   opts = opts || {};
   const box = h('div');
   const tap = (fn) => () => { fn(); draw(); box.dispatchEvent(new Event('change', { bubbles: true })); if (onChange) onChange(); };
-  const dests = DESTS.filter(([d]) => d === 'Social' || d === 'External' || (S.state.types || []).indexOf(d) >= 0);
+  // opts.story: also "Story" (a task that only asks for a story's media; the admin's New task).
+  const dests = DESTS.filter(([d]) => d === 'Social' || d === 'External' || (S.state.types || []).indexOf(d) >= 0).concat(opts.story ? [['Story', 'Story']] : []);
   const draw = () => fill(box,
     opts.fixed ? null : field('Destination', h('div', { class: 'chips destpick' }, dests.map(([d, l]) =>
       h('button', { type: 'button', class: 'chip' + (f.dest === d ? ' on' : ''), 'aria-pressed': f.dest === d ? 'true' : 'false', onclick: tap(() => { f.dest = d; if (destKinds(d).indexOf(f.kind) < 0) f.kind = ''; }) }, l)))),
@@ -2160,7 +2173,53 @@ function boardView(name, cols, opts) {
 window.addEventListener('resize', () => { document.querySelectorAll('#app .board').forEach((b) => b.fit && b.fit()); });
 
 /** The tasks, as a board of stages. The admin and the manager see everyone's (faces to pick one); the team their own. */
-function tasksView() {
+/**
+ * Tasks, for the admin and the manager: "New task" always on top; under it the tasks, the ideas the team sent, and
+ * the posts the team sent (each with what waits in it).
+ */
+function workView() {
+  const st = S.state;
+  const admin = isAdmin();
+  const newIdeas = st.ideas.filter((i) => !i.hidden && (i.source === 'Idea' || !i.source) && i.execution === 'Later').length;
+  const teamPosts = st.ideas.filter((i) => !i.hidden && postWaiting(i)).length;
+  const toApprove = st.tasks.filter((t) => isOpen(t) && !t.cancelled && t.status === 'Pending Approval' && t.source !== 'Post').length;
+  const segs = [['tasks', 'Tasks', admin ? toApprove : 0], ['ideas', 'Ideas', newIdeas], ['posts', 'Team posts', teamPosts]];
+  const seg = segs.some((x) => x[0] === S.ui.workSeg) ? S.ui.workSeg : 'tasks';
+  const key = seg === 'tasks' ? 'q' : 'ideaQ';
+  const searching = S.ui.search === key || !!S.ui[key];
+  return h('div', null,
+    h('div', { class: 'ph' }, h('h1', null, 'Tasks'),
+      h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Search', 'aria-pressed': searching ? 'true' : 'false', style: searching ? 'color:var(--ink);border-color:var(--ink)' : '',
+        onclick: () => { if (searching) { S.ui.search = ''; S.ui[key] = ''; render(); } else { S.ui.search = key; render(); focusSearch(); } } }, icon('search')),
+      h('button', { type: 'button', class: 'btn primary newbtn', onclick: () => quickTaskSheet() }, icon('plus'), 'New task')),
+    h('div', { class: 'seg', style: 'margin-bottom:12px' }, segs.map(([v, l, n]) => h('button', { type: 'button', class: v === seg ? 'on' : '', onclick: () => { if (v !== seg) subGo({ workSeg: v }); } },
+      l, n ? h('span', { class: 'n' }, String(n)) : null))),
+    seg === 'tasks' ? tasksView({ bare: true }) : ideasView({ bare: true, only: seg }));
+}
+
+/** The done tasks, out of the way: newest first, with a search. Opened from the Done button on the board. */
+function doneTasksSheet(person) {
+  const box = h('div');
+  const f = { q: '', n: 60 };
+  const when = (t) => t.updatedAt || t.delivered || t.deadline || '';
+  const draw = () => {
+    const q = f.q.trim().toLowerCase();
+    const items = S.state.tasks.filter((t) => !t.cancelled && stageOf(t) === 'done' && (!person || t.assignedTo === person))
+      .filter((t) => !q || (t.id + ' ' + t.task + ' ' + t.idea + ' ' + (t.assignee || '')).toLowerCase().indexOf(q) >= 0)
+      .sort((a, b) => when(b).localeCompare(when(a)));
+    fill(box, list(items.slice(0, f.n).map((t) => { const p = taskParts(t); return itemRow({ key: t.key, onclick: () => openTask(t.key, { back: 'Done' }), icon: kindIcon(t.type, t.linkRole),
+      title: rowTitle(p.main, p.part), state: h('span', { class: 'st green' }, '✓ Done'), id: t.id, who: isStaff() ? t.assignee || '' : false, when: fmtShort(when(t).slice(0, 10)) }); }),
+    q ? 'Nothing matches.' : 'Nothing done yet.'),
+    items.length > f.n ? h('button', { type: 'button', class: 'btn ghost block', style: 'margin-top:8px', onclick: () => { f.n += 100; draw(); } }, 'Show more (' + (items.length - f.n) + ')') : null);
+  };
+  draw();
+  openSheet('Done', h('div', null,
+    h('input', { class: 'in', type: 'search', placeholder: 'Search the done tasks…', dir: 'auto', style: 'margin-bottom:10px', 'data-nodirty': '1', oninput: (e) => { f.q = e.target.value; draw(); } }),
+    box), null, { rebuild: null });
+}
+
+function tasksView(opts) {
+  opts = opts || {};
   const st = S.state;
   const staff = isStaff();
   const q = (S.ui.q || '').trim().toLowerCase();
@@ -2172,44 +2231,48 @@ function tasksView() {
   if (days) all = all.filter((t) => t.deadline && t.deadline >= days.from && t.deadline <= days.to);
   const by = {};
   STAGE_ORDER.forEach((k) => { by[k] = []; });
-  all.forEach((t) => by[stageOf(t)].push(t));
+  // Late work has its own column (it isn't repeated in the column of where it stands).
+  const late = all.filter((t) => isOpen(t) && t.overdue && t.status !== 'Pending Approval').sort(byBoard);
+  const isLate = new Set(late.map((t) => t.key));
+  all.forEach((t) => { if (!isLate.has(t.key)) by[stageOf(t)].push(t); });
   // Not started: what can start first; what waits for another task after it.
   by.todo.sort((a, b) => ((waitingFor(a) ? 1 : 0) - (waitingFor(b) ? 1 : 0)) || byBoard(a, b));
   ['doing', 'approve', 'changes'].forEach((k) => by[k].sort(byBoard));
   // Done: today and yesterday, so the column stays short (all of it is in More → Archive for the admin; the team's
   // own behind "Show older").
-  const since = addDays(st.today, -1);
   by.done.sort((a, b) => (b.updatedAt || b.delivered || b.deadline || '').localeCompare(a.updatedAt || a.delivered || a.deadline || ''));
-  const recent = by.done.filter((t) => (t.updatedAt || t.delivered || t.deadline || '').slice(0, 10) >= since);
-  const doneShown = days || (S.ui.doneAll && !isAdmin()) ? by.done : recent;
   const card = (t) => taskCard(t, { who: staff ? undefined : false });
-  const cols = STAGE_ORDER.map((k) => ({
-    id: k, label: stageLabel(k), short: stageLabel(k, true), c: STAGE[k].c,
-    items: (k === 'done' ? doneShown : by[k]).map(card), count: (k === 'done' ? doneShown : by[k]).length,
-    empty: { todo: 'Nothing waiting to start.', doing: 'Nobody is on anything right now.', approve: isAdmin() ? 'Nothing waiting for you.' : 'Nothing waiting for approval.', changes: 'No changes asked.', done: 'Nothing done today or yesterday.' }[k],
-    more: k !== 'done' || days || by.done.length <= recent.length ? null
-      : isAdmin() ? h('button', { type: 'button', class: 'bcol-more', onclick: () => goTab('more', { more: 'archive', archive: 'done' }) }, 'Older ones (' + (by.done.length - recent.length) + ') · Archive →')
-        : h('button', { type: 'button', class: 'bcol-more', onclick: () => { S.ui.doneAll = !S.ui.doneAll; render(); } },
-          S.ui.doneAll ? 'Only today and yesterday' : 'Show older (' + (by.done.length - recent.length) + ')')
-  }));
+  // Done isn't a column any more: it's behind its button (a list with a search), so the board keeps to what's open.
+  const cols = (late.length || staff ? [{ id: 'late', label: 'Late', short: 'Late', c: 'var(--red)', items: late.map((t) => taskCard(t, { who: staff ? undefined : false, state: true })), count: late.length, empty: 'Nothing late.' }] : [])
+    .concat(STAGE_ORDER.filter((k) => k !== 'done').map((k) => ({
+      id: k, label: stageLabel(k), short: stageLabel(k, true), c: STAGE[k].c, items: by[k].map(card), count: by[k].length,
+      empty: { todo: 'Nothing waiting to start.', doing: 'Nobody is on anything right now.', approve: isAdmin() ? 'Nothing waiting for you.' : 'Nothing waiting for approval.', changes: 'No changes asked.' }[k]
+    })));
   // It opens on the column that needs this person most.
-  const start = staff ? (isAdmin() && by.approve.length ? 'approve' : by.doing.length ? 'doing' : 'todo')
-    : by.changes.length ? 'changes' : by.doing.length ? 'doing' : 'todo';
+  const start = staff ? (isAdmin() && by.approve.length ? 'approve' : late.length ? 'late' : by.doing.length ? 'doing' : 'todo')
+    : by.changes.length ? 'changes' : late.length ? 'late' : by.doing.length ? 'doing' : 'todo';
+  const doneN = all.filter((t) => stageOf(t) === 'done').length;
   const people = staff ? (st.users || st.people.map((x) => Object.assign({ active: true }, x)))
     .filter((u) => u.active && st.tasks.some((t) => t.assignedTo === u.id && !t.cancelled)) : [];
   const searching = S.ui.search === 'q' || !!S.ui.q;
   return h('div', null,
-    h('div', { class: 'ph' }, h('h1', null, staff ? 'Tasks' : 'My tasks'),
+    opts.bare ? null : h('div', { class: 'ph' }, h('h1', null, staff ? 'Tasks' : 'My tasks'),
       h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Search', 'aria-pressed': searching ? 'true' : 'false', style: searching ? 'color:var(--ink);border-color:var(--ink)' : '',
         onclick: () => { if (searching) { S.ui.search = ''; S.ui.q = ''; render(); } else { S.ui.search = 'q'; render(); focusSearch(); } } }, icon('search')),
       staff ? h('button', { type: 'button', class: 'btn primary newbtn', onclick: () => quickTaskSheet() }, icon('plus'), 'Task') : null),
+    // The team's three ways in, first thing on their page: an idea, a post they made, a story.
+    staff ? null : h('div', { class: 'newrow' },
+      h('button', { type: 'button', class: 'btn', onclick: () => newIdeaSheet() }, icon('ideas'), 'New idea'),
+      h('button', { type: 'button', class: 'btn', onclick: () => addPostSheet() }, icon('plus'), 'New post'),
+      h('button', { type: 'button', class: 'btn', onclick: () => addStorySheet() }, icon('plus'), 'New story')),
     searching ? h('input', { class: 'in', type: 'search', enterkeyhint: 'search', placeholder: 'Search tasks, people, IDs…', value: S.ui.q || '', dir: 'auto', style: 'margin:-2px 0 10px',
       oninput: (e) => { S.ui.q = e.target.value; clearTimeout(S.searchT); S.searchT = setTimeout(() => { render(); focusSearch(); }, 250); } }) : null,
     dayFilterRow(),
-    people.length > 1 ? h('div', { class: 'faces', 'data-scroll': 'faces' },
-      h('button', { type: 'button', class: 'face all' + (person ? '' : ' on'), onclick: () => { S.ui.person = ''; render(); } }, 'Everyone'),
-      people.map((u) => h('button', { type: 'button', class: 'face' + (person === u.id ? ' on' : ''), onclick: () => { S.ui.person = person === u.id ? '' : u.id; render(); } },
-        h('span', { class: 'avatar' }, u.name.charAt(0)), u.name))) : null,
+    h('div', { class: 'faces', 'data-scroll': 'faces' },
+      people.length > 1 ? [h('button', { type: 'button', class: 'face all' + (person ? '' : ' on'), onclick: () => { S.ui.person = ''; render(); } }, 'Everyone'),
+        people.map((u) => h('button', { type: 'button', class: 'face' + (person === u.id ? ' on' : ''), onclick: () => { S.ui.person = person === u.id ? '' : u.id; render(); } },
+          h('span', { class: 'avatar' }, u.name.charAt(0)), u.name))] : null,
+      h('button', { type: 'button', class: 'face all archbtn', onclick: () => doneTasksSheet(person) }, 'Done', doneN ? h('span', { class: 'n' }, String(doneN)) : null)),
     boardView('tasks' + (person ? ':' + person : ''), cols, { start }));
 }
 /*
@@ -2463,7 +2526,7 @@ function previewSheet(url, ctx) {
     const pin = { x: null, y: null };
     const stage = h('div', { class: 'pv' }); // holds the image and its pins
     // A video by what the work is, or by the file itself (Drive says what it is): a video under any kind of work plays.
-    const video = !!ctx.video || fileKinds.get(fid) === 'video';
+    const video = !!ctx.video || /#video$/.test(cur) || fileKinds.get(fid) === 'video';
     if (!video && !fileKinds.has(fid)) {
       fileKinds.set(fid, '');
       mediaToken().then((m) => gapi('/drive/v3/files/' + encodeURIComponent(fid) + '?fields=mimeType', {}, m.token)).then((meta) => {
@@ -3024,7 +3087,11 @@ function leaveApp() {
 }
 /** Where the app is: the tab, and inside the Calendar tab its tab and Ready's small tab ("calendar:ready:need"). */
 function viewKey() {
-  return S.ui.tab === 'calendar' ? ['calendar', S.ui.calSeg || 'calendar', S.ui.readySeg || 'ready', (S.ui.finSeg || '').replace(':', '~'), S.ui.storySeg || ''].join(':') : S.ui.tab;
+  const fin = (S.ui.finSeg || '').replace(':', '~');
+  if (S.ui.tab === 'calendar') return ['calendar', S.ui.calSeg || 'calendar', S.ui.readySeg || 'ready', fin, S.ui.storySeg || ''].join(':');
+  if (S.ui.tab === 'content') return ['content', S.ui.contentSeg || 'posts', S.ui.postsSeg || '', fin, S.ui.storySeg || ''].join(':');
+  if (S.ui.tab === 'tasks' && isStaff()) return 'tasks:' + (S.ui.workSeg || 'tasks');
+  return S.ui.tab;
 }
 /** A tab inside a tab (Ready, Needs approval…): Back comes back to the one before, like a tab. */
 function subGo(set) {
@@ -3046,11 +3113,14 @@ window.addEventListener('popstate', () => {
   let prev = (S.tabHist || []).pop();
   while (prev && prev === viewKey()) prev = S.tabHist.pop();
   if (prev) {
-    const [tab, calSeg, readySeg, finSeg, storySeg] = prev.split(':');
-    goTab(tab, calSeg ? { calSeg, readySeg, finSeg: (finSeg || '').replace('~', ':'), storySeg: storySeg || '' } : null, true);
+    // The place before, with its inner tab: the calendar's, Content's, or the admin's Tasks (tasks, ideas, team posts).
+    const [tab, a, b, finSeg, storySeg] = prev.split(':');
+    const inner = { finSeg: (finSeg || '').replace('~', ':'), storySeg: storySeg || '' };
+    goTab(tab, tab === 'calendar' && a ? Object.assign({ calSeg: a, readySeg: b }, inner) : tab === 'content' ? Object.assign({ contentSeg: a || 'posts', postsSeg: b || '' }, inner)
+      : tab === 'tasks' && a ? { workSeg: a } : null, true);
     return;
   }
-  const home = isStaff() ? 'today' : 'tasks';
+  const home = 'tasks';
   if (S.ui.tab !== home) { goTab(home, null, true); return; }
   if (Date.now() - (S.backAt || 0) < 2500) { leaveApp(); return; }
   S.backAt = Date.now();
@@ -3189,15 +3259,21 @@ function appShell() {
   const unreadIn = (pred) => Object.keys(st.unread || {}).filter(pred).length;
   // Ready and Posted live inside Calendar now.
   if (S.ui.tab === 'ready' || S.ui.tab === 'posted') { S.ui.calSeg = S.ui.tab; S.ui.tab = 'calendar'; }
+  placesFromBefore();
+  /*
+   * The admin and the manager: Tasks (the tasks, the team's ideas, the team's posts), Content (what the work became:
+   * posts, stories, campaigns, blogs, external work), Calendar (the days, Ready, the plan, the rhythm), Break, More.
+   * The team: their tasks, the ideas, the calendar.
+   */
   const tabs = isStaff()
-    ? [['today', 'Today', 0], ['tasks', 'Tasks', isAdmin() ? st.tasks.filter((t) => isOpen(t) && !t.cancelled && t.status === 'Pending Approval').length : 0],
-      ['ideas', 'Ideas', isAdmin() ? st.ideas.filter((i) => !i.hidden && ((i.source === 'Idea' || !i.source) && i.execution === 'Later' || postWaiting(i))).length : 0],
-      ['calendar', 'Calendar', isAdmin() ? draftPosts().length + missedPosts().length + (st.stories || []).filter((x) => x.status === 'Sent').length : 0], ['play', 'Break', 0], ['more', 'More', 0]]
+    ? [['tasks', 'Tasks', isAdmin() ? st.tasks.filter((t) => isOpen(t) && !t.cancelled && t.status === 'Pending Approval').length : 0],
+      ['content', 'Content', isAdmin() ? draftPosts().length + (st.stories || []).filter((x) => x.status === 'Sent').length : 0],
+      ['calendar', 'Calendar', isAdmin() ? missedPosts().length : 0], ['play', 'Break', 0], ['more', 'More', 0]]
     : [['tasks', 'My tasks', st.tasks.filter((t) => isOpen(t) && (t.review === 'Edit' || !t.status)).length + unreadIn((id) => st.tasks.some((t) => t.id === id))],
       ['ideas', 'Ideas', unreadIn((id) => !st.tasks.some((t) => t.id === id))], ['calendar', 'Calendar', (st.stories || []).filter((x) => x.mine && x.status === 'Edit').length], ['play', 'Break', 0]];
-  const views = { today: todayView, tasks: tasksView, ideas: ideasView, calendar: calendarView, play: playView, more: moreView };
+  const views = { tasks: isStaff() ? workView : tasksView, ideas: ideasView, content: contentView, calendar: calendarView, play: playView, more: moreView };
   if (!tabs.some((x) => x[0] === S.ui.tab)) S.ui.tab = tabs[0][0];
-  const wide = S.ui.tab === 'tasks' || S.ui.tab === 'ideas' || S.ui.tab === 'today';
+  const wide = S.ui.tab === 'tasks' || S.ui.tab === 'ideas' || (S.ui.tab === 'content' && (S.ui.contentSeg || 'posts') === 'posts');
   return h('div', null,
     h('header', { class: 'topbar' + (S.viewAs ? ' as' : '') },
       h('div', { class: 'brandmark' }, h('img', { src: LOGO, alt: 'KATAL' }), h('span', { class: 'sep' }), h('span', { class: 'team' }, 'Team'), CFG.test ? h('span', { class: 'testtag' }, 'Test') : null),
@@ -3216,8 +3292,28 @@ function appShell() {
     h('nav', { class: 'tabs' }, tabs.map(([key, label, n]) => h('button', {
       class: S.ui.tab === key ? 'on' : '', 'aria-current': S.ui.tab === key ? 'page' : null,
       onclick: () => { if (S.ui.tab === key) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; } goTab(key); }
-    }, icon(key === 'play' ? 'play2' : key), label, n ? h('span', { class: 'dot' }, n) : null))),
+    }, icon(key === 'play' ? 'play2' : key === 'content' ? 'image' : key), label, n ? h('span', { class: 'dot' }, n) : null))),
     h('main', { class: 'main' + (wide ? ' wide board-page' : '') }, views[S.ui.tab]()));
+}
+
+/**
+ * Places that moved (a saved screen, an old link, a button written before): Today and Ideas are inside Tasks for the
+ * admin and the manager; Blog, External, Campaigns, Stories and a post's way (needs approval, posted, deleted) are in
+ * Content; Calendar keeps the days, Ready, the plan and the rhythm.
+ */
+function placesFromBefore() {
+  const ui = S.ui;
+  if (!isStaff()) { if (ui.tab === 'today' || ui.tab === 'content') ui.tab = 'tasks'; return; }
+  if (ui.tab === 'today') ui.tab = 'tasks';
+  if (ui.tab === 'ideas') { ui.tab = 'tasks'; ui.workSeg = 'ideas'; }
+  if (ui.tab !== 'calendar') return;
+  const moved = { blog: 'blog', external: 'external', campaigns: 'campaigns', stories: 'stories' }[ui.calSeg];
+  if (moved) { ui.tab = 'content'; ui.contentSeg = moved; ui.calSeg = 'calendar'; return; }
+  if (ui.calSeg === 'posted' || ui.calSeg === 'cancelled') { ui.tab = 'content'; ui.contentSeg = 'posts'; ui.postsSeg = ui.calSeg === 'posted' ? 'posted' : 'deleted'; ui.calSeg = 'calendar'; return; }
+  if (ui.calSeg === 'ready' && ui.readySeg && ui.readySeg !== 'ready') {
+    ui.tab = 'content'; ui.contentSeg = 'posts'; ui.postsSeg = ui.readySeg === 'posted' ? 'posted' : ui.readySeg === 'deleted' ? 'deleted' : '';
+    ui.calSeg = 'calendar'; ui.readySeg = 'ready';
+  }
 }
 
 /**
@@ -3336,24 +3432,24 @@ function searchSheet() {
     const rows = [];
     (st.calendar || []).filter((c) => socialPost(c) && hit(c.id, c.idea)).forEach((c) => rows.push(itemRow({
       onclick: () => (isAdmin() ? calSheet(c.key, null, { back: 'Back' }) : postViewSheet(c)), icon: kindIcon(c.type), title: rowTitle(firstLine(c.idea) || c.id),
-      state: where('Post · ' + (c.status === 'Cancelled' ? 'Ready → Deleted' : c.status === 'Published' ? 'Ready → Posted' : postInWork(c) ? 'back in the tasks' : c.status === 'Draft' ? 'Ready → Needs approval' : c.publishDate ? 'on the calendar' : 'Ready'),
+      state: where('Post · ' + (c.status === 'Cancelled' ? 'Content → Posts → Deleted' : c.status === 'Published' ? 'Content → Posts → Posted' : postInWork(c) ? 'back in the tasks' : c.status === 'Draft' ? 'Content → Posts · needs approval' : c.publishDate ? 'on the calendar' : 'Calendar → Ready'),
         c.status === 'Draft' && !postInWork(c) ? 'gold' : ''),
       id: c.id, who: false, when: c.publishDate ? dayShort(c.publishDate) : '' })));
     (st.finished || []).filter((w) => hit(w.id, w.name)).forEach((w) => rows.push(itemRow({
       onclick: () => workPage(w.id, { back: 'Back' }), icon: kindIcon(w.type), title: rowTitle(firstLine(w.name) || w.id),
-      state: where('Calendar → ' + (w.dest === 'Campaign' ? 'Campaigns' : destLabel(w.dest)) + (w.out ? ' → ' + (w.dest === 'Blog' ? 'Posted' : 'Archived') : '')),
+      state: where((isStaff() ? 'Content → ' : 'Calendar → ') + (w.dest === 'Campaign' ? 'Campaigns' : destLabel(w.dest)) + (w.out ? ' → ' + (w.dest === 'Blog' ? 'Posted' : 'Archived') : '')),
       id: w.id, who: (w.by || []).join(', '), when: w.approvedAt ? fmtShort(w.approvedAt.slice(0, 10)) : '' })));
     (st.tasks || []).filter((t) => !t.cancelled && t.source !== 'Post' && hit(t.id, t.task, t.idea)).forEach((t) => rows.push(itemRow({
       onclick: () => taskPage(t.key, { back: 'Back' }), icon: kindIcon(t.type, t.linkRole), title: rowTitle(firstLine(t.idea) || t.task, t.idea && t.task !== t.idea ? t.task : ''),
       state: where('Task · ' + stageLabel(stageOf(t))), id: t.id, who: t.assignee || '', when: t.deadline ? dayShort(t.deadline) : '' })));
     (st.ideas || []).filter((i) => !i.hidden && i.source !== 'Quick' && hit(i.id, i.idea)).forEach((i) => rows.push(itemRow({
       onclick: () => ideaPage(i.id, { back: 'Back' }), icon: i.source === 'Post' ? kindIcon(i.type) : 'ideas', title: rowTitle(firstLine(i.idea) || i.id),
-      state: where(i.source === 'Post' ? (i.execution === 'Later' ? 'Ideas → Posts from the team' : 'Post from the team · ' + (i.execution === 'Approved' ? 'approved' : 'not taken'))
-        : i.execution === 'Later' ? 'Ideas → New' : i.execution === 'Approved' ? 'Idea · approved' : 'Ideas → Archive', i.execution === 'Later' ? 'gold' : ''),
+      state: where(i.source === 'Post' ? (i.execution === 'Later' ? (isStaff() ? 'Tasks → Team posts' : 'Ideas → Posts sent') : 'Post from the team · ' + (i.execution === 'Approved' ? 'approved' : 'not taken'))
+        : i.execution === 'Later' ? (isStaff() ? 'Tasks → Ideas' : 'Ideas → New') : i.execution === 'Approved' ? 'Idea · approved' : 'Ideas → Archive', i.execution === 'Later' ? 'gold' : ''),
       id: i.id, who: i.mine ? 'You' : i.by || '', when: i.submittedAt ? fmtShort(i.submittedAt.slice(0, 10)) : '' })));
     (st.stories || []).filter((x) => hit(x.code, 'story')).forEach((x) => rows.push(itemRow({
-      onclick: () => goTab('calendar', { calSeg: 'stories' }), icon: 'image', title: rowTitle('Story ' + x.code),
-      state: where('Calendar → Stories · ' + x.status), id: x.code, who: x.mine ? 'You' : x.by || '', when: (x.sentAt || x.createdAt) ? fmtShort((x.sentAt || x.createdAt).slice(0, 10)) : '' })));
+      onclick: () => (isStaff() ? goTab('content', { contentSeg: 'stories' }) : goTab('calendar', { calSeg: 'stories' })), icon: 'image', title: rowTitle('Story ' + x.code),
+      state: where((isStaff() ? 'Content' : 'Calendar') + ' → Stories · ' + x.status), id: x.code, who: x.mine ? 'You' : x.by || '', when: (x.sentAt || x.createdAt) ? fmtShort((x.sentAt || x.createdAt).slice(0, 10)) : '' })));
     fill(box, rows.length ? [h('div', { class: 'small muted', style: 'margin:0 2px 8px' }, rows.length > 40 ? 'The first 40 of ' + rows.length + '. Type more to narrow it.' : rows.length + ' found'), h('div', { class: 'list' }, rows.slice(0, 40))]
       : h('div', { class: 'empty' }, 'Nothing with "' + inp.value.trim() + '".'));
   };
@@ -3730,6 +3826,7 @@ function agoText(dt) {
 
 /** Where the post of this work stands, in a few words. */
 function postFact(t) {
+  if (t.channel === 'Story') return h('span', { class: 'muted' }, 'A story · in Stories once approved');
   if (t.channel === 'Outside') return h('span', { class: 'muted' }, 'No post · general work');
   if ((S.state.flows || {})[t.type] && S.state.flows[t.type].post === false) return h('span', { class: 'muted' }, 'No post · ends at Done');
   const post = (S.state.calendar || []).find((c) => c.id === t.id && c.status !== 'Cancelled');
@@ -3905,7 +4002,7 @@ function taskPage(key, o) {
   if (working || (admin && !t.cancelled)) {
     const linkIn = input(d, 'fileLink', { type: 'url', dir: 'ltr', placeholder: S.state.media ? 'Or paste a link' : 'Paste the link', inputmode: 'url', oninput: (e) => { typeWork('fileLink', e.target.value); showCapNote(); } });
     filesBox = h('div', null,
-      filesEditor(files, { id: t.id, label: t.task, video: isVideoTask(t) }, (links) => {
+      filesEditor(files, { id: t.id, label: t.task, video: isVideoTask(t), storyKinds: t.channel === 'Story' }, (links) => {
         const had = files.length;
         d.fileLink = links[0] || ''; linkIn.value = d.fileLink; delete d.typed.fileLink; // saved right away below
         if (admin && !mine) { saveEdits(null, { files: links, fileLink: links[0] || '' }, links.length ? 'Files saved ✓' : 'File taken off'); return; }
@@ -4020,13 +4117,13 @@ function approve(btn, t) {
   return instant((st) => {
     const x = st.tasks.find((k) => k.key === t.key);
     if (x) Object.assign(x, { review: 'Approved', status: 'Done', color: 'none', overdue: false });
-  }, 'task.approve', { key: t.key }, last ? (posts ? 'Approved · its post is in Ready → Needs approval' : 'Approved · ' + t.id + ' is done') : 'Approved')
+  }, 'task.approve', { key: t.key }, t.channel === 'Story' ? 'Approved · its story is in Content → Stories' : last ? (posts ? 'Approved · its post is in Content → Posts' : 'Approved · ' + t.id + ' is done') : 'Approved')
     .then((d) => {
       // The post is made by now: one tap to it (its OK, its day), or to where other work went.
       const c = d && (S.state.calendar || []).find((x) => x.id === t.id && x.status === 'Draft' && livePost(x));
       const w = d && !c && last && (S.state.finished || []).find((x) => x.id === t.id);
       if (c && isAdmin()) toast('Approved · its post needs your OK', false, null, { label: 'Open the post', fn: () => calSheet(c.key) });
-      else if (w) toast('Approved · it\'s in Calendar → ' + (w.dest === 'Campaign' ? 'Campaigns' : destLabel(w.dest)), false, null, { label: 'Open', fn: () => workPage(w.id) });
+      else if (w) toast('Approved · it\'s in Content → ' + (w.dest === 'Campaign' ? 'Campaigns' : destLabel(w.dest)), false, null, { label: 'Open', fn: () => workPage(w.id) });
       return d;
     });
 }
@@ -4372,7 +4469,7 @@ function editTaskSheet(t, o) {
       field('Assigned to', personSelect(f, 'assignedTo', { id: t.assignedTo, name: t.assignee })),
       statuses ? field('Status', selectBox(statuses, f.status, (v) => { f.status = v; }, { full: true })) : h('div')),
     // A task made on its own decides where it goes (an idea's tasks follow their idea: change it there).
-    o.admin && t.source === 'Quick' && !personal ? channelField(f) : null),
+    o.admin && t.source === 'Quick' && !personal && t.channel !== 'Story' ? channelField(f) : null),
   editFoot(() => {
     if (!String(f.name || '').trim() || (o.part && !String(f.task || '').trim())) { toast('Write a name.', true); return; }
     if (f.name.trim().length > NAME_MAX) { toast('Keep the name to ' + NAME_MAX + ' characters.', true); return; }
@@ -4444,6 +4541,13 @@ function quickTaskSheet(o) {
   const admin = isAdmin();
   const f = { task: '', brief: '', scribble: '', type: '', assignedTo: '', deadline: '', channel: 'Social', reference: '', cover: true, priority: '', postDate: o.postDate || '', postPlatform: o.postPlatform || '' };
   const fd = { dest: o.postDate ? 'Social' : '', kind: '' }; // where it goes, and what kind of work
+  // From a plan card: its name, text, links, kind and content type are filled in (o.prefill); o.onMade(id) once made.
+  if (o.prefill) {
+    Object.assign(f, { task: o.prefill.task || '', brief: o.prefill.brief || '', reference: o.prefill.reference || '', contentType: o.prefill.contentType || '' });
+    fd.dest = 'Social';
+    fd.kind = kindsList().indexOf(o.prefill.kind) >= 0 ? o.prefill.kind : '';
+    if (fd.kind) Object.assign(f, destToFields(fd.dest, fd.kind));
+  }
   const btn = h('button', { class: 'btn primary' }, 'Create task');
   // A video (or a campaign) brings what follows it: "Also Video Cover → Nisreen", "Also Launch the campaign → Orwah".
   const followFor = () => (f.type && f.channel === 'Social' && ((S.state.follow || S.state.covers || {})[f.type])) || [];
@@ -4464,25 +4568,34 @@ function quickTaskSheet(o) {
     const writing = admin && f.scribble.trim() && !f.brief.trim() && S.state.ai;
     const covers = f.cover ? followFor() : [];
     run(btn, 'task.quick', Object.assign({}, f, { cover: covers.length > 0 }), (d) => (covers.length ? 'Tasks created · ' + d.id + ' · ' +
-      covers.map((c) => c.task + ' for ' + c.name).join(', ') : 'Task created · ' + d.id) + (f.postDate ? ' · post ' + dayShort(f.postDate) : '') + (writing ? ' · the brief is being written' : ''));
+      covers.map((c) => c.task + ' for ' + c.name).join(', ') : 'Task created · ' + d.id) + (f.postDate ? ' · post ' + dayShort(f.postDate) : '') + (writing ? ' · the brief is being written' : ''))
+      .then((d) => { if (d && d.id && o.onMade) o.onMade(d.id); });
   };
   const hint = h('div');
-  const showHint = () => fill(hint, f.channel === 'Outside' && f.assignedTo === S.me.id
+  const showHint = () => fill(hint, fd.dest === 'Story'
+    ? h('div', { class: 'note' }, h('div', { class: 't' }, 'A story task'), 'They only upload the story\'s media. Once you approve it, it\'s in Content → Stories, approved, like a story they sent.')
+    : f.channel === 'Outside' && f.assignedTo === S.me.id
     ? h('div', { class: 'note', style: 'background:var(--purple-bg);border-color:#e1dcf0' }, h('div', { class: 't' }, '🔒 Personal task'),
       admin ? 'Only you will see it.' : 'Only you and the admin will see it.') : null);
+  // What kind of content a social post is (educational, entertaining…), when the list in More → App has any.
+  const ctBox = h('div');
+  const drawCt = () => fill(ctBox, fd.dest === 'Social' && (S.state.contentTypes || []).length
+    ? field(h('span', null, 'Content type', h('i', null, 'optional')), selectBox([{ value: '', label: 'Not set' }].concat(S.state.contentTypes.map((x) => ({ value: x, label: x }))), f.contentType || '', (v) => { f.contentType = v; }, { full: true })) : null);
+  drawCt();
   const prio = h('div', { class: 'prio', role: 'group', 'aria-label': 'Priority' });
   const dayBox = h('div'); // a post day: only for social media
   const drawDay = () => fill(dayBox, o.postDate || fd.dest !== 'Social' ? null
     : field(h('span', null, 'Post day', h('i', null, 'optional')), dateField(f.postDate, (v) => { f.postDate = v; }, { anyDay: true, clearable: true, placeholder: 'When it should go out' })));
   drawDay();
-  const onDest = () => { Object.assign(f, destToFields(fd.dest, fd.kind)); if (fd.dest !== 'Social') f.postDate = ''; drawDay(); showHint(); showCover(); };
+  const onDest = () => { Object.assign(f, destToFields(fd.dest, fd.kind)); if (fd.dest !== 'Social') { f.postDate = ''; f.contentType = ''; } drawDay(); showHint(); showCover(); drawCt(); };
   const drawPrio = () => fill(prio, [['', 'None', '#d8d2c7'], ['High', 'High', 'var(--pr-high)'], ['Medium', 'Medium', 'var(--pr-med)'], ['Low', 'Low', 'var(--pr-low)']].map(([v, l, c]) =>
     h('button', { type: 'button', class: f.priority === v ? 'on' : '', style: '--pc:' + c, onclick: () => { f.priority = v; drawPrio(); } }, h('i'), l)));
   drawPrio();
   openSheet(o.postDate ? 'Task for ' + (o.postPlatform ? o.postPlatform + ', ' : '') + dayShort(o.postDate) : 'New task', h('div', null,
     kindNote('tasks', 'A task goes straight to someone.', o.postDate ? 'Its post lands on ' + dayLong(o.postDate) + (o.postPlatform ? ' (' + o.postPlatform + ')' : '') + ' once the work is approved.' : 'For something to talk about first, make an idea instead.'),
     field(h('span', null, 'Task', h('i', null, 'short name')), nameInput(f, 'task', { placeholder: 'e.g. Open house stories' })),
-    destPicker(fd, onDest, { fixed: !!o.postDate }),
+    destPicker(fd, onDest, { fixed: !!o.postDate, story: !o.postDate && !o.prefill }),
+    ctBox,
     h('div', { class: 'two' },
       field('Assigned to', selectBox([{ value: '', label: 'Pick…' }].concat(peopleOptions()), '', (v) => { f.assignedTo = v; showHint(); }, { full: true })),
       field('Deadline', dateField('', (v) => { f.deadline = v; }))),
@@ -4539,7 +4652,8 @@ function ideaCard(i) {
         h('span', { class: 'tc-due' }, h('span', { class: 'm-id' }, i.id), ' ', when))));
 }
 /** The Ideas tab: new ideas and the team's posts waiting for Orwah, side by side; everything decided is in the archive. */
-function ideasView() {
+function ideasView(opts) {
+  opts = opts || {};
   const st = S.state;
   const staff = isStaff();
   const q = (S.ui.ideaQ || '').trim().toLowerCase();
@@ -4557,12 +4671,14 @@ function ideasView() {
   ];
   const authors = staff ? st.people.filter((p) => st.ideas.some((i) => i.byId === p.id && i.source !== 'Quick' && !i.hidden)) : [];
   const searching = S.ui.search === 'ideaQ' || !!S.ui.ideaQ;
+  // Inside Tasks (the admin, the manager): one list, the ideas or the team's posts; nothing is added from here.
+  const one = opts.only === 'posts' ? posts : ideas;
   return h('div', null,
-    h('div', { class: 'ph' }, h('h1', null, 'Ideas'),
+    opts.bare ? null : h('div', { class: 'ph' }, h('h1', null, 'Ideas'),
       h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Search', 'aria-pressed': searching ? 'true' : 'false', style: searching ? 'color:var(--ink);border-color:var(--ink)' : '',
         onclick: () => { if (searching) { S.ui.search = ''; S.ui.ideaQ = ''; render(); } else { S.ui.search = 'ideaQ'; render(); focusSearch(); } } }, icon('search')),
-      isAdmin() ? null : h('button', { type: 'button', class: 'btn newbtn', onclick: () => addPostSheet() }, icon('plus'), 'Add post'),
-      h('button', { type: 'button', class: 'btn newbtn idea', onclick: () => (isAdmin() ? newIdeaAdminSheet() : newIdeaSheet()) }, icon('ideas'), 'New idea')),
+      staff ? null : h('button', { type: 'button', class: 'btn newbtn', onclick: () => addPostSheet() }, icon('plus'), 'Add post'),
+      staff ? null : h('button', { type: 'button', class: 'btn newbtn idea', onclick: () => newIdeaSheet() }, icon('ideas'), 'New idea')),
     searching ? h('input', { class: 'in', type: 'search', enterkeyhint: 'search', placeholder: 'Search ideas…', value: S.ui.ideaQ || '', dir: 'auto', style: 'margin:-2px 0 10px',
       oninput: (e) => { S.ui.ideaQ = e.target.value; clearTimeout(S.searchT); S.searchT = setTimeout(() => { render(); focusSearch(); }, 250); } }) : null,
     h('div', { class: 'faces' },
@@ -4570,7 +4686,9 @@ function ideasView() {
         authors.map((u) => h('button', { type: 'button', class: 'face' + (S.ui.ideaBy === u.id ? ' on' : ''), onclick: () => { S.ui.ideaBy = S.ui.ideaBy === u.id ? '' : u.id; render(); } },
           h('span', { class: 'avatar' }, u.name.charAt(0)), u.name))] : null,
       h('button', { type: 'button', class: 'face all archbtn', onclick: () => ideasArchiveSheet() }, 'Archive', archived ? h('span', { class: 'n' }, String(archived)) : null)),
-    boardView('ideas', cols, { start: staff && !ideas.length && posts.length ? 'posts' : 'ideas' }));
+    opts.only ? (one.length ? h('div', { class: 'fcards' }, one.map(ideaCard))
+      : h('div', { class: 'empty' }, opts.only === 'posts' ? 'No posts from the team waiting.' : 'No new ideas.'))
+      : boardView('ideas', cols, { start: staff && !ideas.length && posts.length ? 'posts' : 'ideas' }));
 }
 /** Every decided idea and post (approved or not taken), the newest decision first. Tap one to open it. */
 function ideasArchiveSheet() {
@@ -4698,7 +4816,7 @@ function ideaPage(id, o) {
   if (admin && pending && isPost) {
     acts = h('div', { class: 'pcard decide' },
       h('button', { type: 'button', class: 'btn good block', style: 'min-height:48px;font-size:15px', onclick: (e) => run(e.currentTarget, 'post.decide', { id: i.id, decision: 'approve' },
-        dest === 'Social' ? 'Approved · here is its post: give it your OK and a day' : 'Approved · it\'s in Calendar → ' + (dest === 'Campaign' ? 'Campaigns' : destLabel(dest)))
+        dest === 'Social' ? 'Approved · here is its post: give it your OK and a day' : 'Approved · it\'s in Content → ' + (dest === 'Campaign' ? 'Campaigns' : destLabel(dest)))
         .then((d) => { if (d) openWhereItWent(i.id); }) }, '✓ Approve'),
       h('div', { class: 'small muted', style: 'margin-top:8px;text-align:center' }, 'Something to change first (the destination, the kind, the caption, a file)? Tap Edit, next to the name.'),
       h('div', { class: 'row', style: 'margin-top:8px' },
@@ -5090,7 +5208,7 @@ function postRow(c, opts) {
   const acts = opts.past && isAdmin() && c.status === 'Final' ? [
     act('✓ Posted', 'good small', () => calMove(c, 'published')),
     act('↩ Back to Ready', 'small', () => calMove(c, 'ready')),
-    act('Delete', 'tiny ghost danger-text', () => ask('Delete ' + (firstLine(c.idea) || c.id) + '? It goes to Ready → Deleted (you can bring it back).', 'Delete', true).then((ok) => { if (ok) calMove(c, 'cancel'); }))] : null;
+    act('Delete', 'tiny ghost danger-text', () => ask('Delete ' + (firstLine(c.idea) || c.id) + '? It goes to Content → Posts → Deleted (you can bring it back).', 'Delete', true).then((ok) => { if (ok) calMove(c, 'cancel'); }))] : null;
   return itemRow({ acts,
     onclick: open, icon: kindIcon(c.type), title: rowTitle(firstLine(c.idea) || c.id),
     state: needs ? h('span', { class: 'st gold' }, 'Needs ' + missingText(c)) : postStateTag(c),
@@ -5121,7 +5239,7 @@ function autoTag(status, from, what) {
 
 /** One-tap post moves: published, back to Ready, back to the calendar, cancelled. */
 function calMove(c, action) {
-  const msg = { published: c.id + ' marked as posted', ready: c.id + ' back in Ready', cancel: c.id + ' deleted · in Ready → Deleted',
+  const msg = { published: c.id + ' marked as posted', ready: c.id + ' back in Ready', cancel: c.id + ' deleted · in Content → Posts → Deleted',
     unpublish: c.id + ' back on the calendar' }[action];
   const undo = action === 'published' ? () => calMove(Object.assign({}, c, { status: 'Published' }), 'unpublish') : null;
   return instant((st) => {
@@ -5175,7 +5293,7 @@ function postViewSheet(c) {
     h('div', { class: 'related' },
       h('div', { class: 'r' }, h('b', { style: 'min-width:70px' }, l.media), h('div', { class: 'files grow' }, mediaOf(c) || h('span', { class: 'faint' }, '—'))),
       h('div', { class: 'r' }, h('b', { style: 'min-width:70px' }, l.cover), h('div', { class: 'files grow' }, fileLink(c.coverLink, { id: c.id }) || h('span', { class: 'faint' }, '—')))),
-    captionsBox(c, null),
+    isStaff() ? captionsBox(c, null) : null, // the team sees what goes out and when, not the captions
     links.length ? field('Published posts', h('div', { class: 'files' }, links.map((u, i) => h('a', { class: 'fchip', href: u, target: '_blank', rel: 'noopener noreferrer' }, 'Post ' + (i + 1) + ' ↗')))) : null,
     commentsBox(c.id, { video: c.type === 'Video' })), editFoot(null));
 }
@@ -5201,21 +5319,18 @@ function calendarView() {
   const staff = isStaff();
   const admin = isAdmin();
   // Places from before: Posted and Cancelled are in Ready now; "didn't go out" is the calendar's past week.
-  if (staff && (S.ui.calSeg === 'posted' || S.ui.calSeg === 'cancelled')) { S.ui.readySeg = S.ui.calSeg === 'posted' ? 'posted' : 'deleted'; S.ui.calSeg = 'ready'; }
   if (S.ui.calSeg === 'missed') { S.ui.calSeg = 'calendar'; S.ui.calPast = 1; }
   const fin = st.finished || [];
   const waiting = (d) => fin.filter((w) => w.dest === d && !w.out).length;
   const stories = st.stories || [];
   const storyN = admin ? stories.filter((x) => x.status === 'Sent').length : stories.filter((x) => x.mine && x.status === 'Edit').length;
-  // Ready is social media only; the other work has its own tab next to it; stories have theirs.
+  // The admin and the manager: the days, the approved posts waiting for a day, the plan (the admin's), the rhythm.
+  // The team: what is going out, the blogs and the stories (what was posted is behind a button under the days).
   const segs = staff
-    ? [['calendar', 'Calendar'], ['ready', 'Ready', draftPosts().length], ['blog', 'Blog', waiting('Blog')], ['external', 'External', waiting('External')],
-      ['campaigns', 'Campaigns', waiting('Campaign')], ['stories', 'Stories', storyN], ['rhythm', 'Rhythm']]
-    : S.me.blog ? [['blog', 'Blog', waiting('Blog')]]
-      : [['calendar', 'Upcoming'], ['posted', 'Posted'], ['stories', 'Stories', storyN]];
-  const segVal = segs.some((x) => x[0] === S.ui.calSeg) ? S.ui.calSeg : segs[0][0];
-  // Ready always opens on the posts ready to go out.
-  const go = (v) => subGo(v === 'ready' ? { calSeg: v, readySeg: 'ready' } : { calSeg: v });
+    ? [['calendar', 'Calendar'], ['ready', 'Ready', readyPosts().length]].concat(admin ? [['plan', 'Plan']] : [], [['rhythm', 'Rhythm']])
+    : [['calendar', 'Calendar'], ['blog', 'Blog', S.me.blog ? waiting('Blog') : 0], ['stories', 'Stories', storyN]];
+  const segVal = segs.some((x) => x[0] === S.ui.calSeg) || (!staff && S.ui.calSeg === 'posted') ? S.ui.calSeg : segs[0][0];
+  const go = (v) => subGo({ calSeg: v });
   const flt = S.ui.calFilter;
   const types = Array.from(new Set(st.types.concat(st.calendar.map((c) => c.type).filter(Boolean))));
   const postsSeg = ['calendar', 'ready', 'rhythm', 'posted'].indexOf(segVal) >= 0;
@@ -5223,8 +5338,8 @@ function calendarView() {
     segVal === 'calendar' ? selectBox([{ value: 'list', label: 'Days' }, { value: 'week', label: 'Week' }], S.ui.calMode === 'week' ? 'week' : 'list', (v) => { S.ui.calMode = v; render(); }, { label: 'View' }) : null,
     selectBox([{ value: '', label: 'All platforms' }].concat(st.platforms.map((p) => ({ value: p, label: p }))), flt.platform, (v) => { flt.platform = v; render(); }, { label: 'Platform', on: !!flt.platform }),
     segVal === 'rhythm' ? null : selectBox([{ value: '', label: 'All types' }].concat(types.map((x) => ({ value: x, label: x }))), flt.type, (v) => { flt.type = v; render(); }, { label: 'Type', on: !!flt.type })) : null;
-  const body = { calendar: calendarList, ready: readyView, rhythm: rhythmView, posted: postedList, blog: () => finishedView('Blog'),
-    external: () => finishedView('External'), campaigns: () => finishedView('Campaign'), stories: storiesView }[segVal] || calendarList;
+  const body = { calendar: calendarList, ready: readyOnlyView, plan: planView, rhythm: rhythmView, blog: () => finishedView('Blog'), stories: storiesView,
+    posted: () => h('div', null, h('button', { type: 'button', class: 'btn ghost small', style: 'margin-bottom:10px', onclick: () => subGo({ calSeg: 'calendar' }) }, '‹ Back to the calendar'), postedList()) }[segVal] || calendarList;
   return h('div', null,
     h('div', { class: 'page-head' }, h('h1', null, 'Calendar'),
       admin && postsSeg ? h('button', { class: 'btn primary quick', onclick: () => calSheet(null) }, '+ Post') : null,
@@ -5232,7 +5347,74 @@ function calendarView() {
     segs.length > 1 ? h('div', { class: 'seg segscroll', 'data-scroll': 'calsegs' }, segs.map(([v, l, n]) => h('button', { type: 'button', class: v === segVal ? 'on' : '', onclick: () => { if (v !== segVal) go(v); } },
       l, n ? h('span', { class: 'n' }, String(n)) : null))) : null,
     filters,
+    body(),
+    !staff && segVal === 'calendar' ? h('button', { type: 'button', class: 'btn ghost block', style: 'margin-top:6px', onclick: () => subGo({ calSeg: 'posted' }) }, 'What was posted') : null);
+}
+
+/** Ready: the approved posts that only need their day (the same posts as Content → Posts → Approved without a day). */
+function readyOnlyView() {
+  const items = readyPosts().filter(calMatch).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  return h('div', null,
+    items.length ? h('div', { class: 'small muted', style: 'margin:0 2px 8px' }, 'Approved, no day yet. Open one and give it a day, or drag it onto a day in Calendar.') : null,
+    list(items.map((c) => postRow(c, {})), 'Nothing ready to post. Approved posts without a day wait here.'));
+}
+
+/**
+ * Content: what the work became. Posts (social media), Stories, Campaigns, Blog, External: each with what waits, what
+ * is ready, and what is done behind a small button. Nothing approved in its task is asked about twice: only a social
+ * post has its own OK (its captions).
+ */
+function contentView() {
+  const st = S.state;
+  const admin = isAdmin();
+  const fin = st.finished || [];
+  const waiting = (d) => fin.filter((w) => w.dest === d && !w.out).length;
+  const stories = st.stories || [];
+  const segs = [['posts', 'Posts', admin ? draftPosts().length : 0],
+    ['stories', 'Stories', admin ? stories.filter((x) => x.status === 'Sent').length : stories.filter((x) => x.mine && x.status === 'Edit').length],
+    ['campaigns', 'Campaigns', waiting('Campaign')], ['blog', 'Blog', waiting('Blog')], ['external', 'External', waiting('External')]];
+  const seg = segs.some((x) => x[0] === S.ui.contentSeg) ? S.ui.contentSeg : 'posts';
+  const body = { posts: postsBoardView, stories: storiesView, campaigns: () => finishedView('Campaign'), blog: () => finishedView('Blog'), external: () => finishedView('External') }[seg];
+  return h('div', null,
+    h('div', { class: 'page-head' }, h('h1', null, 'Content'),
+      admin && seg === 'posts' ? h('button', { class: 'btn primary quick', onclick: () => calSheet(null) }, '+ Post') : null,
+      seg === 'stories' && !admin ? h('button', { class: 'btn primary quick', onclick: () => addStorySheet() }, '+ Story') : null),
+    h('div', { class: 'seg segscroll', 'data-scroll': 'contentsegs' }, segs.map(([v, l, n]) => h('button', { type: 'button', class: v === seg ? 'on' : '', onclick: () => { if (v !== seg) subGo({ contentSeg: v, postsSeg: '' }); } },
+      l, n ? h('span', { class: 'n' }, String(n)) : null))),
     body());
+}
+
+/** Posts: the ones that need the OK (their captions) next to the approved ones; posted and deleted behind small buttons. */
+function postsBoardView() {
+  const st = S.state;
+  const flt = S.ui.calFilter;
+  const sub = S.ui.postsSeg === 'posted' || S.ui.postsSeg === 'deleted' ? S.ui.postsSeg : '';
+  const newest = (a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '');
+  const types = Array.from(new Set(st.types.concat(st.calendar.map((c) => c.type).filter(Boolean))));
+  const filters = h('div', { class: 'filters' },
+    selectBox([{ value: '', label: 'All platforms' }].concat(st.platforms.map((x) => ({ value: x, label: x }))), flt.platform, (v) => { flt.platform = v; render(); }, { label: 'Platform', on: !!flt.platform }),
+    selectBox([{ value: '', label: 'All types' }].concat(types.map((x) => ({ value: x, label: x }))), flt.type, (v) => { flt.type = v; render(); }, { label: 'Type', on: !!flt.type }));
+  const minor = (v, label) => h('button', { type: 'button', class: 'minor' + (sub === v ? ' on' : ''), onclick: () => subGo({ postsSeg: sub === v ? '' : v }) }, label);
+  const bar = h('div', { class: 'subtabs', role: 'group', 'aria-label': 'Posts' },
+    h('button', { type: 'button', class: 'chip' + (sub ? '' : ' on'), onclick: () => subGo({ postsSeg: '' }) }, 'Waiting and approved'),
+    h('span', { class: 'minors' }, minor('posted', 'Posted'), minor('deleted', 'Deleted')));
+  if (sub) {
+    const items = sub === 'posted' ? postedPosts().filter(calMatch).filter((c) => listMatch('posted', c.id + ' ' + c.idea))
+      : st.calendar.filter((c) => c.status === 'Cancelled' && socialPost(c) && calMatch(c) && listMatch('deleted', c.id + ' ' + c.idea)).sort(newest);
+    return h('div', null, filters, bar, listSearch(sub, sub === 'posted' ? 'Search posted posts…' : 'Search deleted posts…'),
+      h('div', { class: 'small muted', style: 'margin:0 2px 8px' }, 'Open one to see it all, or send it back to the team for a change.'),
+      list(items.map((c) => postRow(c, sub === 'posted' ? { postedAt: true } : {})), sub === 'posted' ? 'Nothing posted yet.' : 'No deleted posts.'));
+  }
+  const need = draftPosts().filter(calMatch).sort(newest);
+  // Approved and not out yet: with a day (on the calendar) or without one (these are also in Calendar → Ready).
+  const approved = st.calendar.filter((c) => c.status === 'Final' && livePost(c) && socialPost(c) && calMatch(c))
+    .sort((a, b) => (a.publishDate || '9999').localeCompare(b.publishDate || '9999') || newest(a, b));
+  return h('div', null, filters, bar, boardView('posts', [
+    { id: 'need', label: isAdmin() ? 'Needs approval' : 'Waiting for approval', short: 'Approve', c: 'var(--gold)', items: need.length ? [list(need.map((c) => postRow(c, { needs: true })))] : [], count: need.length,
+      empty: 'Nothing waiting. A post comes here when its work is approved: look at its captions, then Approve.' },
+    { id: 'approved', label: 'Approved', short: 'Approved', c: STAGE.done.c, items: approved.length ? [list(approved.map((c) => postRow(c, {})))] : [], count: approved.length,
+      empty: 'Nothing approved waiting to go out.' }
+  ], { start: 'need' }));
 }
 
 /** Ready: the approved posts that only need their day; small tabs inside for the rest of a post's way. */
@@ -5476,6 +5658,7 @@ function workPage(id, o) {
     w.files.length || w.cover ? [h('div', { class: 'psec' }, h('h2', null, 'Files'), w.files.length ? h('span', { class: 'n' }, String(w.files.length)) : null),
       h('div', { class: 'pcard', style: 'margin-top:0' }, w.files.length ? fileTiles(w.files, { id: w.id, video: isVideoKind(w) }) : null,
         w.cover ? h('div', { class: 'files' }, fileLink(w.cover, { id: w.id }, w.dest === 'Blog' ? 'Image' : 'Cover')) : null)] : null,
+    w.dest === 'Campaign' ? workTextBox(w, admin) : null,
     w.captions.length ? [h('div', { class: 'psec' }, h('h2', null, 'Caption')), w.captions.map((c) => h('div', { class: 'capbox' },
       h('div', { class: 'cap-k' }, h('span', null, 'Original · ' + c.by), h('button', { type: 'button', class: 'btn tiny', onclick: () => copyText(c.text) }, 'Copy')),
       h('div', { class: 'pre', dir: 'auto' }, c.text)))] : null,
@@ -5483,6 +5666,16 @@ function workPage(id, o) {
       icon: kindIcon(t.type, t.linkRole), title: rowTitle(taskParts(t).part || t.task), state: statusBadge(t), who: t.assignee || '', when: t.deadline ? fmtShort(t.deadline) : '' })))] : null,
     h('div', { class: 'pcard' }, commentsBox(w.id, { video: isVideoKind(w), title: false })));
   openSheet(w.id + ' · ' + destLabel(w.dest), body, null, { page: true, back: o.back || 'Back', replace: o.replace, rebuild: () => workPage(id, { replace: true, back: o.back }) });
+}
+/** A campaign's own text: a big box the admin writes in (the ad's copy, notes). Kept with it; no approval, nothing written by Auto. */
+function workTextBox(w, admin) {
+  const f = { text: w.text || '' };
+  if (!admin) return w.text ? [h('div', { class: 'psec' }, h('h2', null, 'Text')), h('div', { class: 'capbox' }, h('div', { class: 'pre', dir: 'auto' }, w.text))] : null;
+  const ta = area(f, 'text', { rows: 8, dir: 'auto', placeholder: 'Write the campaign\'s text here (the ad\'s copy, notes…).', 'data-nodirty': '1' });
+  const save = h('button', { type: 'button', class: 'btn primary small', style: 'margin-top:8px' }, 'Save the text');
+  save.onclick = () => run(save, 'work.text', { id: w.id, text: ta.value }, 'Text saved', { keepSheet: true });
+  return [h('div', { class: 'psec' }, h('h2', null, 'Text')), h('div', { class: 'pcard', style: 'margin-top:0' }, ta, save,
+    w.text ? h('button', { type: 'button', class: 'btn tiny', style: 'margin:8px 0 0 8px', onclick: () => copyText(ta.value) }, 'Copy') : null)];
 }
 /** Finished work back to the team: pick what goes back (the design, the image…) and say what to change. */
 function workReworkSheet(w, tasks) {
@@ -5581,6 +5774,120 @@ function addStorySheet(s) {
     s && s.status === 'Edit' && s.note ? h('div', { class: 'editnote' }, h('div', { class: 'en-t' }, '↩ ' + adminName() + ' asked for changes'), h('div', { dir: 'auto' }, s.note)) : null,
     field('The story', box, 'A video or images, in their order.')), [h('button', { class: 'btn', onclick: () => requestClose() }, 'Cancel'), send],
   { dirty: () => !s && f.files.length > 0 });
+}
+
+/* ----- Plan: the admin's own calendar of ideas that are ready to be made. The same days as the calendar; a day takes
+   cards. A card: a name, what kind of content and media it is, its text, a script (a video's), a storyboard and
+   reference links. Not an idea and not a task; "Make it a task" makes its task, and the card says so. ----- */
+function planView() {
+  const st = S.state;
+  const today = st.today;
+  const cards = st.plan || [];
+  const last = cards.map((x) => x.date).sort().pop() || today;
+  let ahead = 14 + 7 * (S.ui.planMore || 0);
+  while (addDays(today, ahead - 1) < last) ahead += 7;
+  const showPast = !!S.ui.planPast;
+  const days = [];
+  if (showPast) for (let i = -14; i < 0; i++) days.push(addDays(today, i));
+  for (let i = 0; i < ahead; i++) days.push(addDays(today, i));
+  const pastN = cards.filter((x) => x.date < today).length;
+  const row = (d) => {
+    const items = cards.filter((x) => x.date === d);
+    return h('section', { class: 'dayrow' + (items.length ? '' : ' empty') + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (isWorkday(d) ? '' : ' off'), 'data-plan-day': d },
+      h('div', { class: 'dr-head' }, h('span', { class: 'dr-day' }, dayLong(d)),
+        h('button', { type: 'button', class: 'dr-add', 'aria-label': 'Add a card on ' + dayLong(d), onclick: () => planSheet(null, d) }, '+ Add')),
+      items.length ? h('div', { class: 'dr-strip', style: 'min-height:0', 'data-scroll': 'plan:' + d }, items.map(planSquare)) : null);
+  };
+  return h('div', null,
+    h('div', { class: 'small muted', style: 'margin:0 2px 8px' }, 'Your plan: ideas ready to be made, a day each. Only you see it. Hold a card and drag it to another day.'),
+    h('button', { type: 'button', class: 'pastbtn' + (showPast ? ' hide' : ''), onclick: () => { S.ui.planPast = showPast ? 0 : 1; render(); } },
+      showPast ? 'Hide the last two weeks' : '‹ The last two weeks', !showPast && pastN ? h('span', { class: 'n' }, String(pastN)) : null),
+    h('div', { class: 'days' }, days.map(row)),
+    h('button', { class: 'btn ghost block', style: 'margin-top:6px', onclick: () => { S.ui.planMore = (S.ui.planMore || 0) + 1; render(); } }, 'More · one more week'));
+}
+function planSquare(p) {
+  const sq = h('div', { class: 'psq plan' + (p.taskId ? ' made' : ''), role: 'button', tabindex: 0, 'data-key': p.key,
+    onclick: (e) => { if (!selecting(e)) planSheet(p); }, onkeydown: (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) planSheet(p); } },
+    h('div', { class: 'psq-top' }, h('span', { class: 'kind', 'aria-hidden': 'true' }, icon(kindIcon(p.kind || 'Design'))), h('span', { class: 'm-id' }, [p.kind, p.contentType].filter(Boolean).join(' · ') || 'Card')),
+    h('div', { class: 'psq-t', dir: 'auto' }, p.name),
+    p.text ? h('div', { class: 'psq-x', dir: 'auto' }, firstLine(p.text)) : null,
+    h('div', { class: 'psq-tags' }, p.taskId ? h('span', { class: 'st green' }, '✓ Task ' + p.taskId) : null));
+  let target = null;
+  const mark = (rowEl) => { if (target === rowEl) return; if (target) target.classList.remove('dropon'); target = rowEl; if (rowEl) rowEl.classList.add('dropon'); };
+  draggable(sq, {
+    onStart: (d) => dragGhost(d),
+    onMove: (d) => {
+      moveGhost(d);
+      const el = document.elementFromPoint(d.x, d.y);
+      const rowEl = el && el.closest('.dayrow[data-plan-day]');
+      mark(rowEl && rowEl.dataset.planDay !== p.date ? rowEl : null);
+    },
+    onEnd: (d, x, y, dropped) => {
+      if (d.ghost) d.ghost.remove();
+      const day = target && target.dataset.planDay;
+      mark(null);
+      if (dropped && day) instant((st) => { const k = (st.plan || []).find((q) => q.key === p.key); if (k) k.date = day; }, 'plan.move', { key: p.key, date: day }, p.name + ' → ' + dayShort(day), null, { keepSheet: true });
+    }
+  });
+  return sq;
+}
+/** A plan card, to write or change. day: a new card on that day. */
+function planSheet(p, day) {
+  const f = p ? { date: p.date, name: p.name, contentType: p.contentType, kind: p.kind, text: p.text, script: p.script, storyboard: p.storyboard.slice(), reference: p.reference }
+    : { date: day, name: '', contentType: '', kind: '', text: '', script: '', storyboard: [], reference: '' };
+  const orig = JSON.stringify(f);
+  const types = S.state.contentTypes || [];
+  const script = h('details', { class: 'more' }, h('summary', null, 'Script', h('span', { class: 'small muted' }, ' · a video\'s')),
+    area(f, 'script', { rows: 7, dir: 'auto', placeholder: 'The script: scene by scene, what is said.' }));
+  script.open = f.kind === 'Video' || !!f.script;
+  const kindBox = h('div', { class: 'chips' });
+  const drawKind = () => fill(kindBox, kindsList().map((k) => h('button', { type: 'button', class: 'chip' + (f.kind === k ? ' on' : ''), 'aria-pressed': f.kind === k ? 'true' : 'false',
+    onclick: () => { f.kind = f.kind === k ? '' : k; drawKind(); script.open = f.kind === 'Video' || !!f.script; } }, k)));
+  drawKind();
+  const filesBox = h('div');
+  const drawFiles = () => fill(filesBox, filesEditor(f.storyboard, { id: 'Plan', label: f.name || 'storyboard' }, (links) => { f.storyboard = links; drawFiles(); }));
+  drawFiles();
+  const valid = () => {
+    if (!f.name.trim()) { toast('Give the card a name.', true); return false; }
+    if (f.name.trim().length > NAME_MAX) { toast('Keep the name to ' + NAME_MAX + ' characters. The rest goes in the text.', true); return false; }
+    if (!f.date) { toast('Pick its day.', true); return false; }
+    return true;
+  };
+  const payload = () => Object.assign(p ? { key: p.key } : {}, f, { name: f.name.trim() });
+  const save = h('button', { type: 'button', class: 'btn primary' }, 'Save');
+  save.onclick = () => { if (valid()) run(save, 'plan.save', payload(), p ? 'Saved' : 'On the plan · ' + dayShort(f.date)); };
+  const del = p ? h('button', { type: 'button', class: 'btn trash', 'aria-label': 'Delete this card', title: 'Delete', onclick: () => ask('Delete the card "' + p.name + '"?', 'Delete', true).then((ok) => { if (ok) run(null, 'plan.delete', { key: p.key }, 'Card deleted'); }) }, icon('trash')) : null;
+  // Its task: made from the card as it is now (saved first), on the card's day when that is still ahead.
+  const madeTask = p && p.taskId ? S.state.tasks.find((t) => t.id === p.taskId && !t.cancelled) : null;
+  const toTask = p ? (p.taskId
+    ? h('button', { type: 'button', class: 'btn block', style: 'margin-top:4px', onclick: () => (madeTask ? taskPage(madeTask.key, { back: 'Plan' }) : toast('Its task ' + p.taskId + ' isn\'t open any more.')) }, 'Open its task · ' + p.taskId)
+    : h('button', { type: 'button', class: 'btn good block', style: 'margin-top:4px' }, 'Make it a task')) : null;
+  if (toTask && !p.taskId) {
+    toTask.onclick = async () => {
+      if (!valid()) return;
+      if (JSON.stringify(f) !== orig && !(await run(toTask, 'plan.save', payload(), null, { keepSheet: true }))) return;
+      closeSheet(false, { noRebuild: true });
+      quickTaskSheet({
+        postDate: f.date >= S.state.today ? f.date : '',
+        prefill: { task: f.name.trim(), kind: f.kind, contentType: f.contentType,
+          brief: [f.text.trim(), f.script.trim() ? 'Script:\n' + f.script.trim() : ''].filter(Boolean).join('\n\n'),
+          reference: [f.reference.trim()].concat(f.storyboard).filter(Boolean).join('\n') },
+        onMade: (id) => { call('plan.save', { key: p.key, taskId: id }).then((d) => { if (d && d.state) { applyState(d.state); render(); } }).catch(() => {}); }
+      });
+    };
+  }
+  openSheet(p ? 'Plan · ' + dayShort(p.date) : 'New card · ' + dayShort(day), h('div', null,
+    field(h('span', null, 'Name', h('i', null, 'short')), nameInput(f, 'name', { placeholder: 'e.g. 3 reasons to buy on Saadiyat' })),
+    h('div', { class: 'two' },
+      field('Day', dateField(f.date, (v) => { f.date = v; }, { anyDay: true, label: 'Day' })),
+      types.length ? field('Content type', selectBox([{ value: '', label: 'Not set' }].concat(types.map((x) => ({ value: x, label: x }))), f.contentType || '', (v) => { f.contentType = v; }, { full: true })) : h('div')),
+    field('Media', kindBox),
+    field('Text', area(f, 'text', { rows: 5, dir: 'auto', placeholder: 'What it says: the idea, the text on it, the angle.' })),
+    script,
+    field(h('span', null, 'Storyboard', h('i', null, 'optional')), filesBox, 'Images of the scenes or the layout.'),
+    field('Reference', area(f, 'reference', { rows: 2, dir: 'ltr', placeholder: 'Links to similar work' })),
+    toTask),
+  [h('button', { type: 'button', class: 'btn', onclick: () => requestClose() }, 'Cancel'), save, del], { dirty: () => JSON.stringify(f) !== orig });
 }
 
 /* ----- Rhythm: are we posting as often as planned? Days × platforms. ----- */
@@ -6052,6 +6359,12 @@ function calSheet(key, ideaId, o) {
       field('Status', selectBox([{ value: 'Draft', label: 'Draft · needs approval' }, { value: 'Final', label: 'Approved' }, { value: 'Published', label: 'Posted' }, { value: 'Cancelled', label: 'Deleted' }],
         f.status, (v) => { f.status = v; }, { full: true }))),
     field('Platforms', platformsBox),
+    c && (S.state.contentTypes || []).length ? field('Content type', (() => {
+      const box = selectBox([{ value: '', label: 'Not set' }].concat(S.state.contentTypes.map((x) => ({ value: x, label: x }))), c.contentType || '',
+        (v) => run(null, 'idea.save', { id: c.id, contentType: v }, v ? 'Content type: ' + v : 'Content type cleared', { keepSheet: true }), { full: true });
+      box.querySelector('select').setAttribute('data-nodirty', '1');
+      return box;
+    })()) : null,
     captionsBox(c, f),
     helpers,
     h('details', { class: 'more', open: filled ? true : null }, h('summary', null, 'Post links'), linksBox),
@@ -6063,12 +6376,12 @@ function calSheet(key, ideaId, o) {
     }
     const edits = f.capEdits && Object.keys(f.capEdits).length ? f.capEdits : null;
     // Where it went, in its words.
-    const went = c && postInWork(c) ? 'Saved' : f.status === 'Draft' ? 'Saved · it\'s in Ready → Needs approval'
+    const went = c && postInWork(c) ? 'Saved' : f.status === 'Draft' ? 'Saved · it\'s in Content → Posts, waiting for the OK'
       : f.status !== 'Final' ? 'Saved' : !f.publishDate ? 'Saved · it\'s in Ready'
       : f.publishDate < S.state.today ? 'Saved · its day passed: Calendar → Past week' : 'Saved · on the calendar ' + dayShort(f.publishDate);
     run(btn, 'cal.save', Object.assign({}, f, { capEdits: undefined, captions: edits || undefined }), went);
   };
-  const del = c && c.status !== 'Cancelled' ? () => ask('Delete ' + c.id + ' "' + firstLine(c.idea || '').slice(0, 40) + '"? It goes to Ready → Deleted (you can bring it back).', 'Delete', true).then((ok) => { if (ok) calMove(c, 'cancel'); }) : null;
+  const del = c && c.status !== 'Cancelled' ? () => ask('Delete ' + c.id + ' "' + firstLine(c.idea || '').slice(0, 40) + '"? It goes to Content → Posts → Deleted (you can bring it back).', 'Delete', true).then((ok) => { if (ok) calMove(c, 'cancel'); }) : null;
   openSheet(c ? c.id + ' · Post' : 'New post', body, editFoot(onSave, del, { deleteLabel: 'Delete post', dirty: !c }),
     c ? { page: true, back: o.back || 'Back', replace: o.replace, rebuild: () => calSheet(key, null, { replace: true, back: o.back }), reopen: { k: 'post', key } } : {});
   if (!c && f.id) usual(); // opened from an idea: its type's platforms (once open, so its caption boxes follow)
@@ -6551,6 +6864,9 @@ function appSettingsView() {
   return h('div', null,
     h('div', { class: 'list', style: 'margin-top:4px' }, lrow({ onclick: activitySheet, left: h('span', { class: 'pfbox' }, icon('clock')), title: 'Activity', sub: 'Who did what, newest first', end: [icon('next')] })),
     h('div', { class: 'section' }, h('h2', null, 'Idea types')), h('div', { class: 'card' }, listEditor('types', set.types, 'Type')),
+    h('div', { class: 'section' }, h('h2', null, 'Content types')), h('div', { class: 'card' },
+      h('div', { class: 'small muted', style: 'margin-bottom:8px' }, 'What a social post is: educational, entertaining, engagement… Picked on a new task, a plan card and a post.'),
+      listEditor('contentTypes', st.contentTypes || [], 'Content type')),
     h('div', { class: 'section' }, h('h2', null, 'Work hours')), h('div', { class: 'card' }, hoursBox),
     h('div', { class: 'section' }, h('h2', null, 'App name')), h('div', { class: 'card' }, input(app, 'appName'),
       h('button', { class: 'btn primary small', style: 'margin-top:10px', onclick: (e) => run(e.currentTarget, 'settings.save', { appName: app.appName }, 'Saved') }, 'Save')));
