@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-e59bd77946a2';</script>
+<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-87a787674fa7';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4303,7 +4303,10 @@ async function downloadOne(fid, btn) {
     if (size && got !== size) throw new Error('The file came incomplete');
     const name = String(meta.name || 'file').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'file';
     const file = new File(parts, name, { type: meta.mimeType || 'application/octet-stream' });
-    if (matchMedia('(pointer: coarse)').matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+    // An iPhone or iPad saves through its share sheet ("Save Video", "Save to Files"). Everything else, Android too,
+    // downloads straight to its Downloads: Android's share sheet only sends to other apps, it has no "save".
+    const apple = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (apple && navigator.canShare && navigator.canShare({ files: [file] })) {
       // Sharing needs a fresh tap: one more button, now that the file is here.
       const save = h('button', { type: 'button', class: 'btn primary block' }, 'Save the file');
       save.onclick = () => navigator.share({ files: [file] }).then(() => closeSheet(true), () => {});
