@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-8d4de422f2ef';</script>
+<script>window.KATAL_PWA = false; window.KATAL_CONFIG = { fn: 'api-test', schema: 'test', test: true, storageKey: 'katal-test-auth' }; window.KATAL_VERSION = 'test-e59bd77946a2';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2279,6 +2279,7 @@ function tasksView(opts) {
     searching ? h('input', { class: 'in', type: 'search', enterkeyhint: 'search', placeholder: 'Search tasks, people, IDs…', value: S.ui.q || '', dir: 'auto', style: 'margin:-2px 0 10px',
       oninput: (e) => { S.ui.q = e.target.value; clearTimeout(S.searchT); S.searchT = setTimeout(() => { render(); focusSearch(); }, 250); } }) : null,
     dayFilterRow(),
+    filterNote(st.tasks.filter((t) => !t.cancelled && stageOf(t) !== 'done').length, all.filter((t) => stageOf(t) !== 'done').length, days, person, q),
     h('div', { class: 'faces', 'data-scroll': 'faces' },
       people.length > 1 ? [h('button', { type: 'button', class: 'face all' + (person ? '' : ' on'), onclick: () => { S.ui.person = ''; render(); } }, 'Everyone'),
         people.map((u) => h('button', { type: 'button', class: 'face' + (person === u.id ? ' on' : ''), onclick: () => { S.ui.person = person === u.id ? '' : u.id; render(); } },
@@ -2297,6 +2298,15 @@ function dayRange(v) {
   if (v === 'tomorrow') return { from: addDays(today, 1), to: addDays(today, 1) };
   const m = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(v || '');
   return m ? { from: m[1], to: m[2] } : null;
+}
+/** Says, right above the board, that it shows only part of the tasks, and puts everything back with one tap. */
+function filterNote(total, shown, days, person, q) {
+  if (!days && !person && !q) return null;
+  const what = [days ? (days.from === days.to ? 'due ' + fmtShort(days.from) : 'due ' + fmtShort(days.from) + ' – ' + fmtShort(days.to)) : null,
+    person ? (S.state.names || {})[person] || 'one person' : null, q ? '"' + q + '"' : null].filter(Boolean).join(' · ');
+  return h('div', { class: 'note', role: 'status', style: 'display:flex;align-items:center;gap:10px;margin:0 0 10px' },
+    h('span', { class: 'grow' }, h('b', null, 'Filter on: '), what + '. Showing ' + shown + ' of ' + total + ' open tasks.'),
+    h('button', { type: 'button', class: 'btn small', onclick: () => { Object.assign(S.ui, { dayFilter: '', q: '', person: '', search: '' }); render(); } }, 'Show all'));
 }
 function dayFilterRow() {
   const v = S.ui.dayFilter || '';
@@ -2623,7 +2633,7 @@ function previewSheet(url, ctx) {
       files ? h('div', { class: 'gal-dots', 'aria-label': (at + 1) + ' of ' + files.length }, files.map((_, i) => h('i', { class: i === at ? 'on' : '' }))) : null,
       h('div', { class: 'files', style: 'margin-bottom:6px' },
         files ? h('span', { class: 'small muted', style: 'margin-right:auto' }, (at + 1) + ' / ' + files.length) : null,
-        h('button', { type: 'button', class: 'fchip', onclick: (e) => downloadOne(fid, e.currentTarget) }, 'Download'),
+        h('button', { type: 'button', class: 'fchip', onclick: (e) => (video ? downloadVideo(fid, e.currentTarget) : downloadOne(fid, e.currentTarget)) }, 'Download'),
         h('a', { class: 'fchip', href: cur, target: '_blank', rel: 'noopener noreferrer' }, 'Open in Drive ↗')),
       id ? commentsBox(id, { title: false, video, file: cur, pin: video ? null : pin, onDraw: drawPins }) : null);
     drawPins();
@@ -3073,6 +3083,18 @@ window.addEventListener('beforeunload', (e) => {
   if (S.screen === 'app' && (S.sheets || []).some(sheetDirty)) { saveUi(); e.preventDefault(); e.returnValue = ''; }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden && S.screen === 'app') { keepScrolls(); saveUi(); } });
+/*
+ * The installed app stays open in the background for days, so a filter picked once (a day, a person, a search) would
+ * still be on the next morning, with a board that looks empty. Coming back after a while starts from everything.
+ */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { S.hiddenAt = Date.now(); return; }
+  if (S.screen !== 'app' || !S.hiddenAt || Date.now() - S.hiddenAt < 20 * 60 * 1000) return;
+  if (S.ui.dayFilter || S.ui.q || S.ui.person || S.ui.ideaQ || S.ui.ideaBy) {
+    Object.assign(S.ui, { dayFilter: '', q: '', person: '', ideaQ: '', ideaBy: '', search: '' });
+    if (!S.sheetOpen && !isTyping()) render();
+  }
+});
 try { history.scrollRestoration = 'manual'; } catch (e) { /* old browsers */ }
 
 /*
@@ -4297,6 +4319,23 @@ async function downloadOne(fid, btn) {
     btn.disabled = false;
     btn.textContent = label;
   }
+}
+/**
+ * A video: the original (as it was uploaded: full quality, but some players and WhatsApp on a computer refuse some
+ * formats), or its lighter copy when one was made (720p H.264: plays almost everywhere).
+ */
+async function downloadVideo(fid, btn) {
+  if (btn.disabled) return;
+  let light = null;
+  btn.disabled = true;
+  try { light = await lightCopyOf(fid, (await mediaToken()).token); } catch (e) { light = null; }
+  btn.disabled = false;
+  if (!light) { downloadOne(fid, btn); return; }
+  const mb = (n) => (n / 1e6 < 10 ? (n / 1e6).toFixed(1) : Math.round(n / 1e6)) + ' MB';
+  menuSheet('Download the video', [
+    { label: 'The original · full quality', icon: 'download', onclick: () => downloadOne(fid, btn) },
+    { label: 'A lighter copy · ' + mb(light.size) + ' · plays almost everywhere (WhatsApp, any player)', icon: 'download', onclick: () => downloadOne(light.id, btn) }
+  ]);
 }
 function downloadAllButton(files, name) {
   const btn = h('button', { type: 'button', class: 'fchip dl' }, icon('download'), 'Download all');
