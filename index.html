@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KATAL">
 <meta name="format-detection" content="telephone=no">
-<script>window.KATAL_PWA = true; window.KATAL_VERSION = 'af4e2f681a94';</script>
+<script>window.KATAL_PWA = true; window.KATAL_VERSION = '4d78b55037df';</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -698,7 +698,6 @@ button.cmt-tag { cursor: pointer; }
 .tc-top .sp { flex: 1; }
 .tc-ct { display: flex; margin: 1px 0 3px; }
 .cttag { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; line-height: 1; padding: 3px 7px; border-radius: 999px; background: var(--purple-bg); color: var(--purple); }
-.cttag.none { background: var(--gray-bg); color: var(--faint); font-weight: 500; }
 .psq-tags .cttag, .ptags .cttag { align-self: flex-start; max-width: 100%; }
 .ptags .cttag { font-size: 12.5px; padding: 6px 10px; border-radius: 8px; }
 .urgent-tag { font-size: 10.5px; font-weight: 750; letter-spacing: .08em; color: var(--pr-high); flex: none; }
@@ -1020,6 +1019,8 @@ body.dragging-now, body.dragging-now * { cursor: grabbing !important; user-selec
 .sc-code { font-size: 11.5px; color: var(--muted); }
 .sc-note { font-size: 12.5px; color: var(--red); background: var(--red-bg); border-radius: 8px; padding: 5px 7px; }
 .sc-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.sc-check { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; }
+div.sc-check { cursor: default; }
 .sc-acts .btn { flex: 1 0 auto; }
 @media (min-width: 900px) { .psq { width: 170px; } }
 </style>
@@ -2019,7 +2020,7 @@ function kindsList() { return (S.state.types || []).filter((x) => x !== 'Blog' &
 /*
  * Content types (educational, entertaining…: the list is in More → App) are for posts only: social media work that is
  * a video or a design. Not a story, a blog, a campaign or external work. Besides the list there is always "Other";
- * nothing picked is "No category". Shown on the card from the task to the post, and changed at any point.
+ * nothing picked is "No category". Once picked it shows on the card from the task to the post; changed at any point.
  */
 const CT_OTHER = 'Other';
 function takesCt(x) { return !!x && !x.personal && !!x.type && destOf(x) === 'Social'; }
@@ -2029,7 +2030,8 @@ function ctOptions(cur) {
   return list.map((x) => ({ value: x, label: x })).concat([{ value: CT_OTHER, label: 'Other' }, { value: '', label: 'No category' }]);
 }
 /** The small tag on a card. Nothing for work that isn't a post. */
-function ctTag(x) { return takesCt(x) ? h('span', { class: 'cttag' + (x.contentType ? '' : ' none') }, x.contentType || 'No category') : null; }
+/** Only once a type is picked: "No category" on every card was noise (the picker on the page still says it). */
+function ctTag(x) { return takesCt(x) && x.contentType ? h('span', { class: 'cttag' }, x.contentType) : null; }
 /** Whether this person may change a piece of work's content type: the admin any, a manager what they made, an employee their own work. */
 function ctCan(x) { return isAdmin() || (isManager() ? !!x.canEdit || x.createdBy === S.me.id : !!(S.state.tasks || []).some((t) => t.id === x.id)); }
 /** The picker that saves at once (a task's page, a post's page). */
@@ -2192,7 +2194,7 @@ function taskCard(t, o) {
       // New comments sit right after the name, in the room it leaves on its line, so nothing else moves.
       h('div', { class: 'tc-name' }, h('div', { class: 'tc-title', dir: 'auto' }, p.main), commentMark(t.id)),
       // A post's content type has a line of its own, so nothing on the card is squeezed.
-      takesCt(t) ? h('div', { class: 'tc-ct' }, ctTag(t)) : null,
+      ctTag(t) ? h('div', { class: 'tc-ct' }, ctTag(t)) : null,
       h('div', { class: 'tc-foot' },
         o.who === false ? null : personTag(t.assignee || ''),
         w && !o.state ? h('span', { class: 'tc-due' }, w.label) : st === 'done' ? h('span', { class: 'tc-due' }, '✓ ' + (t.deadline ? dayShort(t.deadline) : 'Done')) : dueText(t))));
@@ -3075,10 +3077,10 @@ function checkBadge(t) {
   const r = t.checkResult;
   return r.spelling && r.licenses !== false ? null : h('span', { class: 'badge b-orange' }, '✗ Check');
 }
-function checkNote(t) {
+function checkNote(t, entity) {
   if (!t.checkStatus) return null;
   const again = isAdmin() ? h('button', { type: 'button', class: 'btn tiny', style: 'margin-top:8px',
-    onclick: (e) => run(e.currentTarget, 'agent.ask', { entity: 'task', key: t.key }, 'Checking again', { keepSheet: true }) }, 'Check again') : null;
+    onclick: (e) => run(e.currentTarget, 'agent.ask', { entity: entity || 'task', key: t.key }, 'Checking again', { keepSheet: true }) }, 'Check again') : null;
   if (t.checkStatus === 'Waiting') return h('div', { class: 'note' }, h('span', { class: 'muted' }, 'Checking the design…'));
   const r = t.checkResult || {};
   if (t.checkStatus === 'Error' || !r.files) {
@@ -3098,6 +3100,16 @@ function checkNote(t) {
   });
   const fine = r.spelling && r.licenses !== false;
   return h('div', { class: 'note ' + (fine ? 'green' : 'orange') }, h('div', { class: 't row' }, 'Design check', checkMarks(r)), lines, again);
+}
+
+/** A story's design check on its card: two small marks; a tap shows what was found (and Check again). */
+function storyCheck(s) {
+  if (!s.checkStatus || s.status === 'Posted') return null;
+  if (s.checkStatus === 'Waiting') return h('div', { class: 'sc-check small muted' }, 'Checking the design…');
+  const r = s.checkResult || {};
+  const marks = s.checkStatus === 'Done' && r.files ? checkMarks(r) : [h('span', { class: 'badge b-orange' }, 'Couldn\'t check it')];
+  const open = () => openSheet(s.code + ' · Design check', liveBox(() => checkNote((S.state.stories || []).find((x) => x.key === s.key) || s, 'story')));
+  return h('button', { type: 'button', class: 'sc-check', 'aria-label': 'Design check of ' + s.code, onclick: (e) => { e.stopPropagation(); open(); } }, marks);
 }
 
 /* ======================================================================
@@ -4431,7 +4443,8 @@ function downloadAllButton(files, name) {
 }
 /**
  * Every file of a carousel in one zip, on a phone and on a computer alike (no share window): the files exactly as they
- * are on Drive, under their own names, in the carousel's order. Two files with the same name: the later one gets " (2)".
+ * are on Drive, each name with its place in front ("01 ", "02 "…), so the order stays right once unzipped (and two files
+ * with the same name never clash).
  */
 async function downloadAll(files, name, btn) {
   const drive = (files || []).filter((u) => driveIdOf(u));
@@ -4439,7 +4452,7 @@ async function downloadAll(files, name, btn) {
   if (btn.disabled) return;
   btn.disabled = true;
   const got = [];
-  const used = {};
+  const width = Math.max(2, String(drive.length).length);
   try {
     const tok = (await mediaToken()).token;
     for (let i = 0; i < drive.length; i++) {
@@ -4450,11 +4463,8 @@ async function downloadAll(files, name, btn) {
       if (!r.ok) throw new Error('Couldn\'t get file ' + (i + 1) + ' from Drive (' + r.status + ').');
       const data = new Uint8Array(await r.arrayBuffer());
       if (Number(meta.size) && data.length !== Number(meta.size)) throw new Error('File ' + (i + 1) + ' came incomplete. Try again.');
-      let nm = String(meta.name || 'file ' + (i + 1)).replace(/[\\/]+/g, ' ');
-      const key = nm.toLowerCase();
-      used[key] = (used[key] || 0) + 1;
-      if (used[key] > 1) { const dot = nm.lastIndexOf('.'); nm = dot > 0 ? nm.slice(0, dot) + ' (' + used[key] + ')' + nm.slice(dot) : nm + ' (' + used[key] + ')'; }
-      got.push({ name: nm, data });
+      const nm = String(meta.name || 'file').replace(/[\\/]+/g, ' ');
+      got.push({ name: String(i + 1).padStart(width, '0') + ' ' + nm, data });
     }
     saveBlob(zipStore(got), (name || 'files') + '.zip');
     toast('Downloaded · ' + (name || 'files') + '.zip · ' + got.length + ' files');
@@ -4728,9 +4738,10 @@ function ideaCard(i) {
   return h('div', { class: 'tcard', role: 'button', tabindex: 0, 'data-id': i.id, onclick: (e) => { if (!selecting(e)) go(); }, onkeydown: (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) go(); } },
     h('div', { class: 'tc-main', style: 'padding-left:14px' },
       h('div', { class: 'tc-top' }, h('span', { class: 'k' }, icon(isPost ? kindIcon(i.type) : 'ideas'), dots(isPost ? 'Post' : null, destOf(i) === 'Social' ? i.type : destLabel(destOf(i)))),
-        h('span', { class: 'sp' }), i.execution !== 'Later' ? h('span', { class: 'st ' + (i.execution === 'Approved' ? 'green' : 'faint') }, IDEA_STAGE[ideaStage(i)].label) : null),
+        h('span', { class: 'sp' }), i.execution !== 'Later' ? h('span', { class: 'st ' + (i.execution === 'Approved' ? 'green' : 'faint') }, IDEA_STAGE[ideaStage(i)].label) : null,
+        pt ? checkBadge(pt) : null),
       h('div', { class: 'tc-name' }, h('div', { class: 'tc-title', dir: 'auto' }, firstLine(i.idea)), commentMark(i.id)),
-      isPost && takesCt(i) ? h('div', { class: 'tc-ct' }, ctTag(i)) : null,
+      isPost && ctTag(i) ? h('div', { class: 'tc-ct' }, ctTag(i)) : null,
       h('div', { class: 'tc-foot' },
         tasks.length && !isPost ? h('span', { class: 'parts' }, tasks.map((t) => { const k = stageOf(t); return h('span', { class: 'part', title: (t.assignee || '') + ' · ' + t.task + ' · ' + stageLabel(k), style: '--sc:' + STAGE[k].c + ';--sbg:' + STAGE[k].bg }, (t.assignee || '?').charAt(0)); }),
           tasks.length === 1 ? h('span', { class: 'pname' }, tasks[0].assignee || '') : null)
@@ -4945,7 +4956,8 @@ function ideaPage(id, o) {
       h('div', null, h('div', { class: 'fl' }, 'Destination'), h('div', { class: 'fv' }, dots(destLabel(dest), dest === 'Social' || dest === 'External' ? i.type : null, i.variant || null))),
       h('div', null, h('div', { class: 'fl' }, 'Post day'), h('div', { class: 'fv' }, plan)),
       h('div', null, h('div', { class: 'fl' }, 'Code'), h('div', { class: 'fv' }, i.id))),
-    postBox ? [h('div', { class: 'psec' }, h('h2', null, 'The post')), postBox] : null,
+    // The design check (spelling, license numbers) of the files sent, right above them; it follows changes live.
+    postBox ? [h('div', { class: 'psec' }, h('h2', null, 'The post')), liveBox(() => checkNote(postTask(i) || pt)), postBox] : null,
     approved && isStaff() ? [h('div', { class: 'psec' }, h('h2', null, 'The road'),
       admin ? h('button', { class: 'btn ghost tiny', onclick: () => createTasksSheet(i, S.state.tasks.some((t) => t.id === i.id && !t.cancelled) ? [blankRow(i)] : null) }, '+ Task') : null), ideaRoad(i)] : null,
     body ? [h('div', { class: 'psec' }, h('h2', null, 'About it')), h('div', { class: 'pcard', style: 'margin-top:0' }, body)] : null,
@@ -5834,6 +5846,7 @@ function storyCard(s) {
       s.files.length > 1 ? h('span', { class: 'sc-n' }, String(s.files.length)) : null),
     h('div', { class: 'sc-row' }, h('span', { class: 'st ' + sign[1] }, sign[0]), h('span', { class: 'sc-code' }, s.code + (admin || !s.mine ? ' · ' + s.by : ''))),
     s.status === 'Edit' && s.note ? h('div', { class: 'sc-note', dir: 'auto' }, '↩ ' + s.note) : null,
+    storyCheck(s),
     acts.length ? h('div', { class: 'sc-acts' }, acts) : null);
 }
 /** Orwah sends a story back: one line on what to change. */
@@ -6305,6 +6318,13 @@ function captionsBox(c, f) {
 }
 
 /** Admin: a post. Opens straight from any list; what happened to it (went out, didn't) is answered at the top. */
+/** A post that went out, used again: a copy as a campaign or a story. The post stays as it is. */
+function copyPostAs(btn, c, as) {
+  const where = as === 'Story' ? 'Stories, approved' : 'Content → Campaigns, approved';
+  ask('Make a copy of ' + c.id + ' "' + firstLine(c.idea || c.id) + '" as a ' + as.toLowerCase() + '? The copy goes to ' + where + ', with the same files. The post stays as it is.', 'Make the copy').then((ok) => {
+    if (ok) run(btn, 'cal.copyAs', { key: c.key, make: as }, (d) => as === 'Story' ? 'Copied · ' + d.code + ' in Stories' : 'Copied · ' + d.id + ' in Content → Campaigns', { keepSheet: true });
+  });
+}
 function calSheet(key, ideaId, o) {
   o = o || {};
   const c = key ? S.state.calendar.find((x) => x.key === key) : null;
@@ -6404,7 +6424,11 @@ function calSheet(key, ideaId, o) {
         h('button', { class: 'btn good small', onclick: () => calMove(c, 'published') }, '✓ Posted'),
         h('button', { class: 'btn small', onclick: () => calMove(c, 'ready') }, '↩ Back to Ready')))
     : c.status === 'Published' ? h('div', { class: 'note green' }, h('div', { class: 't' }, '✓ Posted' + (c.publishedAt ? ' · ' + fmtDT(c.publishedAt) : '')),
-      h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap' }, h('button', { class: 'btn tiny', onclick: () => calMove(c, 'unpublish') }, '↩ It didn\'t go out'), backToTasks(c)))
+      h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap' }, h('button', { class: 'btn tiny', onclick: () => calMove(c, 'unpublish') }, '↩ It didn\'t go out'), backToTasks(c)),
+      // It stays a post; a copy of it can be a campaign or a story (approved, with the same files).
+      h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap' },
+        h('button', { class: 'btn tiny', onclick: (e) => copyPostAs(e.currentTarget, c, 'Campaign') }, '⧉ Copy as a campaign'),
+        h('button', { class: 'btn tiny', onclick: (e) => copyPostAs(e.currentTarget, c, 'Story') }, '⧉ Copy as a story')))
     : c.status === 'Cancelled' ? h('div', { class: 'note' }, h('div', { class: 't' }, 'Deleted'),
       h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap' }, h('button', { class: 'btn tiny', onclick: () => calMove(c, 'ready') }, '↩ Back to Ready'), backToTasks(c)))
     : null;
